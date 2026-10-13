@@ -75,7 +75,9 @@ const plan: fc.Arbitrary<Plan> = fc
     actions,
   }));
 
-describe('verdict properties', () => {
+// Each property runs dozens of full three-run checks: about 3 s alone, several times that on a
+// loaded machine or a CI runner, so the 5 s default would time out.
+describe('verdict properties', { timeout: 60_000 }, () => {
   test('the same plan always gets the same result', () => {
     fc.assert(
       fc.property(plan, (p) => {
