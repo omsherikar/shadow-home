@@ -5,6 +5,7 @@ diff → simulate on a digital twin → house rules → SAFE / UNSAFE / UNPROVEN
 Built for the Amazon Developer Hackathon, Alexa+ track. Deadline: Oct 23, 2026, 12:00 PM PDT.
 
 Full plan: docs/plan.md. Read only the section you need for today's task, not the whole file.
+Calls already made (and open questions): docs/decisions.md. Read it before changing engine behaviour.
 Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 ## Non-negotiables
