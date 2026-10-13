@@ -19,7 +19,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "bench": "npm run bench --workspace bench --if-present",
-    "inspect": "npx @modelcontextprotocol/inspector@2.10.1"
+    "inspect": "npx @modelcontextprotocol/inspector@2.10.1",
+    "bedrock:ping": "scripts/bedrock-ping.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
