@@ -7,7 +7,13 @@ export const isoDateTime = z.iso.datetime({ offset: true });
 const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'expected HH:MM');
 const id = z.string().min(1);
 
-export const valueSchema = z.union([z.boolean(), z.number(), z.string()]);
+// Each branch is described so JSON Schema keeps them as anyOf branches; a bare union becomes a
+// `type` array, which some tool-calling clients can't read.
+export const valueSchema = z.union([
+  z.boolean().describe('On/off and other flags'),
+  z.number().describe("A number in the capability's unit"),
+  z.string().describe('An enum value, such as "LOCKED" or "heat"'),
+]);
 export type Value = z.infer<typeof valueSchema>;
 
 // ---- Conditions (shared by rules, routines and plans) ----
@@ -137,51 +143,63 @@ export type Routine = z.infer<typeof routineSchema>;
 export const RULE_PRIORITIES = ['life-safety', 'security', 'device-protection', 'comfort'] as const;
 export type RulePriority = (typeof RULE_PRIORITIES)[number];
 
+const ruleCore = {
+  priority: z.enum(RULE_PRIORITIES),
+  refuse: z.boolean().optional(),
+};
+
 const ruleBase = {
   id,
   text: z.string(),
   author: id,
-  priority: z.enum(RULE_PRIORITIES),
-  refuse: z.boolean().optional(),
+  ...ruleCore,
   source: z.string().optional(),
 };
 
-export const ruleSchema = z.discriminatedUnion('template', [
-  z.strictObject({
-    ...ruleBase,
-    template: z.literal('always'),
-    params: z.strictObject({ state: stateCondSchema }),
-  }),
-  z.strictObject({
-    ...ruleBase,
-    template: z.literal('never_when'),
-    params: z.strictObject({ x: condSchema, when: condSchema }),
-  }),
-  z.strictObject({
-    ...ruleBase,
-    template: z.literal('keep_between'),
-    params: z.strictObject({
-      quantity: z.strictObject({ zone: id, attr: z.literal('temperatureC') }),
-      min: z.number().nullable(),
-      max: z.number().nullable(),
-      when: condSchema.nullable(),
+/** The five templates, each with its parameters, on top of `base`. */
+function ruleTemplates<B extends z.ZodRawShape>(base: B) {
+  return z.discriminatedUnion('template', [
+    z.strictObject({
+      ...base,
+      template: z.literal('always'),
+      params: z.strictObject({ state: stateCondSchema }),
     }),
-  }),
-  z.strictObject({
-    ...ruleBase,
-    template: z.literal('within_after'),
-    params: z.strictObject({
-      minutes: z.number().int().positive(),
-      after: condSchema,
-      ensure: z.array(stateCondSchema).min(1),
+    z.strictObject({
+      ...base,
+      template: z.literal('never_when'),
+      params: z.strictObject({ x: condSchema, when: condSchema }),
     }),
-  }),
-  z.strictObject({
-    ...ruleBase,
-    template: z.literal('never_together'),
-    params: z.strictObject({ a: condSchema, b: condSchema }),
-  }),
-]);
+    z.strictObject({
+      ...base,
+      template: z.literal('keep_between'),
+      params: z.strictObject({
+        quantity: z.strictObject({ zone: id, attr: z.literal('temperatureC') }),
+        min: z.number().describe('Lowest allowed, °C; null for no lower bound').nullable(),
+        max: z.number().describe('Highest allowed, °C; null for no upper bound').nullable(),
+        when: condSchema.nullable(),
+      }),
+    }),
+    z.strictObject({
+      ...base,
+      template: z.literal('within_after'),
+      params: z.strictObject({
+        minutes: z.number().int().positive(),
+        after: condSchema,
+        ensure: z.array(stateCondSchema).min(1),
+      }),
+    }),
+    z.strictObject({
+      ...base,
+      template: z.literal('never_together'),
+      params: z.strictObject({ a: condSchema, b: condSchema }),
+    }),
+  ]);
+}
+
+export const ruleSchema = ruleTemplates(ruleBase);
+/** A rule as the compiler produces it: template, parameters and priority, before it gets an ID. */
+export const compiledRuleSchema = ruleTemplates(ruleCore);
+export type CompiledRule = z.infer<typeof compiledRuleSchema>;
 export type Rule = z.infer<typeof ruleSchema>;
 
 // ---- Home ----
