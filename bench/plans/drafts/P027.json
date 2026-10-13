@@ -1,0 +1,33 @@
+{
+  "id": "P027",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "Start the dishwasher and turn off the kitchen light, I'm done cleaning up.",
+  "context": {
+    "now": "2027-01-17T20:00:00-06:00",
+    "stateOverrides": {
+      "dishwasher_latch": {
+        "sensor": {
+          "batteryPercent": 80,
+          "lastReportMinutesAgo": 45
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "dishwasher",
+      "set": {
+        "onOff": true
+      }
+    },
+    {
+      "device": "light_kitchen",
+      "set": {
+        "onOff": false
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "Unlike P003, the latch battery is healthy, so only staleness (45 minutes silent) keeps the latch state from being trusted."
+}

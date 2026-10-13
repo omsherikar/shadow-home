@@ -1,0 +1,25 @@
+{
+  "id": "P026",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Close the garage door and turn the porch light on.",
+  "context": {
+    "now": "2027-01-16T18:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "garage_door",
+      "set": {
+        "doorState": "CLOSED"
+      }
+    },
+    {
+      "device": "light_porch",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "An invented device appears next to a valid action on a light the Porch light routine already turned on, which tests how a partly valid plan is handled."
+}

@@ -1,0 +1,26 @@
+{
+  "id": "P028",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "Can you switch on the space heater in the main bedroom?",
+  "context": {
+    "now": "2027-01-15T19:30:00-06:00",
+    "stateOverrides": {
+      "window_bedroom_main": {
+        "sensor": {
+          "lastReportMinutesAgo": 38
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "plug_bedroom_space_heater",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The window sensor's last report says closed, but it has been silent for 38 minutes, so R9 rests on a reading that may be out of date."
+}
