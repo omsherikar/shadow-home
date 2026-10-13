@@ -119,7 +119,9 @@ function missingReversals(writes: DeviceWrite[], devices: Map<string, Device>): 
 function routineCollisions(home: Home, plan: Plan, writes: DeviceWrite[]): HygieneFinding[] {
   const utcOffset = offsetMinutes(home.home.utcOffset);
   const nowMs = toMs(plan.context.now);
+  // A pause already in the home holds unless the plan replaces it (decision 34).
   const pausedUntil = new Map<string, number>();
+  for (const r of home.routines) if (r.pausedUntil) pausedUntil.set(r.id, toMs(r.pausedUntil));
   for (const a of plan.actions) {
     if ('routine' in a) pausedUntil.set(a.routine, toMs(a.pauseUntil));
   }

@@ -42,6 +42,8 @@ type Edit =
 interface Candidate {
   repair: Repair;
   apply(edits: Map<number, Edit>, pauses: Map<string, string>): void;
+  /** Whether this change is what the final plan actually has. */
+  inEffect(edits: Map<number, Edit>, pauses: Map<string, string>): boolean;
 }
 
 interface Built {
@@ -63,6 +65,7 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
   const edits = new Map<number, Edit>();
   const pauses = new Map<string, string>();
   const chosen = new Map<string, { key: string; queue: Candidate[]; current: Candidate }>();
+  const tried: Candidate[] = [];
   let built: Built = { plan, origin: plan.actions.map((_, i) => i) };
   let current = result;
 
@@ -90,6 +93,7 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
       }
       chosen.set(reason.rule, state);
       state.current.apply(nextEdits, nextPauses);
+      tried.push(state.current);
       progressed = true;
     }
     if (!progressed) break;
@@ -102,9 +106,13 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
   }
 
   if (rank(current.verdict) >= rank(result.verdict)) return null;
-  const repairs = [...chosen.values()]
-    .map((s) => s.current.repair)
-    .filter((r) => isApplied(r, edits, pauses));
+  // Every change the final plan actually carries, in the order it was made: a candidate a later
+  // one replaced (or a rule's earlier fix when its cause moved) is listed only if it still holds.
+  const seen = new Set<string>();
+  const repairs = tried
+    .filter((c) => c.inEffect(edits, pauses))
+    .map((c) => c.repair)
+    .filter((r) => !seen.has(r.description) && seen.add(r.description));
   return { plan: built.plan, result: current, repairs };
 }
 
@@ -196,6 +204,7 @@ function candidates(
           const had = pauses.get(routine.id);
           if (!had || toMs(had) < toMs(until)) pauses.set(routine.id, until);
         },
+        inEffect: (_edits, pauses) => pauses.get(routine.id) === until,
       },
     ];
   }
@@ -221,6 +230,10 @@ function candidates(
         const devices = new Set(e?.kind === 'leave_out' ? e.devices : []);
         devices.add(cause.device);
         edits.set(origin, { kind: 'leave_out', devices });
+      },
+      inEffect: (edits) => {
+        const e = edits.get(origin);
+        return e?.kind === 'leave_out' && e.devices.has(cause.device);
       },
     });
   } else if (device?.capabilities.heatingSetpointC?.type === 'number') {
@@ -277,6 +290,10 @@ function nearestValues(
         if (edits.get(origin)?.kind === 'drop') return;
         edits.set(origin, { kind: 'replace', set: next });
       },
+      inEffect: (edits: Map<number, Edit>) => {
+        const e = edits.get(origin);
+        return e?.kind === 'replace' && JSON.stringify(e.set) === JSON.stringify(next);
+      },
     };
   });
 }
@@ -300,6 +317,7 @@ function drop(home: Home, rule: string, origin: number, action: PlanAction | und
     apply: (edits) => {
       edits.set(origin, { kind: 'drop' });
     },
+    inEffect: (edits) => edits.get(origin)?.kind === 'drop',
   };
 }
 
@@ -317,15 +335,6 @@ function pauseEnd(home: Home, plan: Plan, result: CheckResult): string {
   const ends = (plan.context.presenceSchedule ?? []).map((w) => w.to);
   const last = ends.sort((a, b) => toMs(a) - toMs(b)).at(-1);
   return last ?? result.horizon.end ?? home.clock.now;
-}
-
-function isApplied(r: Repair, edits: Map<number, Edit>, pauses: Map<string, string>): boolean {
-  if (r.kind === 'pause_routine') return pauses.has(r.target);
-  const e = r.actionIndex === undefined ? undefined : edits.get(r.actionIndex);
-  if (!e) return false;
-  if (r.kind === 'drop_action') return e.kind === 'drop';
-  if (r.kind === 'leave_out') return e.kind === 'leave_out' && e.devices.has(r.target);
-  return e.kind === 'replace';
 }
 
 function build(
