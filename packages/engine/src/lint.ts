@@ -207,6 +207,9 @@ export function checkOverrides(home: Home, plan: Plan): string[] {
       problems.push(`override for unknown device ${id}`);
       continue;
     }
+    if (override.sensor && !device.sensor) {
+      problems.push(`override sets a sensor on ${id}, which has none`);
+    }
     for (const [attr, value] of Object.entries(override.state ?? {})) {
       if (!hasOwn(device.state, attr) && !hasOwn(device.capabilities, attr)) {
         problems.push(`override sets ${id}.${attr}, which it does not have`);

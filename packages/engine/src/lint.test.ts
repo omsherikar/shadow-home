@@ -240,6 +240,15 @@ describe('checkOverrides (bench scaffolding, not plan content)', () => {
     expect(checkOverrides(home, p)).toEqual([]);
   });
 
+  test('names a sensor override on a device that has no sensor', () => {
+    const p = plan([], {
+      stateOverrides: { plug_garage_freezer: { sensor: { lastReportMinutesAgo: 120 } } },
+    });
+    expect(checkOverrides(home, p)).toEqual([
+      'override sets a sensor on plug_garage_freezer, which has none',
+    ]);
+  });
+
   test('names unknown devices and attributes', () => {
     const p = plan([], {
       stateOverrides: {
