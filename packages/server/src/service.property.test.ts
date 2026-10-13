@@ -37,6 +37,11 @@ function service() {
 }
 
 const plans = fc.subarray(ACTIONS, { minLength: 1, maxLength: 4 });
+const action = (i: number) => ACTIONS[i] as PlanAction;
+// Always run one plan per branch on top of the random ones, so coverage doesn't depend on luck.
+const TV_OFF = action(0); // SAFE, T0
+const FREEZER_OFF = action(3); // UNSAFE
+const DISHWASHER_2AM = action(8); // UNPROVEN, T4
 
 describe('commit properties', { timeout: 60_000 }, () => {
   test('nothing that is not SAFE commits without a yes, and nothing UNSAFE commits at all', async () => {
@@ -56,7 +61,14 @@ describe('commit properties', { timeout: 60_000 }, () => {
           expect(['T0', 'T1']).toContain(p.tier);
         }
       }),
-      { numRuns: 40 },
+      {
+        numRuns: 40,
+        examples: [
+          [[TV_OFF], false],
+          [[DISHWASHER_2AM], true],
+          [[FREEZER_OFF], true],
+        ],
+      },
     );
     // Each branch was reached, so the property isn't passing vacuously.
     expect(seen.committedWithout).toBeGreaterThan(0);
@@ -81,7 +93,7 @@ describe('commit properties', { timeout: 60_000 }, () => {
           expect(kept.has(`${change.target}\u0000${change.attr}`)).toBe(true);
         }
       }),
-      { numRuns: 30 },
+      { numRuns: 30, examples: [[[TV_OFF, FREEZER_OFF]]] },
     );
     expect(safeParts).toBeGreaterThan(0);
   });

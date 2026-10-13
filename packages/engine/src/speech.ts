@@ -71,13 +71,14 @@ export function speech(
           ask: `${capitalise(row ? phrase(row) : 'go ahead')}?`,
         };
       }
+      // A preview hasn't run anything yet: "Done" belongs to the commit (see planSummary).
       case 'T1':
         return {
-          headline: `Done: ${summary(diff)}.`,
+          headline: `Safe: ${summary(diff)}.`,
           reason: `This affects ${list(tier.affects.map(name))}.`,
         };
       default:
-        return { headline: `Done: ${summary(diff)}.` };
+        return { headline: `Safe: ${summary(diff)}.` };
     }
   })();
   return fit(out);
@@ -147,9 +148,14 @@ function valuePhrase(attr: string, v: Value): string {
 }
 
 function summary(diff: readonly DiffRow[]): string {
+  return diff.length > 1 ? `${diff.length} changes, no house rule broken` : planSummary(diff);
+}
+
+/** What a plan does, in a few words: "Living room lights to 30%", "10 changes". */
+export function planSummary(diff: readonly DiffRow[]): string {
   if (diff.length === 0) return 'nothing needed changing';
   if (diff.length === 1 && diff[0]) return phrase(diff[0]);
-  return `${diff.length} changes, no house rule broken`;
+  return `${diff.length} changes`;
 }
 
 function count(n: number, one: string, many: string): string {

@@ -156,7 +156,9 @@ export function buildServer(service: ShadowHomeService): McpServer {
     },
     async (input) => {
       const out = await service.getActivityLog(input);
-      return result(`${out.entries.length} entries in ${out.groups.length} groups.`, out);
+      const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+      const entries = n(out.entries.length, 'entry', 'entries');
+      return result(`${entries} in ${n(out.groups.length, 'group', 'groups')}.`, out);
     },
   );
 
