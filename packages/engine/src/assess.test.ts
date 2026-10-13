@@ -115,7 +115,7 @@ describe('confirmation tiers', () => {
   test('T0: a SAFE change to one room, by the person asking', () => {
     const a = assess(home, bench('P002'), { requestedBy: 'om' });
     expect(a.tier.tier).toBe('T0');
-    expect(a.speech).toEqual({ headline: 'Done: Living room lights to 30%.' });
+    expect(a.speech).toEqual({ headline: 'Safe: Living room lights to 30%.' });
   });
 
   test('T1: the main thermostat heats the whole house, so it affects everyone else', () => {

@@ -42,6 +42,8 @@ export interface PreviewRecord {
   tier: Tier;
   /** What the preview said, so a refusal or a request for a yes can repeat it. */
   speech: Speech;
+  /** What the plan does in a few words, for the commit's "Done: …". */
+  summary: string;
   /** Some action can't be taken back once it fires. */
   irreversible: boolean;
   /** Plan IDs of the alternatives offered with this preview. */

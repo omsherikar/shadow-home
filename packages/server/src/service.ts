@@ -2,6 +2,8 @@ import {
   assess,
   type CheckResult,
   check,
+  diffPlan,
+  planSummary,
   type RuleAtom,
   reversibility,
   ruleAtoms,
@@ -266,7 +268,7 @@ export class ShadowHomeService {
       const result: CommitOutput = {
         status: 'committed',
         planId,
-        speech: { headline: committedHeadline(applied.length, held.length) },
+        speech: { headline: committedHeadline(record.summary, applied.length, held.length) },
         applied,
         held,
         undoToken: entry.undoToken,
@@ -555,6 +557,7 @@ export class ShadowHomeService {
         verdict: c.verdict,
         tier: t.tier,
         speech,
+        summary: planSummary(diffPlan(home, p)),
         irreversible: reversibility(home, p).some((x) => x.irreversibleOnceFired),
         related,
         ...(meta.undo ? { undo: meta.undo } : {}),
@@ -725,10 +728,10 @@ function nothingToUndo(headline: string, undoOf?: string): UndoOutput {
   };
 }
 
-function committedHeadline(applied: number, held: number): string {
-  const now = applied === 1 ? 'one change' : `${applied} changes`;
-  if (held === 0) return applied === 0 ? 'Done. Nothing needed changing.' : `Done: ${now}.`;
-  return `Done: ${now} now, ${held} scheduled for later.`;
+function committedHeadline(summary: string, applied: number, held: number): string {
+  if (applied === 0 && held === 0) return 'Done. Nothing needed changing.';
+  if (applied === 0) return clip(`Scheduled: ${summary}.`, 15);
+  return clip(held > 0 ? `Done: ${summary}, some of it later.` : `Done: ${summary}.`, 15);
 }
 
 function clip(text: string, max: number): string {
