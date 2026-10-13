@@ -188,6 +188,18 @@ describe('hygiene: collisions with the home routines', () => {
     ).toEqual([['routine_collision', 'coffee_at_7', [1]]]);
   });
 
+  test('a pause already in the home hides the collision too', () => {
+    const paused = structuredClone(home);
+    const coffee = paused.routines.find((r) => r.id === 'coffee_at_7');
+    if (coffee) coffee.pausedUntil = '2027-01-17T18:00:00-06:00';
+    expect(
+      hygiene(
+        paused,
+        plan([{ device: 'plug_coffee_maker', set: { onOff: false }, at: at('07:00', 16) }]),
+      ).map((f) => f.code),
+    ).toEqual([]);
+  });
+
   test('a disabled routine does not collide', () => {
     const quiet = structuredClone(home);
     for (const r of quiet.routines) r.enabled = false;

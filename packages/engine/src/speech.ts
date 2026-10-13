@@ -1,9 +1,8 @@
 import { type Home, own, type Plan, type Value } from '@shadow-home/twin';
 import type { DiffRow } from './diff.ts';
-import type { RepairResult, SafePart } from './repair.ts';
 import { ruleDevices } from './rules.ts';
 import type { TierResult } from './tier.ts';
-import type { CheckResult, Reason } from './verdict.ts';
+import type { CheckResult, Reason, Verdict } from './verdict.ts';
 
 /** What Alexa speaks from. Data, not a script: each field fits in one breath. */
 export interface Speech {
@@ -21,17 +20,50 @@ export function wordCount(s: string): number {
   return s.split(/\s+/).filter(Boolean).length;
 }
 
+/** An alternative the preview can offer instead of the plan as asked. */
+export interface OfferedAlternative {
+  verdict: Verdict;
+  tier: TierResult;
+  diff: readonly DiffRow[];
+  /** Number of repairs; 0 for the safe part. */
+  fixes: number;
+}
+
+export interface Alternatives {
+  repair: OfferedAlternative | null;
+  safePart: OfferedAlternative | null;
+}
+
+/**
+ * Which alternative the preview's question offers: for T3 a SAFE repair, else the safe part; for
+ * T4 the safe part. A yes to that question is a yes to that alternative.
+ */
+export function offeredAlternative(
+  tier: TierResult,
+  alternatives: Alternatives,
+): 'repair' | 'safe_part' | null {
+  if (tier.tier === 'T3' && alternatives.repair?.verdict === 'SAFE') return 'repair';
+  if ((tier.tier === 'T3' || tier.tier === 'T4') && alternatives.safePart) return 'safe_part';
+  return null;
+}
+
 export function speech(
   home: Home,
   plan: Plan,
   result: CheckResult,
   tier: TierResult,
   diff: readonly DiffRow[],
-  repaired: RepairResult | null,
-  safe: SafePart | null,
+  alternatives: Alternatives = { repair: null, safePart: null },
 ): Speech {
   const name = (id: string) => home.household.members.find((m) => m.id === id)?.name ?? id;
   const top = result.reasons[0];
+  const offered = offeredAlternative(tier, alternatives);
+  // A yes to "do it with the fix?" commits the fix, so the question carries the fix's own
+  // consequence when it needs one (T2): the person hears it before saying yes.
+  const offer = (question: string) => {
+    const alt = offered === 'repair' ? alternatives.repair : alternatives.safePart;
+    return alt?.tier.tier === 'T2' ? `${question} ${consequence(alt.tier, alt.diff)}` : question;
+  };
   const out: Speech = (() => {
     switch (tier.tier) {
       case 'T5':
@@ -47,11 +79,12 @@ export function speech(
             : broken === 1
               ? 'Blocked: that breaks a house rule.'
               : `Blocked: that breaks ${broken} house rules.`;
+        const fixes = alternatives.repair?.fixes ?? 0;
         const ask =
-          repaired?.result.verdict === 'SAFE'
-            ? `Do it with ${count(repaired.repairs.length, 'fix', 'fixes')} instead?`
-            : safe
-              ? 'Do just the safe part?'
+          offered === 'repair'
+            ? offer(`Do it with ${count(fixes, 'fix', 'fixes')} instead?`)
+            : offered === 'safe_part'
+              ? offer('Do just the safe part?')
               : undefined;
         return { headline, reason: reasonFor(home, plan, top, name), ...(ask ? { ask } : {}) };
       }
@@ -59,7 +92,8 @@ export function speech(
         return {
           headline: "I can't confirm that's safe.",
           reason: reasonFor(home, plan, top, name),
-          ask: safe ? 'Do just the part I can confirm?' : 'Run it anyway?',
+          ask:
+            offered === 'safe_part' ? offer('Do just the part I can confirm?') : 'Run it anyway?',
         };
       case 'T2': {
         const row = diff.find((r) => tier.sensitive.includes(r.target));
@@ -82,6 +116,13 @@ export function speech(
     }
   })();
   return fit(out);
+}
+
+/** What a T2 plan's yes agrees to: "That leaves Back door lock unlocked." */
+function consequence(tier: TierResult, diff: readonly DiffRow[]): string {
+  if (tier.why !== 'it weakens security') return "That can't be undone.";
+  const row = diff.find((r) => tier.sensitive.includes(r.target));
+  return row ? `That leaves ${phrase(row)}.` : 'That weakens security.';
 }
 
 /** "Never turn off the garage freezer. That's Om's rule." or why a check is unknown. */

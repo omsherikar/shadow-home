@@ -111,6 +111,33 @@ describe('the 2 AM dishwasher', () => {
   });
 });
 
+describe('offering an alternative', () => {
+  // Someone is home, so unlocking is SAFE but needs a yes (T2); the freezer makes the plan T3.
+  const a = assess(
+    home,
+    plan(
+      [
+        { device: 'back_door_lock', set: { lockState: 'UNLOCKED' } },
+        { device: 'plug_garage_freezer', set: { onOff: false } },
+      ],
+      '2027-01-15T21:30:00-06:00',
+    ),
+    { requestedBy: 'om' },
+  );
+
+  test("names the alternative's own consequence, so a yes to it is informed", () => {
+    expect(a.tier.tier).toBe('T3');
+    expect(a.repaired?.tier.tier).toBe('T2');
+    expect(a.offered).toBe('repair');
+    expect(a.speech.ask).toBe('Do it with one fix instead? That leaves Back door lock unlocked.');
+  });
+
+  test('each alternative carries its own question for when it is committed on its own', () => {
+    expect(a.repaired?.speech.ask).toBe('Back door lock unlocked?');
+    expect(a.safePart?.speech.ask).toBe('Back door lock unlocked?');
+  });
+});
+
 describe('confirmation tiers', () => {
   test('T0: a SAFE change to one room, by the person asking', () => {
     const a = assess(home, bench('P002'), { requestedBy: 'om' });
