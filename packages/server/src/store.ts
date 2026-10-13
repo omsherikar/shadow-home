@@ -14,7 +14,14 @@ export interface LiveState {
   /** The last home-time minute simulated. */
   syncedToMs: number;
   /** Mode changes a plan scheduled for later. */
-  pendingModes: { atMs: number; mode: HomeMode; source: string }[];
+  pendingModes: PendingMode[];
+}
+
+export interface PendingMode {
+  atMs: number;
+  mode: HomeMode;
+  /** The log entry of the commit that scheduled it. */
+  source: string;
 }
 
 export type PreviewKind = 'plan' | 'repair' | 'safe_part' | 'undo';
@@ -23,8 +30,12 @@ export type PreviewKind = 'plan' | 'repair' | 'safe_part' | 'undo';
 export interface UndoExtras {
   /** The log entry being undone. */
   of: string;
+  /** Only these devices (and "home" for the mode, routine IDs for pauses), if the undo named some. */
+  devices?: string[];
   /** Scheduled writes to cancel before they fire. */
   cancel: ScheduledWrite[];
+  /** Scheduled mode changes to cancel before they happen. */
+  cancelModes: PendingMode[];
   /** Routine pauses to put back as they were (null: not paused). */
   pauses: { routine: string; pausedUntil: string | null }[];
 }
@@ -48,6 +59,8 @@ export interface PreviewRecord {
   irreversible: boolean;
   /** Plan IDs of the alternatives offered with this preview. */
   related: { repair?: string; safePart?: string };
+  /** The alternative this preview's question offered; a yes to it counts for that alternative. */
+  offers: 'repair' | 'safe_part' | null;
   undo?: UndoExtras;
 }
 
@@ -62,6 +75,7 @@ export interface WriteRecord {
 export interface UndoInfo {
   writes: WriteRecord[];
   scheduled: ScheduledWrite[];
+  pendingModes: PendingMode[];
   pauses: { routine: string; before: string | null; after: string }[];
   mode?: { before: HomeMode; after: HomeMode };
   /** Writes that can't be put back. */

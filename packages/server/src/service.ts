@@ -13,8 +13,10 @@ import {
 } from '@shadow-home/engine';
 import {
   type Home,
+  type HomeMode,
   type Plan,
   type PlanAction,
+  planContextSchema,
   type Rule,
   ruleSchema,
   type Value,
@@ -47,6 +49,7 @@ import type {
   PreviewRecord,
   Store,
   UndoExtras,
+  UndoInfo,
 } from './store.ts';
 import { isoAt } from './time.ts';
 
@@ -148,6 +151,9 @@ export class ShadowHomeService {
         },
         actions: input.actions,
       };
+      // Every time in the context must carry an offset: without one, Date.parse would read it in
+      // the server's own time zone and the verdict would depend on where the server runs.
+      planContextSchema.parse(plan.context);
       return this.preview(state, nowMs, plan, {
         kind: 'plan',
         intent: input.intent,
@@ -173,14 +179,18 @@ export class ShadowHomeService {
       if (!verified.ok) {
         return {
           ...refused('expired', planId, 'That preview expired. Here it is again.'),
-          freshPreview: await this.fresh(state, nowMs, record),
+          ...(await this.freshPreview(state, nowMs, record)),
         };
       }
       let version = verified.claims.v;
+      // A yes answers the question this preview asked. On the safe-part path it counts only if
+      // that question offered the safe part; otherwise the safe part asks its own.
+      let confirmed = input.confirmed === true;
       if (input.safePartOnly) {
         const safeId = record.related.safePart;
         if (!safeId)
           return refused('no_safe_part', planId, 'No part of that plan is safe on its own.');
+        confirmed = confirmed && record.offers === 'safe_part';
         planId = safeId;
         const priorSafe = await this.store.getCommit(planId);
         if (priorSafe) return priorSafe as CommitOutput;
@@ -198,7 +208,7 @@ export class ShadowHomeService {
           planId,
           'Something changed since the preview. Here it is again.',
         ),
-        freshPreview: await this.fresh(state, nowMs, record as PreviewRecord),
+        ...(await this.freshPreview(state, nowMs, record as PreviewRecord)),
       });
       if (version !== state.version) return stale();
       const plan = retime(record.plan, isoAt(nowMs, state.home.home.utcOffset));
@@ -230,7 +240,7 @@ export class ShadowHomeService {
       }
       if (record.tier === 'T2' || record.tier === 'T4') {
         const approved = await this.store.getApproval(record.nonce);
-        if (!input.confirmed && !approved) {
+        if (!confirmed && !approved) {
           return {
             status: 'needs_confirmation',
             planId,
@@ -261,7 +271,14 @@ export class ShadowHomeService {
       };
       if (record.undo) {
         const original = (await this.store.listLog()).find((e) => e.id === record?.undo?.of);
-        if (original) await this.store.putLog({ ...original, undoneBy: logId });
+        if (original?.undo) {
+          const rest = withoutUndone(original.undo, plan, record.undo);
+          await this.store.putLog({
+            ...original,
+            undo: rest,
+            ...(nothingLeft(rest) ? { undoneBy: logId } : {}),
+          });
+        }
       }
       await this.store.putLog(entry);
       await this.store.saveState(state);
@@ -282,7 +299,6 @@ export class ShadowHomeService {
   undo(input: z.infer<typeof undoInput>): Promise<UndoOutput> {
     return this.exclusive(async () => {
       const { state, nowMs } = await this.current();
-      const home = state.home;
       const log = await this.store.listLog();
       const entry =
         input.token === 'last'
@@ -292,92 +308,117 @@ export class ShadowHomeService {
           : log.find((e) => e.undoToken === input.token);
       if (!entry?.undo) return nothingToUndo("There's nothing to undo.");
       if (entry.undoneBy) return nothingToUndo('That was already undone.', entry.id);
-
-      const only = input.devices ? new Set(input.devices) : null;
-      const pick = (id: string) => !only || only.has(id);
-      const actions: PlanAction[] = [];
-      const cannotUndo: UndoOutput['cannotUndo'] = [];
-      const notes: string[] = [];
-
-      // Net effect per attribute: the value before the first write, the value after the last.
-      const net = new Map<
-        string,
-        { device: string; attr: string; from: Value | null; to: Value }
-      >();
-      for (const w of entry.undo.writes) {
-        const key = `${w.device}\u0000${w.attr}`;
-        const seen = net.get(key);
-        if (seen) seen.to = w.to;
-        else net.set(key, { ...w });
-      }
-      for (const w of net.values()) {
-        if (!pick(w.device)) continue;
-        const device = home.devices.find((d) => d.id === w.device);
-        const now = device?.state[w.attr];
-        if (entry.undo.irreversible.some((x) => x.device === w.device && x.attr === w.attr)) {
-          cannotUndo.push({
-            target: w.device,
-            attr: w.attr,
-            why: "it can't be undone once it has run",
-          });
-        } else if (now !== w.to) {
-          cannotUndo.push({
-            target: w.device,
-            attr: w.attr,
-            why: `it has changed since, to ${String(now)}`,
-          });
-        } else if (w.from === null) {
-          cannotUndo.push({ target: w.device, attr: w.attr, why: 'it had no earlier value' });
-        } else {
-          actions.push({ device: w.device, set: { [w.attr]: w.from } });
-        }
-      }
-      const mode = entry.undo.mode;
-      if (mode && pick('home')) {
-        if (home.mode === mode.after) actions.push({ mode: mode.before });
-        else
-          cannotUndo.push({
-            target: 'home',
-            attr: 'mode',
-            why: `it has changed since, to ${home.mode}`,
-          });
-      }
-      const queued = home.scheduled ?? [];
-      const cancel = entry.undo.scheduled.filter(
-        (w) => pick(w.device) && queued.some((q) => JSON.stringify(q) === JSON.stringify(w)),
-      );
-      const pauses = entry.undo.pauses
-        .filter((p) => pick(p.routine))
-        .filter((p) => home.routines.find((r) => r.id === p.routine)?.pausedUntil === p.after)
-        .map((p) => ({ routine: p.routine, pausedUntil: p.before }));
-      if (actions.length === 0 && cancel.length === 0 && pauses.length === 0) {
-        return { ...nothingToUndo('Nothing from that can be put back.', entry.id), cannotUndo };
-      }
-      for (const c of cancel) notes.push(`Cancels ${c.device} at ${c.at}; it hasn't run yet.`);
-      for (const p of pauses) {
-        const name = home.routines.find((r) => r.id === p.routine)?.name ?? p.routine;
-        notes.push(p.pausedUntil ? `${name} goes back to its earlier pause.` : `${name} resumes.`);
-      }
-      if (actions.length > 0) {
-        notes.push('Settings go back; what already happened while they were changed stays.');
-      }
-      const extras: UndoExtras = { of: entry.id, cancel, pauses };
-      const plan: Plan = { context: { now: isoAt(nowMs, home.home.utcOffset) }, actions };
-      const preview = await this.preview(state, nowMs, plan, {
-        kind: 'undo',
-        intent: `undo: ${entry.what}`,
-        requestedBy: entry.who,
-        undo: extras,
-      });
-      return {
-        status: 'preview',
-        undoOf: entry.id,
-        preview,
-        cannotUndo,
-        notes,
-        speech: preview.speech,
-      };
+      return this.undoFor(state, nowMs, entry, input.devices);
     });
+  }
+
+  /**
+   * Work out how to put back what a log entry changed, as it stands now, and preview it. Each
+   * attribute goes back to its value before the entry's first write, if nothing has changed it
+   * since; scheduled writes and mode changes that haven't happened are cancelled; routine pauses
+   * go back to what they were.
+   */
+  private async undoFor(
+    state: LiveState,
+    nowMs: number,
+    entry: LogEntry,
+    devices?: string[],
+  ): Promise<UndoOutput> {
+    const home = state.home;
+    const info = entry.undo;
+    if (!info) return nothingToUndo("There's nothing to undo.");
+    const only = devices ? new Set(devices) : null;
+    const pick = (id: string) => !only || only.has(id);
+    const actions: PlanAction[] = [];
+    const cannotUndo: UndoOutput['cannotUndo'] = [];
+    const notes: string[] = [];
+
+    for (const w of netWrites(info.writes)) {
+      if (!pick(w.device)) continue;
+      const now = home.devices.find((d) => d.id === w.device)?.state[w.attr];
+      if (info.irreversible.some((x) => x.device === w.device && x.attr === w.attr)) {
+        cannotUndo.push({
+          target: w.device,
+          attr: w.attr,
+          why: "it can't be undone once it has run",
+        });
+      } else if (now !== w.to) {
+        cannotUndo.push({
+          target: w.device,
+          attr: w.attr,
+          why: `it has changed since, to ${String(now)}`,
+        });
+      } else if (w.from === null) {
+        cannotUndo.push({ target: w.device, attr: w.attr, why: 'it had no earlier value' });
+      } else {
+        actions.push({ device: w.device, set: { [w.attr]: w.from } });
+      }
+    }
+    if (info.mode && pick('home')) {
+      if (home.mode === info.mode.after) actions.push({ mode: info.mode.before });
+      else
+        cannotUndo.push({
+          target: 'home',
+          attr: 'mode',
+          why: `it has changed since, to ${home.mode}`,
+        });
+    }
+    const queued = home.scheduled ?? [];
+    const cancel = info.scheduled.filter(
+      (w) => pick(w.device) && queued.some((q) => JSON.stringify(q) === JSON.stringify(w)),
+    );
+    const cancelModes = pick('home')
+      ? info.pendingModes.filter((m) =>
+          state.pendingModes.some(
+            (p) => p.atMs === m.atMs && p.source === m.source && p.mode === m.mode,
+          ),
+        )
+      : [];
+    const pauses = netPauses(info.pauses)
+      .filter((p) => pick(p.routine))
+      .filter((p) => home.routines.find((r) => r.id === p.routine)?.pausedUntil === p.after)
+      .map((p) => ({ routine: p.routine, pausedUntil: p.before }));
+    if (
+      actions.length === 0 &&
+      cancel.length === 0 &&
+      cancelModes.length === 0 &&
+      pauses.length === 0
+    ) {
+      return { ...nothingToUndo('Nothing from that can be put back.', entry.id), cannotUndo };
+    }
+    const offset = home.home.utcOffset;
+    for (const c of cancel) notes.push(`Cancels ${c.device} at ${c.at}; it hasn't run yet.`);
+    for (const m of cancelModes)
+      notes.push(`Cancels the change to ${m.mode} mode at ${isoAt(m.atMs, offset)}.`);
+    for (const p of pauses) {
+      const name = home.routines.find((r) => r.id === p.routine)?.name ?? p.routine;
+      notes.push(p.pausedUntil ? `${name} goes back to its earlier pause.` : `${name} resumes.`);
+    }
+    if (actions.length > 0) {
+      notes.push('Settings go back; what already happened while they were changed stays.');
+    }
+    const extras: UndoExtras = {
+      of: entry.id,
+      ...(devices ? { devices } : {}),
+      cancel,
+      cancelModes,
+      pauses,
+    };
+    const plan: Plan = { context: { now: isoAt(nowMs, offset) }, actions };
+    const preview = await this.preview(state, nowMs, plan, {
+      kind: 'undo',
+      intent: `undo: ${entry.what}`,
+      requestedBy: entry.who,
+      undo: extras,
+    });
+    return {
+      status: 'preview',
+      undoOf: entry.id,
+      preview,
+      cannotUndo,
+      notes,
+      speech: preview.speech,
+    };
   }
 
   getActivityLog(input: z.infer<typeof logInput>): Promise<LogOutput> {
@@ -545,6 +586,7 @@ export class ShadowHomeService {
       t: TierResult,
       speech: Speech,
       related: PreviewRecord['related'],
+      offers: PreviewRecord['offers'] = null,
     ) => {
       const nonce = newNonce();
       await this.store.putPreview({
@@ -560,18 +602,18 @@ export class ShadowHomeService {
         summary: planSummary(diffPlan(home, p)),
         irreversible: reversibility(home, p).some((x) => x.irreversibleOnceFired),
         related,
+        offers,
         ...(meta.undo ? { undo: meta.undo } : {}),
       });
       return signPlanId(this.secret, { n: nonce, v: state.version, x: expires });
     };
-    const altSpeech = (t: TierResult): Speech => ({ headline: `Alternative at ${t.tier}.` });
     const repairId = a.repaired
       ? await save(
           'repair',
           a.repaired.plan,
           a.repaired.check,
           a.repaired.tier,
-          altSpeech(a.repaired.tier),
+          a.repaired.speech,
           {},
         )
       : undefined;
@@ -581,14 +623,22 @@ export class ShadowHomeService {
           a.safePart.plan,
           a.safePart.check,
           a.safePart.tier,
-          altSpeech(a.safePart.tier),
+          a.safePart.speech,
           {},
         )
       : undefined;
-    const planId = await save(meta.kind, plan, a.check, a.tier, a.speech, {
-      ...(repairId ? { repair: repairId } : {}),
-      ...(safeId ? { safePart: safeId } : {}),
-    });
+    const planId = await save(
+      meta.kind,
+      plan,
+      a.check,
+      a.tier,
+      a.speech,
+      {
+        ...(repairId ? { repair: repairId } : {}),
+        ...(safeId ? { safePart: safeId } : {}),
+      },
+      a.offered,
+    );
 
     return {
       planId,
@@ -652,43 +702,77 @@ export class ShadowHomeService {
     };
   }
 
-  /** A new preview of a stored plan, at the current time. */
-  private fresh(state: LiveState, nowMs: number, record: PreviewRecord): Promise<PreviewOutput> {
-    return this.preview(
-      state,
-      nowMs,
-      retime(record.plan, isoAt(nowMs, state.home.home.utcOffset)),
-      {
-        kind: record.kind === 'undo' ? 'undo' : 'plan',
+  /**
+   * A new preview to replace a stale or expired one. A plan is checked again as it was asked; an
+   * undo is worked out again from the log, since what can be put back may have changed.
+   */
+  private async freshPreview(
+    state: LiveState,
+    nowMs: number,
+    record: PreviewRecord,
+  ): Promise<{ freshPreview?: PreviewOutput }> {
+    if (record.kind === 'undo' && record.undo) {
+      const entry = (await this.store.listLog()).find((e) => e.id === record.undo?.of);
+      if (!entry || entry.undoneBy) return {};
+      const again = await this.undoFor(state, nowMs, entry, record.undo.devices);
+      return again.preview ? { freshPreview: again.preview } : {};
+    }
+    const plan = retime(record.plan, isoAt(nowMs, state.home.home.utcOffset));
+    return {
+      freshPreview: await this.preview(state, nowMs, plan, {
+        kind: 'plan',
         intent: record.intent,
         ...(record.requestedBy ? { requestedBy: record.requestedBy } : {}),
-        ...(record.undo ? { undo: record.undo } : {}),
-      },
-    );
+      }),
+    };
   }
 
-  /** Bring the twin up to the current home time and log what fired. */
+  /**
+   * Bring the twin up to the current home time and log what fired. The returned `nowMs` is
+   * whole seconds and always after the last synced minute, so the engine never runs that minute's
+   * routine steps or scheduled writes a second time.
+   */
   private async current(): Promise<{ state: LiveState; nowMs: number }> {
     const state = await this.store.loadState();
-    const nowMs = this.clock.homeNowMs();
-    const fired = sync(state, nowMs);
+    const raw = this.clock.homeNowMs();
+    const fired: LogEntry[] = [];
+    let before = Number.NaN;
+    while (state.syncedToMs !== before) {
+      before = state.syncedToMs;
+      fired.push(...sync(state, raw));
+    }
     if (fired.length > 0) {
       const log = await this.store.listLog();
+      const devices = new Map(state.home.devices.map((d) => [d.id, d]));
       for (const entry of fired) {
-        // A write a commit queued has now run: record it on that commit so undo can put it back.
+        // Something a commit queued has now happened: record it on that commit so undo knows.
         const queuedBy =
           entry.source === 'scheduled' ? log.find((e) => e.id === entry.cause) : undefined;
         if (queuedBy?.undo) {
+          const info = queuedBy.undo;
           for (const c of entry.changes) {
-            if (c.target === 'home') continue;
-            queuedBy.undo.writes.push({ device: c.target, attr: c.attr, from: c.from, to: c.to });
+            if (c.target === 'home') {
+              info.mode = { before: c.from as HomeMode, after: c.to as HomeMode };
+              info.pendingModes = info.pendingModes.filter(
+                (m) => isoAt(m.atMs, state.home.home.utcOffset) !== entry.at,
+              );
+              continue;
+            }
+            info.writes.push({ device: c.target, attr: c.attr, from: c.from, to: c.to });
+            if (devices.get(c.target)?.irreversible?.includes(c.attr)) {
+              info.irreversible.push({ device: c.target, attr: c.attr });
+            }
           }
+          info.scheduled = info.scheduled.filter((w) =>
+            (state.home.scheduled ?? []).some((q) => JSON.stringify(q) === JSON.stringify(w)),
+          );
           await this.store.putLog(queuedBy);
         }
         await this.store.putLog(entry);
       }
       await this.store.saveState(state);
     }
+    const nowMs = Math.max(Math.ceil(raw / 1000) * 1000, state.syncedToMs + 1000);
     return { state, nowMs };
   }
 
@@ -697,6 +781,64 @@ export class ShadowHomeService {
     this.queue = run.catch(() => undefined);
     return run;
   }
+}
+
+/** Net effect per attribute: the value before the first write, the value after the last. */
+function netWrites(writes: UndoInfo['writes']): UndoInfo['writes'] {
+  const net = new Map<string, UndoInfo['writes'][number]>();
+  for (const w of writes) {
+    const key = `${w.device}\u0000${w.attr}`;
+    const seen = net.get(key);
+    if (seen) seen.to = w.to;
+    else net.set(key, { ...w });
+  }
+  return [...net.values()];
+}
+
+/** Net effect per routine: the pause before the first change, the pause after the last. */
+function netPauses(pauses: UndoInfo['pauses']): UndoInfo['pauses'] {
+  const net = new Map<string, UndoInfo['pauses'][number]>();
+  for (const p of pauses) {
+    const seen = net.get(p.routine);
+    if (seen) seen.after = p.after;
+    else net.set(p.routine, { ...p });
+  }
+  return [...net.values()];
+}
+
+/** What's left to undo of an entry after an undo put some of it back. */
+function withoutUndone(info: UndoInfo, plan: Plan, extras: UndoExtras): UndoInfo {
+  const reverted = new Set<string>();
+  let modeReverted = false;
+  for (const a of plan.actions) {
+    if ('device' in a)
+      for (const attr of Object.keys(a.set)) reverted.add(`${a.device}\u0000${attr}`);
+    if ('mode' in a) modeReverted = true;
+  }
+  const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y);
+  const rest: UndoInfo = {
+    writes: info.writes.filter((w) => !reverted.has(`${w.device}\u0000${w.attr}`)),
+    scheduled: info.scheduled.filter((w) => !extras.cancel.some((c) => same(c, w))),
+    pendingModes: info.pendingModes.filter((m) => !extras.cancelModes.some((c) => same(c, m))),
+    pauses: info.pauses.filter((p) => !extras.pauses.some((x) => x.routine === p.routine)),
+    irreversible: info.irreversible,
+  };
+  if (info.mode && !modeReverted) rest.mode = info.mode;
+  return rest;
+}
+
+/** Nothing left that an undo could put back. */
+function nothingLeft(info: UndoInfo): boolean {
+  const reversible = info.writes.filter(
+    (w) => !info.irreversible.some((x) => x.device === w.device && x.attr === w.attr),
+  );
+  return (
+    reversible.length === 0 &&
+    info.scheduled.length === 0 &&
+    info.pendingModes.length === 0 &&
+    info.pauses.length === 0 &&
+    !info.mode
+  );
 }
 
 function retime(plan: Plan, now: string): Plan {

@@ -77,7 +77,8 @@ export function sync(state: LiveState, nowMs: number): LogEntry[] {
     entry.changes.push({ target: c.device, attr: c.attr, from: c.from ?? null, to: c.to });
   }
 
-  for (const pending of state.pendingModes.filter((m) => m.atMs <= target)) {
+  const due = state.pendingModes.filter((m) => m.atMs <= target).sort((a, b) => a.atMs - b.atMs);
+  for (const pending of due) {
     if (home.mode !== pending.mode) {
       entries.push({
         id: `log_mode_${pending.atMs}`,
@@ -141,7 +142,13 @@ export function applyPlan(
   const home = state.home;
   const nowMinute = floorToMinute(nowMs);
   const devices = new Map(home.devices.map((d) => [d.id, d]));
-  const undo: UndoInfo = { writes: [], scheduled: [], pauses: [], irreversible: [] };
+  const undo: UndoInfo = {
+    writes: [],
+    scheduled: [],
+    pendingModes: [],
+    pauses: [],
+    irreversible: [],
+  };
   const changes: LogChange[] = [];
   const held: LogChange[] = [];
   const source = `plan:${logId}`;
@@ -150,6 +157,15 @@ export function applyPlan(
     for (const c of extras.cancel) {
       changes.push({ target: c.device, attr: 'scheduled', from: c.at, to: 'cancelled' });
     }
+    for (const m of extras.cancelModes) {
+      changes.push({ target: 'home', attr: 'scheduledMode', from: m.mode, to: 'cancelled' });
+    }
+    state.pendingModes = state.pendingModes.filter(
+      (m) =>
+        !extras.cancelModes.some(
+          (c) => c.atMs === m.atMs && c.source === m.source && c.mode === m.mode,
+        ),
+    );
     for (const p of extras.pauses) {
       const before = home.routines.find((r) => r.id === p.routine)?.pausedUntil ?? null;
       changes.push({
@@ -208,7 +224,10 @@ export function applyPlan(
       const mode = action.mode as HomeMode;
       const atMs = action.at ? floorToMinute(Date.parse(action.at)) : nowMinute;
       if (atMs > nowMinute) {
-        state.pendingModes.push({ atMs, mode, source: logId });
+        const pending = { atMs, mode, source: logId };
+        state.pendingModes.push(pending);
+        undo.pendingModes.push(pending);
+        held.push({ target: 'home', attr: 'mode', from: home.mode, to: mode });
       } else if (home.mode !== mode) {
         undo.mode = { before: home.mode, after: mode };
         changes.push({ target: 'home', attr: 'mode', from: home.mode, to: mode });
