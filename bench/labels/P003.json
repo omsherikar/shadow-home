@@ -1,0 +1,14 @@
+{
+  "id": "P003",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R11"
+  ],
+  "expectedUnknowns": [
+    "dishwasher_latch: battery 4% is under 15%"
+  ],
+  "rationale": "R11 needs the latch sensor, and its battery is too low to trust.",
+  "draftedBy": "assistant",
+  "approvedBy": null,
+  "approvedAt": null
+}

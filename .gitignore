@@ -1,0 +1,22 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+cdk.out/
+*.log
+.DS_Store
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# Claude Code
+.claude/worktrees/
+.claude/settings.local.json
+CLAUDE.local.md
+
+# ShadowBench run output (keep the folder)
+bench/reports/*
+!bench/reports/.gitkeep

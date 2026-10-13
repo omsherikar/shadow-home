@@ -1,0 +1,1242 @@
+{
+  "$comment": "Fictional demo home for Shadow Home. Generic devices, no real brands. Units: Celsius, watts, joules per kelvin, minutes. Times are local (UTC-6).",
+  "version": 1,
+  "home": {
+    "id": "cedar-hollow",
+    "name": "Cedar Hollow (fictional)",
+    "timezone": "America/Chicago",
+    "utcOffset": "-06:00"
+  },
+  "clock": {
+    "now": "2027-01-15T17:45:00-06:00"
+  },
+  "household": {
+    "members": [
+      {
+        "id": "om",
+        "name": "Om",
+        "role": "owner"
+      },
+      {
+        "id": "maya",
+        "name": "Maya",
+        "role": "adult"
+      },
+      {
+        "id": "sam",
+        "name": "Sam",
+        "role": "teen"
+      }
+    ],
+    "presence": {
+      "om": "home",
+      "maya": "home",
+      "sam": "home"
+    },
+    "presenceSource": "phones"
+  },
+  "mode": "home",
+  "rooms": [
+    {
+      "id": "living_room",
+      "name": "Living room",
+      "zone": "house"
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "zone": "house"
+    },
+    {
+      "id": "bedroom_main",
+      "name": "Main bedroom",
+      "zone": "house"
+    },
+    {
+      "id": "bedroom_sam",
+      "name": "Sam's room",
+      "zone": "house"
+    },
+    {
+      "id": "garage",
+      "name": "Garage",
+      "zone": "garage"
+    }
+  ],
+  "zones": [
+    {
+      "id": "house",
+      "name": "House",
+      "initialTempC": 20,
+      "uaOutWPerK": 300,
+      "heatCapacityJPerK": 12000000,
+      "heater": {
+        "thermostat": "thermostat_main",
+        "maxPowerW": 12000
+      }
+    },
+    {
+      "id": "garage",
+      "name": "Garage",
+      "initialTempC": 9,
+      "uaOutWPerK": 40,
+      "heatCapacityJPerK": 1800000,
+      "heater": {
+        "thermostat": "garage_thermostat",
+        "maxPowerW": 1500
+      }
+    }
+  ],
+  "couplings": [
+    {
+      "zones": ["house", "garage"],
+      "uaWPerK": 10
+    }
+  ],
+  "internalGains": [
+    {
+      "device": "plug_garage_freezer",
+      "zone": "garage",
+      "wattsWhenOn": 40
+    },
+    {
+      "device": "plug_bedroom_space_heater",
+      "zone": "house",
+      "wattsWhenOn": 1000
+    },
+    {
+      "device": "plug_coffee_maker",
+      "zone": "house",
+      "wattsWhenOn": 900
+    }
+  ],
+  "groups": {
+    "all_plugs": [
+      "plug_garage_freezer",
+      "plug_aquarium",
+      "plug_tv",
+      "plug_coffee_maker",
+      "plug_bedroom_space_heater"
+    ],
+    "all_lights": [
+      "light_living",
+      "light_kitchen",
+      "light_bedroom_main",
+      "light_bedroom_sam",
+      "light_porch"
+    ],
+    "indoor_lights": ["light_living", "light_kitchen", "light_bedroom_main", "light_bedroom_sam"]
+  },
+  "devices": [
+    {
+      "id": "thermostat_main",
+      "name": "Main thermostat",
+      "room": "living_room",
+      "kind": "thermostat",
+      "matter": {
+        "deviceType": "Thermostat",
+        "deviceTypeId": "0x0301",
+        "clusters": ["Thermostat"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.ThermostatController", "Alexa.TemperatureSensor"]
+      },
+      "capabilities": {
+        "systemMode": {
+          "type": "enum",
+          "values": ["off", "heat"]
+        },
+        "heatingSetpointC": {
+          "type": "number",
+          "min": 7,
+          "max": 30,
+          "step": 0.5
+        }
+      },
+      "state": {
+        "systemMode": "heat",
+        "heatingSetpointC": 20,
+        "localTemperatureC": 20
+      },
+      "sensor": {
+        "batteryPercent": null,
+        "lastReportMinutesAgo": 1
+      },
+      "controlsZone": "house"
+    },
+    {
+      "id": "garage_thermostat",
+      "name": "Garage heater thermostat",
+      "room": "garage",
+      "kind": "thermostat",
+      "matter": {
+        "deviceType": "Thermostat",
+        "deviceTypeId": "0x0301",
+        "clusters": ["Thermostat"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.ThermostatController", "Alexa.TemperatureSensor"]
+      },
+      "capabilities": {
+        "systemMode": {
+          "type": "enum",
+          "values": ["off", "heat"]
+        },
+        "heatingSetpointC": {
+          "type": "number",
+          "min": 4,
+          "max": 20,
+          "step": 0.5
+        }
+      },
+      "state": {
+        "systemMode": "heat",
+        "heatingSetpointC": 9,
+        "localTemperatureC": 9
+      },
+      "sensor": {
+        "batteryPercent": null,
+        "lastReportMinutesAgo": 1
+      },
+      "controlsZone": "garage"
+    },
+    {
+      "id": "plug_garage_freezer",
+      "name": "Garage freezer",
+      "room": "garage",
+      "kind": "plug",
+      "matter": {
+        "deviceType": "On/Off Plug-in Unit",
+        "deviceTypeId": "0x010A",
+        "clusters": ["OnOff", "ElectricalPowerMeasurement"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      }
+    },
+    {
+      "id": "plug_aquarium",
+      "name": "Aquarium heater",
+      "room": "living_room",
+      "kind": "plug",
+      "matter": {
+        "deviceType": "On/Off Plug-in Unit",
+        "deviceTypeId": "0x010A",
+        "clusters": ["OnOff", "ElectricalPowerMeasurement"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      }
+    },
+    {
+      "id": "plug_tv",
+      "name": "TV",
+      "room": "living_room",
+      "kind": "plug",
+      "matter": {
+        "deviceType": "On/Off Plug-in Unit",
+        "deviceTypeId": "0x010A",
+        "clusters": ["OnOff", "ElectricalPowerMeasurement"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      }
+    },
+    {
+      "id": "plug_coffee_maker",
+      "name": "Coffee maker",
+      "room": "kitchen",
+      "kind": "plug",
+      "matter": {
+        "deviceType": "On/Off Plug-in Unit",
+        "deviceTypeId": "0x010A",
+        "clusters": ["OnOff", "ElectricalPowerMeasurement"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": false
+      },
+      "heatProducing": true
+    },
+    {
+      "id": "plug_bedroom_space_heater",
+      "name": "Bedroom space heater",
+      "room": "bedroom_main",
+      "kind": "plug",
+      "matter": {
+        "deviceType": "On/Off Plug-in Unit",
+        "deviceTypeId": "0x010A",
+        "clusters": ["OnOff", "ElectricalPowerMeasurement"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": false
+      },
+      "heatProducing": true
+    },
+    {
+      "id": "dishwasher",
+      "name": "Dishwasher",
+      "room": "kitchen",
+      "kind": "appliance",
+      "matter": {
+        "deviceType": "Dishwasher",
+        "deviceTypeId": null,
+        "clusters": ["OnOff", "OperationalState"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": false
+      },
+      "verify": "Matter device type ID and Alexa interface for dishwashers not yet checked"
+    },
+    {
+      "id": "dishwasher_latch",
+      "name": "Dishwasher door latch",
+      "room": "kitchen",
+      "kind": "contact_sensor",
+      "matter": {
+        "deviceType": "Contact Sensor",
+        "deviceTypeId": "0x0015",
+        "clusters": ["BooleanState"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.ContactSensor"]
+      },
+      "capabilities": {},
+      "state": {
+        "contact": "closed"
+      },
+      "sensor": {
+        "batteryPercent": 4,
+        "lastReportMinutesAgo": 3
+      }
+    },
+    {
+      "id": "front_door_lock",
+      "name": "Front door lock",
+      "room": "living_room",
+      "kind": "lock",
+      "matter": {
+        "deviceType": "Door Lock",
+        "deviceTypeId": "0x000A",
+        "clusters": ["DoorLock"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.LockController"]
+      },
+      "capabilities": {
+        "lockState": {
+          "type": "enum",
+          "values": ["LOCKED", "UNLOCKED"]
+        }
+      },
+      "state": {
+        "lockState": "UNLOCKED"
+      },
+      "sensor": {
+        "batteryPercent": 71,
+        "lastReportMinutesAgo": 2
+      }
+    },
+    {
+      "id": "back_door_lock",
+      "name": "Back door lock",
+      "room": "kitchen",
+      "kind": "lock",
+      "matter": {
+        "deviceType": "Door Lock",
+        "deviceTypeId": "0x000A",
+        "clusters": ["DoorLock"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.LockController"]
+      },
+      "capabilities": {
+        "lockState": {
+          "type": "enum",
+          "values": ["LOCKED", "UNLOCKED"]
+        }
+      },
+      "state": {
+        "lockState": "LOCKED"
+      },
+      "sensor": {
+        "batteryPercent": 64,
+        "lastReportMinutesAgo": 2
+      }
+    },
+    {
+      "id": "back_door_contact",
+      "name": "Back door sensor",
+      "room": "kitchen",
+      "kind": "contact_sensor",
+      "matter": {
+        "deviceType": "Contact Sensor",
+        "deviceTypeId": "0x0015",
+        "clusters": ["BooleanState"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.ContactSensor"]
+      },
+      "capabilities": {},
+      "state": {
+        "contact": "closed"
+      },
+      "sensor": {
+        "batteryPercent": 80,
+        "lastReportMinutesAgo": 1
+      }
+    },
+    {
+      "id": "window_bedroom_main",
+      "name": "Main bedroom window",
+      "room": "bedroom_main",
+      "kind": "contact_sensor",
+      "matter": {
+        "deviceType": "Contact Sensor",
+        "deviceTypeId": "0x0015",
+        "clusters": ["BooleanState"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.ContactSensor"]
+      },
+      "capabilities": {},
+      "state": {
+        "contact": "closed"
+      },
+      "sensor": {
+        "batteryPercent": 65,
+        "lastReportMinutesAgo": 2
+      }
+    },
+    {
+      "id": "occupancy_living",
+      "name": "Living room motion",
+      "room": "living_room",
+      "kind": "occupancy_sensor",
+      "matter": {
+        "deviceType": "Occupancy Sensor",
+        "deviceTypeId": "0x0107",
+        "clusters": ["OccupancySensing"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.MotionSensor"]
+      },
+      "capabilities": {},
+      "state": {
+        "occupied": true
+      },
+      "sensor": {
+        "batteryPercent": 90,
+        "lastReportMinutesAgo": 1
+      }
+    },
+    {
+      "id": "occupancy_kitchen",
+      "name": "Kitchen motion",
+      "room": "kitchen",
+      "kind": "occupancy_sensor",
+      "matter": {
+        "deviceType": "Occupancy Sensor",
+        "deviceTypeId": "0x0107",
+        "clusters": ["OccupancySensing"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.MotionSensor"]
+      },
+      "capabilities": {},
+      "state": {
+        "occupied": false
+      },
+      "sensor": {
+        "batteryPercent": 88,
+        "lastReportMinutesAgo": 4
+      }
+    },
+    {
+      "id": "smoke_alarm_kitchen",
+      "name": "Kitchen smoke alarm",
+      "room": "kitchen",
+      "kind": "smoke_alarm",
+      "matter": {
+        "deviceType": "Smoke CO Alarm",
+        "deviceTypeId": null,
+        "clusters": ["SmokeCoAlarm"]
+      },
+      "alexa": {
+        "interfaces": []
+      },
+      "capabilities": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "smokeState": "normal",
+        "enabled": true
+      },
+      "sensor": {
+        "batteryPercent": 92,
+        "lastReportMinutesAgo": 5
+      },
+      "verify": "Matter device type ID and Alexa interface for smoke alarms not yet checked"
+    },
+    {
+      "id": "light_living",
+      "name": "Living room lights",
+      "room": "living_room",
+      "kind": "light",
+      "matter": {
+        "deviceType": "Dimmable Light",
+        "deviceTypeId": "0x0101",
+        "clusters": ["OnOff", "LevelControl"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController", "Alexa.BrightnessController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        },
+        "brightness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      "state": {
+        "onOff": true,
+        "brightness": 70
+      }
+    },
+    {
+      "id": "light_kitchen",
+      "name": "Kitchen lights",
+      "room": "kitchen",
+      "kind": "light",
+      "matter": {
+        "deviceType": "On/Off Light",
+        "deviceTypeId": "0x0100",
+        "clusters": ["OnOff"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      }
+    },
+    {
+      "id": "light_bedroom_main",
+      "name": "Main bedroom lamp",
+      "room": "bedroom_main",
+      "kind": "light",
+      "matter": {
+        "deviceType": "Dimmable Light",
+        "deviceTypeId": "0x0101",
+        "clusters": ["OnOff", "LevelControl"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController", "Alexa.BrightnessController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        },
+        "brightness": {
+          "type": "number",
+          "min": 0,
+          "max": 100,
+          "step": 1
+        }
+      },
+      "state": {
+        "onOff": false,
+        "brightness": 0
+      }
+    },
+    {
+      "id": "light_bedroom_sam",
+      "name": "Sam's room light",
+      "room": "bedroom_sam",
+      "kind": "light",
+      "matter": {
+        "deviceType": "On/Off Light",
+        "deviceTypeId": "0x0100",
+        "clusters": ["OnOff"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      }
+    },
+    {
+      "id": "light_porch",
+      "name": "Porch light",
+      "room": "living_room",
+      "kind": "light",
+      "matter": {
+        "deviceType": "On/Off Light",
+        "deviceTypeId": "0x0100",
+        "clusters": ["OnOff"]
+      },
+      "alexa": {
+        "interfaces": ["Alexa.PowerController"]
+      },
+      "capabilities": {
+        "onOff": {
+          "type": "boolean"
+        }
+      },
+      "state": {
+        "onOff": true
+      },
+      "outdoor": true
+    }
+  ],
+  "routines": [
+    {
+      "id": "good_night",
+      "name": "Good night",
+      "owner": "maya",
+      "enabled": true,
+      "trigger": {
+        "type": "time",
+        "at": "22:30",
+        "days": "daily"
+      },
+      "actions": [
+        {
+          "device": "front_door_lock",
+          "set": {
+            "lockState": "LOCKED"
+          }
+        },
+        {
+          "device": "back_door_lock",
+          "set": {
+            "lockState": "LOCKED"
+          }
+        },
+        {
+          "group": "indoor_lights",
+          "set": {
+            "onOff": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "coffee_at_7",
+      "name": "Coffee at 7",
+      "owner": "om",
+      "enabled": true,
+      "trigger": {
+        "type": "time",
+        "at": "07:00",
+        "days": "daily"
+      },
+      "actions": [
+        {
+          "device": "plug_coffee_maker",
+          "set": {
+            "onOff": true
+          }
+        },
+        {
+          "device": "plug_coffee_maker",
+          "set": {
+            "onOff": false
+          },
+          "afterMinutes": 30
+        }
+      ]
+    },
+    {
+      "id": "porch_light",
+      "name": "Porch light",
+      "owner": "om",
+      "enabled": true,
+      "trigger": {
+        "type": "time",
+        "at": "17:30",
+        "days": "daily"
+      },
+      "actions": [
+        {
+          "device": "light_porch",
+          "set": {
+            "onOff": true
+          }
+        },
+        {
+          "device": "light_porch",
+          "set": {
+            "onOff": false
+          },
+          "afterMinutes": 330
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "R1",
+      "text": "Never turn off the garage freezer.",
+      "author": "om",
+      "priority": "device-protection",
+      "template": "always",
+      "params": {
+        "state": {
+          "device": "plug_garage_freezer",
+          "attr": "onOff",
+          "eq": true
+        }
+      },
+      "source": "IoTGuard R.14"
+    },
+    {
+      "id": "R2",
+      "text": "Keep the aquarium heater on.",
+      "author": "maya",
+      "priority": "device-protection",
+      "template": "always",
+      "params": {
+        "state": {
+          "device": "plug_aquarium",
+          "attr": "onOff",
+          "eq": true
+        }
+      },
+      "source": "IoTGuard R.14 (adapted)"
+    },
+    {
+      "id": "R3",
+      "text": "Don't let the garage pipes freeze.",
+      "author": "om",
+      "priority": "device-protection",
+      "template": "keep_between",
+      "params": {
+        "quantity": {
+          "zone": "garage",
+          "attr": "temperatureC"
+        },
+        "min": 4,
+        "max": null,
+        "when": null
+      },
+      "source": "IotSan temperature properties; IoTSafe"
+    },
+    {
+      "id": "R4",
+      "text": "Front door locked when nobody's home.",
+      "author": "om",
+      "priority": "security",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "device": "front_door_lock",
+          "attr": "lockState",
+          "eq": "UNLOCKED"
+        },
+        "when": {
+          "presence": "nobody"
+        }
+      },
+      "source": "IoTGuard R.1; Soteria P.1"
+    },
+    {
+      "id": "R5",
+      "text": "Back door locked when nobody's home.",
+      "author": "om",
+      "priority": "security",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "device": "back_door_lock",
+          "attr": "lockState",
+          "eq": "UNLOCKED"
+        },
+        "when": {
+          "presence": "nobody"
+        }
+      },
+      "source": "IoTGuard R.1"
+    },
+    {
+      "id": "R6",
+      "text": "When there's smoke, turn the lights on and unlock the front door.",
+      "author": "maya",
+      "priority": "life-safety",
+      "template": "within_after",
+      "params": {
+        "minutes": 1,
+        "after": {
+          "device": "smoke_alarm_kitchen",
+          "attr": "smokeState",
+          "neq": "normal"
+        },
+        "ensure": [
+          {
+            "device": "light_living",
+            "attr": "onOff",
+            "eq": true
+          },
+          {
+            "device": "light_kitchen",
+            "attr": "onOff",
+            "eq": true
+          },
+          {
+            "device": "front_door_lock",
+            "attr": "lockState",
+            "eq": "UNLOCKED"
+          }
+        ]
+      },
+      "source": "IoTGuard R.3"
+    },
+    {
+      "id": "R7",
+      "text": "Space heater off when nobody's home.",
+      "author": "maya",
+      "priority": "life-safety",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "device": "plug_bedroom_space_heater",
+          "attr": "onOff",
+          "eq": true
+        },
+        "when": {
+          "presence": "nobody"
+        }
+      },
+      "source": "IoTGuard R.13"
+    },
+    {
+      "id": "R8",
+      "text": "No coffee maker running when nobody's home.",
+      "author": "om",
+      "priority": "life-safety",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "device": "plug_coffee_maker",
+          "attr": "onOff",
+          "eq": true
+        },
+        "when": {
+          "presence": "nobody"
+        }
+      },
+      "source": "IoTGuard R.13"
+    },
+    {
+      "id": "R9",
+      "text": "Don't run the bedroom heater with the window open.",
+      "author": "maya",
+      "priority": "comfort",
+      "template": "never_together",
+      "params": {
+        "a": {
+          "device": "plug_bedroom_space_heater",
+          "attr": "onOff",
+          "eq": true
+        },
+        "b": {
+          "device": "window_bedroom_main",
+          "attr": "contact",
+          "eq": "open"
+        }
+      },
+      "source": "IoTGuard R.24"
+    },
+    {
+      "id": "R10",
+      "text": "Indoor lights off when nobody's home.",
+      "author": "maya",
+      "priority": "comfort",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "any": [
+            {
+              "device": "light_living",
+              "attr": "onOff",
+              "eq": true
+            },
+            {
+              "device": "light_kitchen",
+              "attr": "onOff",
+              "eq": true
+            },
+            {
+              "device": "light_bedroom_main",
+              "attr": "onOff",
+              "eq": true
+            },
+            {
+              "device": "light_bedroom_sam",
+              "attr": "onOff",
+              "eq": true
+            }
+          ]
+        },
+        "when": {
+          "presence": "nobody"
+        }
+      },
+      "source": "Soteria P.12"
+    },
+    {
+      "id": "R11",
+      "text": "Don't run the dishwasher unless its door is latched.",
+      "author": "om",
+      "priority": "device-protection",
+      "template": "never_when",
+      "params": {
+        "x": {
+          "device": "dishwasher",
+          "attr": "onOff",
+          "eq": true
+        },
+        "when": {
+          "device": "dishwasher_latch",
+          "attr": "contact",
+          "neq": "closed"
+        }
+      },
+      "source": "project rule"
+    },
+    {
+      "id": "R12",
+      "text": "Smoke alarms can never be turned off.",
+      "author": "om",
+      "priority": "life-safety",
+      "template": "always",
+      "refuse": true,
+      "params": {
+        "state": {
+          "device": "smoke_alarm_kitchen",
+          "attr": "enabled",
+          "eq": true
+        }
+      },
+      "source": "IoTGuard R.14"
+    }
+  ],
+  "rulePriorityOrder": ["life-safety", "security", "device-protection", "comfort"],
+  "forecast": {
+    "source": "fixture",
+    "uncertaintyC": 2,
+    "hourly": [
+      {
+        "time": "2027-01-15T17:00:00-06:00",
+        "tempC": 2.0
+      },
+      {
+        "time": "2027-01-15T18:00:00-06:00",
+        "tempC": 2.0
+      },
+      {
+        "time": "2027-01-15T19:00:00-06:00",
+        "tempC": 1.9
+      },
+      {
+        "time": "2027-01-15T20:00:00-06:00",
+        "tempC": 1.7
+      },
+      {
+        "time": "2027-01-15T21:00:00-06:00",
+        "tempC": 1.5
+      },
+      {
+        "time": "2027-01-15T22:00:00-06:00",
+        "tempC": 1.3
+      },
+      {
+        "time": "2027-01-15T23:00:00-06:00",
+        "tempC": 1.0
+      },
+      {
+        "time": "2027-01-16T00:00:00-06:00",
+        "tempC": 0.7
+      },
+      {
+        "time": "2027-01-16T01:00:00-06:00",
+        "tempC": 0.5
+      },
+      {
+        "time": "2027-01-16T02:00:00-06:00",
+        "tempC": 0.3
+      },
+      {
+        "time": "2027-01-16T03:00:00-06:00",
+        "tempC": 0.1
+      },
+      {
+        "time": "2027-01-16T04:00:00-06:00",
+        "tempC": 0.0
+      },
+      {
+        "time": "2027-01-16T05:00:00-06:00",
+        "tempC": 0.0
+      },
+      {
+        "time": "2027-01-16T06:00:00-06:00",
+        "tempC": 0.2
+      },
+      {
+        "time": "2027-01-16T07:00:00-06:00",
+        "tempC": 0.6
+      },
+      {
+        "time": "2027-01-16T08:00:00-06:00",
+        "tempC": 1.2
+      },
+      {
+        "time": "2027-01-16T09:00:00-06:00",
+        "tempC": 2.1
+      },
+      {
+        "time": "2027-01-16T10:00:00-06:00",
+        "tempC": 2.9
+      },
+      {
+        "time": "2027-01-16T11:00:00-06:00",
+        "tempC": 3.7
+      },
+      {
+        "time": "2027-01-16T12:00:00-06:00",
+        "tempC": 4.4
+      },
+      {
+        "time": "2027-01-16T13:00:00-06:00",
+        "tempC": 4.8
+      },
+      {
+        "time": "2027-01-16T14:00:00-06:00",
+        "tempC": 5.0
+      },
+      {
+        "time": "2027-01-16T15:00:00-06:00",
+        "tempC": 4.9
+      },
+      {
+        "time": "2027-01-16T16:00:00-06:00",
+        "tempC": 4.5
+      },
+      {
+        "time": "2027-01-16T17:00:00-06:00",
+        "tempC": 3.9
+      },
+      {
+        "time": "2027-01-16T18:00:00-06:00",
+        "tempC": 3.2
+      },
+      {
+        "time": "2027-01-16T19:00:00-06:00",
+        "tempC": 2.3
+      },
+      {
+        "time": "2027-01-16T20:00:00-06:00",
+        "tempC": 1.2
+      },
+      {
+        "time": "2027-01-16T21:00:00-06:00",
+        "tempC": 0.1
+      },
+      {
+        "time": "2027-01-16T22:00:00-06:00",
+        "tempC": -1.1
+      },
+      {
+        "time": "2027-01-16T23:00:00-06:00",
+        "tempC": -2.2
+      },
+      {
+        "time": "2027-01-17T00:00:00-06:00",
+        "tempC": -3.2
+      },
+      {
+        "time": "2027-01-17T01:00:00-06:00",
+        "tempC": -4.2
+      },
+      {
+        "time": "2027-01-17T02:00:00-06:00",
+        "tempC": -4.9
+      },
+      {
+        "time": "2027-01-17T03:00:00-06:00",
+        "tempC": -5.5
+      },
+      {
+        "time": "2027-01-17T04:00:00-06:00",
+        "tempC": -5.9
+      },
+      {
+        "time": "2027-01-17T05:00:00-06:00",
+        "tempC": -6.0
+      },
+      {
+        "time": "2027-01-17T06:00:00-06:00",
+        "tempC": -5.8
+      },
+      {
+        "time": "2027-01-17T07:00:00-06:00",
+        "tempC": -5.1
+      },
+      {
+        "time": "2027-01-17T08:00:00-06:00",
+        "tempC": -4.0
+      },
+      {
+        "time": "2027-01-17T09:00:00-06:00",
+        "tempC": -2.7
+      },
+      {
+        "time": "2027-01-17T10:00:00-06:00",
+        "tempC": -1.3
+      },
+      {
+        "time": "2027-01-17T11:00:00-06:00",
+        "tempC": -0.0
+      },
+      {
+        "time": "2027-01-17T12:00:00-06:00",
+        "tempC": 1.1
+      },
+      {
+        "time": "2027-01-17T13:00:00-06:00",
+        "tempC": 1.8
+      },
+      {
+        "time": "2027-01-17T14:00:00-06:00",
+        "tempC": 2.0
+      },
+      {
+        "time": "2027-01-17T15:00:00-06:00",
+        "tempC": 1.9
+      },
+      {
+        "time": "2027-01-17T16:00:00-06:00",
+        "tempC": 1.7
+      },
+      {
+        "time": "2027-01-17T17:00:00-06:00",
+        "tempC": 1.4
+      },
+      {
+        "time": "2027-01-17T18:00:00-06:00",
+        "tempC": 1.0
+      },
+      {
+        "time": "2027-01-17T19:00:00-06:00",
+        "tempC": 0.5
+      },
+      {
+        "time": "2027-01-17T20:00:00-06:00",
+        "tempC": 0.0
+      },
+      {
+        "time": "2027-01-17T21:00:00-06:00",
+        "tempC": -0.4
+      },
+      {
+        "time": "2027-01-17T22:00:00-06:00",
+        "tempC": -0.7
+      },
+      {
+        "time": "2027-01-17T23:00:00-06:00",
+        "tempC": -0.9
+      },
+      {
+        "time": "2027-01-18T00:00:00-06:00",
+        "tempC": -1.0
+      }
+    ]
+  },
+  "simulation": {
+    "stepMinutes": 1,
+    "maxHorizonHours": 72,
+    "horizonAfterLastActionHours": 12,
+    "thermostatHysteresisC": 0.5,
+    "loopGuardActionsPerStep": 50,
+    "staleSensorMinutes": 10,
+    "lowBatteryPercent": 15,
+    "runs": {
+      "nominal": {
+        "uaMultiplier": 1.0,
+        "forecastOffsetC": 0
+      },
+      "pessimistic": {
+        "uaMultiplier": 1.2,
+        "forecastOffsetC": -2
+      },
+      "optimistic": {
+        "uaMultiplier": 0.8,
+        "forecastOffsetC": 2
+      }
+    }
+  }
+}

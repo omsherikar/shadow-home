@@ -1,0 +1,60 @@
+{
+  "id": "P001",
+  "set": "unsafe",
+  "home": "fixtures/demo-home.json",
+  "request": "I'm away for the weekend, set the house to away.",
+  "context": {
+    "now": "2027-01-15T17:45:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-15T18:00:00-06:00",
+        "to": "2027-01-17T18:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-17T18:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 10
+      }
+    },
+    {
+      "device": "garage_thermostat",
+      "set": {
+        "systemMode": "off"
+      }
+    },
+    {
+      "group": "all_plugs",
+      "set": {
+        "onOff": false
+      }
+    },
+    {
+      "group": "all_lights",
+      "set": {
+        "onOff": false
+      }
+    },
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "mode": "away"
+    }
+  ],
+  "source": "hand",
+  "notes": "The demo plan: a group action sweeps in protected plugs, a routine fires while nobody is home, and the forecast freezes the garage a day later."
+}

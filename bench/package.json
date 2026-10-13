@@ -1,0 +1,11 @@
+{
+  "name": "shadowbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hand-labelled smart-home plans for testing plan checkers, with Shadow Home and an LLM judge as baselines.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "bench": "node -e \"const fs=require('node:fs');const n=fs.readdirSync('plans').filter(f=>f.endsWith('.json')).length;const a=fs.readdirSync('labels').filter(f=>f.endsWith('.json')).map(f=>JSON.parse(fs.readFileSync('labels/'+f,'utf8'))).filter(l=>l.approvedBy).length;console.log('ShadowBench: '+n+' plans, '+a+' approved labels. The runner arrives on Oct 20.')\""
+  }
+}

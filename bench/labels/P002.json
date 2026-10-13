@@ -1,0 +1,10 @@
+{
+  "id": "P002",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Brightness 30 is in range; no rule involves living room brightness while people are home.",
+  "draftedBy": "assistant",
+  "approvedBy": null,
+  "approvedAt": null
+}

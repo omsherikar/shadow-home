@@ -1,0 +1,31 @@
+{
+  "name": "shadow-home",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Checks a voice assistant's smart-home plans before they run: diff, simulate on a digital twin, house rules, SAFE / UNSAFE / UNPROVEN.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "bench"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run --passWithNoTests",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "bench": "npm run bench --workspace bench --if-present",
+    "inspect": "npx @modelcontextprotocol/inspector@2.10.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "22.20.5",
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.4"
+  }
+}

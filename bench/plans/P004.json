@@ -1,0 +1,19 @@
+{
+  "id": "P004",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Set the heat to 45.",
+  "context": {
+    "now": "2027-01-15T17:45:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 45
+      }
+    }
+  ],
+  "source": "hand",
+  "notes": "Out of range: thermostat_main accepts 7 to 30."
+}

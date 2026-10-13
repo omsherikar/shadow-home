@@ -1,0 +1,20 @@
+{
+  "id": "P003",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "Run the dishwasher at 2 AM when power's cheap.",
+  "context": {
+    "now": "2027-01-12T21:30:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "dishwasher",
+      "set": {
+        "onOff": true
+      },
+      "at": "2027-01-13T02:00:00-06:00"
+    }
+  ],
+  "source": "hand",
+  "notes": "R11 depends on the latch sensor, which is at 4% battery in the fixture."
+}

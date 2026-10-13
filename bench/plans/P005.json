@@ -1,0 +1,19 @@
+{
+  "id": "P005",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Turn on the sauna.",
+  "context": {
+    "now": "2027-01-15T17:45:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "sauna",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "hand",
+  "notes": "The home has no sauna; an assistant that invents a device must be stopped at lint."
+}

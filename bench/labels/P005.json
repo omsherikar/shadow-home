@@ -1,0 +1,10 @@
+{
+  "id": "P005",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: no device called sauna.",
+  "draftedBy": "assistant",
+  "approvedBy": null,
+  "approvedAt": null
+}
