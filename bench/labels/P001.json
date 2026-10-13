@@ -10,6 +10,6 @@
   "expectedUnknowns": [],
   "rationale": "all_plugs turns off the freezer (R1) and aquarium (R2). Coffee at 7 runs Sat 07:00 with nobody home (R8). With the garage heater off and a -6 C night, the garage falls below 4 C (R3).",
   "draftedBy": "assistant",
-  "approvedBy": null,
-  "approvedAt": null
+  "approvedBy": "om",
+  "approvedAt": "2026-10-13"
 }

@@ -5,6 +5,6 @@
   "expectedUnknowns": [],
   "rationale": "Lint: 45 is outside heatingSetpointC 7-30.",
   "draftedBy": "assistant",
-  "approvedBy": null,
-  "approvedAt": null
+  "approvedBy": "om",
+  "approvedAt": "2026-10-13"
 }
