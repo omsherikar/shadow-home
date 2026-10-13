@@ -1,5 +1,5 @@
 import { type Cond, own, type Value } from '@shadow-home/twin';
-import { and, not, or, type Truth } from './logic.ts';
+import { not, type Truth } from './logic.ts';
 import { clockMinutes } from './time.ts';
 
 /** The home at one simulation step. */
@@ -30,10 +30,27 @@ export function evalCond(
   untrusted: ReadonlyMap<string, string>,
   trustCommanded = false,
 ): Truth {
-  const sub = (c: Cond) => evalCond(c, frame, untrusted, trustCommanded);
-  if ('any' in cond) return or(...cond.any.map(sub));
-  if ('all' in cond) return and(...cond.all.map(sub));
-  if ('not' in cond) return not(sub(cond.not));
+  // any/all short-circuit with Kleene logic (as or/and do); this runs every simulated minute,
+  // so it avoids building arrays.
+  if ('any' in cond) {
+    let unknown = false;
+    for (const c of cond.any) {
+      const v = evalCond(c, frame, untrusted, trustCommanded);
+      if (v === true) return true;
+      if (v === 'unknown') unknown = true;
+    }
+    return unknown ? 'unknown' : false;
+  }
+  if ('all' in cond) {
+    let unknown = false;
+    for (const c of cond.all) {
+      const v = evalCond(c, frame, untrusted, trustCommanded);
+      if (v === false) return false;
+      if (v === 'unknown') unknown = true;
+    }
+    return unknown ? 'unknown' : true;
+  }
+  if ('not' in cond) return not(evalCond(cond.not, frame, untrusted, trustCommanded));
   if ('time' in cond) {
     const from = clockMinutes(cond.time.from);
     const to = clockMinutes(cond.time.to);
@@ -42,9 +59,11 @@ export function evalCond(
   }
   if ('presence' in cond) {
     const p = cond.presence;
-    const states = Object.values(frame.presence);
-    if (p === 'nobody') return states.every((s) => s === 'away');
-    if (p === 'anyone') return states.some((s) => s === 'home');
+    if (p === 'nobody' || p === 'anyone') {
+      let someoneHome = false;
+      for (const m in frame.presence) if (frame.presence[m] === 'home') someoneHome = true;
+      return p === 'anyone' ? someoneHome : !someoneHome;
+    }
     return (own(frame.presence, p.member) ?? 'away') === (p.is === 'home' ? 'home' : 'away');
   }
   if (

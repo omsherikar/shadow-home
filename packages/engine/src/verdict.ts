@@ -114,9 +114,14 @@ export function check(home: Home, plan: Plan): CheckResult {
     const zoneMin: Record<string, { tempC: number; ms: number }> = {};
     const sim = simulate(home, plan, name, horizon, (frame) => {
       tracker.observe(frame);
-      for (const [zone, tempC] of Object.entries(frame.zoneTempC)) {
+      for (const zone in frame.zoneTempC) {
+        const tempC = frame.zoneTempC[zone] as number;
         const min = zoneMin[zone];
-        if (!min || tempC < min.tempC) zoneMin[zone] = { tempC, ms: frame.ms };
+        if (!min) zoneMin[zone] = { tempC, ms: frame.ms };
+        else if (tempC < min.tempC) {
+          min.tempC = tempC;
+          min.ms = frame.ms;
+        }
       }
     });
     const outcomes = tracker.outcomes();

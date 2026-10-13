@@ -271,9 +271,16 @@ function presenceTimeline(home: Home, plan: Plan): (ms: number) => Record<string
     toMs: toMs(w.to),
     spec: w.presence,
   }));
+  // One object per window (and one for "no window"), built on first use: frames share them.
+  const cache = new Map<number, Record<string, 'home' | 'away'>>();
   return (ms) => {
-    let spec: PresenceSpec | undefined;
-    for (const w of windows) if (w.fromMs <= ms && ms < w.toMs) spec = w.spec;
+    let index = -1;
+    windows.forEach((w, i) => {
+      if (w.fromMs <= ms && ms < w.toMs) index = i;
+    });
+    const cached = cache.get(index);
+    if (cached) return cached;
+    const spec: PresenceSpec | undefined = windows[index]?.spec;
     const out: Record<string, 'home' | 'away'> = {};
     for (const m of home.household.members) {
       if (spec === undefined) out[m.id] = own(home.household.presence, m.id) ?? 'away';
@@ -281,6 +288,7 @@ function presenceTimeline(home: Home, plan: Plan): (ms: number) => Record<string
       else if (spec === 'everyone') out[m.id] = 'home';
       else out[m.id] = spec.home.includes(m.id) ? 'home' : 'away';
     }
+    cache.set(index, out);
     return out;
   };
 }
