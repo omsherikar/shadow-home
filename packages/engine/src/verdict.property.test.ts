@@ -3,7 +3,9 @@ import { type Capability, own, type Plan, type PlanAction, type Value } from '@s
 import { loadHome } from '@shadow-home/twin/node';
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
+import { assess } from './assess.ts';
 import { ruleDevices } from './rules.ts';
+import { SPEECH_LIMITS, wordCount } from './speech.ts';
 import { formatIso, toMs } from './time.ts';
 import { check } from './verdict.ts';
 
@@ -137,6 +139,32 @@ describe('verdict properties', { timeout: 60_000 }, () => {
       { numRuns: 12 },
     );
     expect(safeWithAwayWindow, 'no SAFE plan with an away window was generated').toBeGreaterThan(0);
+  });
+
+  test('every assessment fits the speech limits, tiers follow the verdict, and repairs never make a plan worse', () => {
+    const rank = { SAFE: 0, UNPROVEN: 1, UNSAFE: 2 } as const;
+    fc.assert(
+      fc.property(plan, fc.constantFrom('om', 'maya', 'sam'), (p, who) => {
+        const a = assess(home, p, { requestedBy: who });
+        expect(wordCount(a.speech.headline)).toBeLessThanOrEqual(SPEECH_LIMITS.headline);
+        expect(wordCount(a.speech.reason ?? '')).toBeLessThanOrEqual(SPEECH_LIMITS.reason);
+        expect(wordCount(a.speech.ask ?? '')).toBeLessThanOrEqual(SPEECH_LIMITS.ask);
+        const tier = a.tier.tier;
+        if (a.check.verdict === 'SAFE') expect(['T0', 'T1', 'T2']).toContain(tier);
+        if (a.check.verdict === 'UNPROVEN') expect(['T4', 'T5']).toContain(tier);
+        if (a.check.verdict === 'UNSAFE') expect(['T3', 'T5']).toContain(tier);
+        if (a.repaired) {
+          expect(rank[a.repaired.check.verdict]).toBeLessThan(rank[a.check.verdict]);
+          expect(check(home, a.repaired.plan)).toEqual(a.repaired.check);
+        }
+        if (a.safePart) {
+          expect(a.safePart.check.verdict).toBe('SAFE');
+          const kept = a.safePart.plan.actions;
+          expect(kept.every((x) => p.actions.includes(x))).toBe(true);
+        }
+      }),
+      { numRuns: 20 },
+    );
   });
 
   test('checking a plan never changes the home', () => {
