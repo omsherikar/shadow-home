@@ -203,6 +203,36 @@ describe('validateHome catches broken references', () => {
       },
       /member sam has no presence/,
     ],
+    [
+      'a scheduled write to a device that does not exist',
+      (h) => {
+        h.scheduled = [
+          { device: 'sauna', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00', source: 'p' },
+        ];
+      },
+      /scheduled 0 uses unknown device sauna/,
+    ],
+    [
+      'a scheduled write out of range',
+      (h) => {
+        h.scheduled = [
+          {
+            device: 'thermostat_main',
+            set: { heatingSetpointC: 45 },
+            at: '2027-01-16T02:00:00-06:00',
+            source: 'p',
+          },
+        ];
+      },
+      /scheduled 0 thermostat_main.heatingSetpointC/,
+    ],
+    [
+      'an irreversible attribute that is not a capability',
+      (h) => {
+        device(h, 'dishwasher').irreversible = ['contact'];
+      },
+      /dishwasher marks contact irreversible, but it isn't a capability/,
+    ],
   ])('%s', (_name, edit, expected) => {
     const problems = validateHome(broken(edit));
     expect(problems.join('\n')).toMatch(expected);

@@ -92,6 +92,12 @@ export function validateHome(home: Home): string[] {
     });
   }
 
+  (home.scheduled ?? []).forEach((write, i) => {
+    problems.push(
+      ...checkWrite(devices.get(write.device), write.device, write.set, `scheduled ${i}`),
+    );
+  });
+
   for (const rule of home.rules) {
     const where = `rule ${rule.id}`;
     if (!memberIds.has(rule.author)) problems.push(`${where} has unknown author ${rule.author}`);
@@ -175,6 +181,11 @@ function validateDevice(device: Device, roomIds: Set<string>, zoneIds: Set<strin
     const domain = attrDomain(device, attr);
     const bad = domain ? checkValue(domain, value) : null;
     if (bad) problems.push(`${where} state ${attr}: ${bad.message}`);
+  }
+  for (const attr of device.irreversible ?? []) {
+    if (!hasOwn(device.capabilities, attr)) {
+      problems.push(`${where} marks ${attr} irreversible, but it isn't a capability`);
+    }
   }
   const offered = new Set<string>();
   for (const c of clusters) {

@@ -98,6 +98,8 @@ export const deviceSchema = z.strictObject({
   sensor: sensorSchema.optional(),
   controlsZone: id.optional(),
   heatProducing: z.boolean().optional(),
+  /** Attributes whose writes can't be taken back once they take effect. */
+  irreversible: z.array(z.string()).optional(),
   outdoor: z.boolean().optional(),
   verify: z.string().optional(),
 });
@@ -125,6 +127,8 @@ export const routineSchema = z.strictObject({
   enabled: z.boolean(),
   trigger: z.strictObject({ type: z.literal('time'), at: clockTime, days: z.literal('daily') }),
   actions: z.array(routineActionSchema).min(1),
+  /** Paused by an earlier plan: triggers from now until this instant don't run. */
+  pausedUntil: isoDateTime.optional(),
 });
 export type Routine = z.infer<typeof routineSchema>;
 
@@ -231,6 +235,18 @@ export const homeSchema = z.object({
   groups: z.record(z.string(), z.array(id).min(1)),
   devices: z.array(deviceSchema),
   routines: z.array(routineSchema),
+  /** Writes an earlier plan scheduled for later. They run like routine steps. */
+  scheduled: z
+    .array(
+      z.strictObject({
+        device: id,
+        set: z.record(z.string(), valueSchema),
+        at: isoDateTime,
+        /** What scheduled it, for the timeline and the activity log. */
+        source: z.string().min(1),
+      }),
+    )
+    .optional(),
   rules: z.array(ruleSchema),
   rulePriorityOrder: z.array(z.enum(RULE_PRIORITIES)),
   forecast: z.strictObject({

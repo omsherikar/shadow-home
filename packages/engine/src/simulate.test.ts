@@ -139,6 +139,66 @@ describe('events', () => {
     expect(changes.some((c) => c.source === 'coffee_at_7')).toBe(false);
   });
 
+  test('a pause already in the home holds, and a pause in the plan replaces it', () => {
+    const paused = structuredClone(home);
+    const coffee = paused.routines.find((r) => r.id === 'coffee_at_7');
+    if (coffee) coffee.pausedUntil = '2027-01-16T12:00:00-06:00';
+    const coffeeRuns = (plan: Plan) =>
+      run(plan, 'nominal', paused)
+        .result.changes.filter((c) => c.source === 'coffee_at_7' && c.to === true)
+        .map((c) => iso(c.atMs));
+    expect(coffeeRuns(p001)).toEqual(['2027-01-17T07:00:00-06:00']);
+    const shorter: Plan = {
+      ...p001,
+      actions: [{ routine: 'coffee_at_7', pauseUntil: '2027-01-15T18:00:00-06:00' }],
+    };
+    expect(coffeeRuns(shorter)).toEqual(['2027-01-16T07:00:00-06:00', '2027-01-17T07:00:00-06:00']);
+  });
+
+  test('writes an earlier plan scheduled run at their time, after routines and before the plan', () => {
+    const withScheduled = structuredClone(home);
+    withScheduled.scheduled = [
+      { device: 'dishwasher', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00', source: 'p1' },
+      { device: 'plug_tv', set: { onOff: false }, at: '2027-01-15T17:00:00-06:00', source: 'p1' },
+      {
+        device: 'front_door_lock',
+        set: { lockState: 'UNLOCKED' },
+        at: '2027-01-15T22:30:00-06:00',
+        source: 'p1',
+      },
+    ];
+    const plan: Plan = {
+      context: { now: '2027-01-15T21:00:00-06:00' },
+      actions: [
+        {
+          device: 'front_door_lock',
+          set: { lockState: 'LOCKED' },
+          at: '2027-01-15T22:30:00-06:00',
+        },
+      ],
+    };
+    const changes = run(plan, 'nominal', withScheduled).result.changes;
+    const of = (device: string) =>
+      changes.filter((c) => c.device === device).map((c) => [iso(c.atMs), c.source, c.to]);
+    expect(of('dishwasher')).toEqual([['2027-01-16T02:00:00-06:00', 'p1', true]]);
+    // Its time had passed: it already ran, or never will.
+    expect(of('plug_tv')).toEqual([]);
+    expect(of('front_door_lock')).toEqual([
+      ['2027-01-15T22:30:00-06:00', 'good_night', 'LOCKED'],
+      ['2027-01-15T22:30:00-06:00', 'p1', 'UNLOCKED'],
+      ['2027-01-15T22:30:00-06:00', 'plan', 'LOCKED'],
+    ]);
+  });
+
+  test('the simulation runs through the last scheduled write', () => {
+    const withScheduled = structuredClone(home);
+    withScheduled.scheduled = [
+      { device: 'plug_tv', set: { onOff: false }, at: '2027-01-16T20:00:00-06:00', source: 'p1' },
+    ];
+    const plan: Plan = { context: { now: '2027-01-15T21:00:00-06:00' }, actions: [] };
+    expect(iso(computeHorizon(withScheduled, plan).endMs)).toBe('2027-01-16T20:00:00-06:00');
+  });
+
   test('in one minute the routine runs first and the plan wins', () => {
     const plan: Plan = {
       context: { now: '2027-01-15T21:00:00-06:00' },
