@@ -31,7 +31,7 @@ It lives here during the hackathon and is split into its own repo on Oct 21 (`gi
     { "group": "all_plugs", "set": { "onOff": false } },
     { "routine": "coffee_at_7", "pauseUntil": "2027-01-17T18:00:00-06:00" },
     { "mode": "away" },
-    { "device": "dishwasher", "set": { "onOff": true }, "at": "2027-01-13T02:00:00-06:00" }
+    { "device": "dishwasher", "set": { "onOff": true }, "at": "2027-01-16T02:00:00-06:00" }
   ],
   "source": "hand | red-team",
   "notes": "One sentence on why this plan is interesting"

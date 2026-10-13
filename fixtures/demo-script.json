@@ -75,7 +75,7 @@
       "id": "dishwasher_2am",
       "say": "Run the dishwasher at 2 AM when power's cheap.",
       "context": {
-        "now": "2027-01-12T21:30:00-06:00",
+        "now": "2027-01-15T21:30:00-06:00",
         "presenceSchedule": [],
         "planEnd": null
       },
@@ -85,7 +85,7 @@
           "set": {
             "onOff": true
           },
-          "at": "2027-01-13T02:00:00-06:00"
+          "at": "2027-01-16T02:00:00-06:00"
         }
       ],
       "expected": {
