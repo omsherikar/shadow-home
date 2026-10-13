@@ -1,5 +1,6 @@
 import {
   compiledRuleSchema,
+  isoDateTime,
   planActionSchema,
   presenceSpecSchema,
   valueSchema,
@@ -7,6 +8,10 @@ import {
 import { z } from 'zod';
 
 const iso = z.string().describe('ISO 8601 time with offset, in the home time zone');
+/** Times the caller sends must carry an offset, or they would be read in the server's time zone. */
+const isoIn = isoDateTime.describe(
+  'ISO 8601 time with a UTC offset, e.g. 2027-01-17T18:00:00-06:00',
+);
 const verdict = z.enum(['SAFE', 'UNSAFE', 'UNPROVEN']);
 const tier = z.enum(['T0', 'T1', 'T2', 'T3', 'T4', 'T5']);
 const reversibility = z.enum(['holdable', 'compensable', 'irreversible']);
@@ -106,10 +111,10 @@ export const previewInput = z.object({
   intent: z.string().min(1).describe('What the person asked for, in their words'),
   requestedBy: member.optional(),
   presenceSchedule: z
-    .array(z.object({ from: iso, to: iso, presence: presenceSpecSchema }))
+    .array(z.object({ from: isoIn, to: isoIn, presence: presenceSpecSchema }))
     .optional()
     .describe('Who will be home when, if the request says ("away until Sunday")'),
-  planEnd: iso.optional().describe('When the plan stops mattering ("until Sunday 6 PM")'),
+  planEnd: isoIn.optional().describe('When the plan stops mattering ("until Sunday 6 PM")'),
 });
 
 const logChange = z.object({
@@ -221,8 +226,8 @@ export const homeStateOutput = z.object({
 export type HomeStateOutput = z.infer<typeof homeStateOutput>;
 
 export const logInput = z.object({
-  from: iso.optional(),
-  to: iso.optional(),
+  from: isoIn.optional(),
+  to: isoIn.optional(),
   person: member.optional(),
   groupBy: z.enum(['cause', 'none']).optional().describe('Default: cause'),
 });

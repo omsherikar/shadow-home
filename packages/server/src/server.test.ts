@@ -176,12 +176,18 @@ describe.each(['legacy', 'modern'] as const)('over the %s protocol', (era) => {
       '2027-01-17T18:00:00-06:00',
     );
 
+    // Undoing just the thermostat leaves the rest of the plan undoable, without the thermostat.
     const log = await api.call<LogOutput>('get_activity_log', {});
     expect(log.entries.map((e) => [e.source, e.undoable])).toEqual([
-      ['plan', false],
+      ['plan', true],
       ['undo', true],
     ]);
-    expect(log.entries[0]?.undoneBy).toBe(log.entries[1]?.id);
+    expect(log.entries[0]?.undoneBy).toBeUndefined();
+    const rest = await api.call<UndoOutput>('undo', { token: log.entries[0]?.undoToken });
+    const targets = rest.preview?.diff.map((r) => r.target) ?? [];
+    expect(targets).toContain('garage_thermostat');
+    expect(targets).not.toContain('thermostat_main');
+    expect(rest.notes).toContain('Coffee at 7 resumes.');
   });
 });
 
@@ -237,6 +243,14 @@ describe('the commit contract', () => {
     const r = await api.call<CommitOutput>('commit_plan', { planId: stale.planId });
     expect(r).toMatchObject({ status: 'refused', reason: 'state_changed' });
     expect(r.freshPreview?.stateVersion).toBeGreaterThan(stale.stateVersion);
+  });
+
+  test('a time without a UTC offset is rejected at the tool boundary', async () => {
+    const r = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: { ...dim, planEnd: '2027-01-17T18:00:00' },
+    });
+    expect(r.isError).toBe(true);
   });
 
   test('switching off a smoke alarm is refused at T5', async () => {
