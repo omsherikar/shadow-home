@@ -41,3 +41,13 @@ export function formatClock(minuteOfDay: number): string {
   const m = minuteOfDay % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
+
+/** An instant as ISO 8601 in a fixed UTC offset, e.g. "2027-01-15T17:45:00-06:00". */
+export function formatIso(ms: number, utcOffsetMinutes: number): string {
+  const local = new Date(ms + utcOffsetMinutes * MINUTE_MS).toISOString().slice(0, 19);
+  const sign = utcOffsetMinutes < 0 ? '-' : '+';
+  const abs = Math.abs(utcOffsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+  const mm = String(abs % 60).padStart(2, '0');
+  return `${local}${sign}${hh}:${mm}`;
+}
