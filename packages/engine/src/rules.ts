@@ -23,8 +23,11 @@ export interface RuleTracker {
 
 interface Check {
   rule: Rule;
-  /** Is the rule broken at this step, taking commanded values on untrusted devices at face value? */
-  ifCommandsWork(frame: Frame): Truth;
+  /**
+   * Is the rule broken at this step, taking commanded values on untrusted devices at face value?
+   * Null when the rule reads no untrusted device, so it can't differ from `strict`.
+   */
+  ifCommandsWork: ((frame: Frame) => Truth) | null;
   /** Is the rule broken at this step, with every untrusted reading unknown? */
   strict(frame: Frame): Truth;
   sensors: string[];
@@ -40,17 +43,22 @@ interface Check {
  * unknown: a safe command to an untrusted device may not have taken effect.
  */
 export function createRuleTracker(home: Home, untrusted: ReadonlyMap<string, string>): RuleTracker {
-  const checks: Check[] = home.rules.map((rule) => ({
-    rule,
-    ifCommandsWork: compile(home, rule, untrusted, true),
-    strict: compile(home, rule, untrusted, false),
-    sensors: ruleDevices(home, rule).filter((d) => untrusted.has(d)),
-  }));
+  const checks: Check[] = home.rules.map((rule) => {
+    const sensors = ruleDevices(home, rule).filter((d) => untrusted.has(d));
+    const strict = compile(home, rule, untrusted, false);
+    // With no untrusted device in the rule, trusting commands changes nothing: one check will do.
+    return {
+      rule,
+      ifCommandsWork: sensors.length > 0 ? compile(home, rule, untrusted, true) : null,
+      strict,
+      sensors,
+    };
+  });
   return {
     observe(frame) {
       for (const c of checks) {
         // Evaluate both every step: within_after keeps state between steps.
-        const assumed = c.ifCommandsWork(frame);
+        const assumed = c.ifCommandsWork ? c.ifCommandsWork(frame) : false;
         const strict = c.strict(frame);
         const v = assumed === true ? true : strict;
         if (v === true && c.firstViolationMs === undefined) c.firstViolationMs = frame.ms;
@@ -91,11 +99,11 @@ function compile(
     }
     case 'never_when': {
       const { x, when } = rule.params;
-      return (f) => and(holds(x, f), holds(when, f));
+      return (f) => and2(holds(x, f), () => holds(when, f));
     }
     case 'never_together': {
       const { a, b } = rule.params;
-      return (f) => and(holds(a, f), holds(b, f));
+      return (f) => and2(holds(a, f), () => holds(b, f));
     }
     case 'keep_between': {
       const { quantity, min, max, when } = rule.params;
@@ -119,10 +127,22 @@ function compile(
         definite = a === true ? definite + 1 : 0;
         possible = a === false ? 0 : possible + 1;
         const sustained: Truth = definite > minutes ? true : possible > minutes ? 'unknown' : false;
-        return and(sustained, not(and(...ensure.map((e) => holds(e, f)))));
+        return and2(sustained, () => {
+          let all: Truth = true;
+          for (const e of ensure) {
+            all = and(all, holds(e, f));
+            if (all === false) break;
+          }
+          return not(all);
+        });
       };
     }
   }
+}
+
+/** Kleene AND that skips the second operand when the first is false. */
+function and2(a: Truth, b: () => Truth): Truth {
+  return a === false ? false : and(a, b());
 }
 
 /** Devices whose readings a rule depends on (for keep_between, the zone's thermostat). */
