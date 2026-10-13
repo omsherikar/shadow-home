@@ -1,0 +1,17 @@
+{
+  "name": "@shadow-home/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shadow Home verdict engine: lint, hygiene, simulate, rules. Pure functions, no I/O.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@shadow-home/twin": "0.1.0"
+  }
+}
