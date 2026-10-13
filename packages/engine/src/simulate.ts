@@ -32,8 +32,11 @@ export interface SimResult {
 
 interface Event {
   atMs: number;
-  /** 0 for routine steps, 1 for plan actions: in one minute the routine runs first, the plan wins. */
-  rank: 0 | 1;
+  /**
+   * 0 for routine steps, 1 for writes an earlier plan scheduled, 2 for this plan's actions: in one
+   * minute routines run first and this plan wins.
+   */
+  rank: 0 | 1 | 2;
   seq: number;
   source: string;
   actionIndex?: number;
@@ -74,7 +77,11 @@ export function simulate(
     heating[zone.id] = false;
   }
 
-  const events = [...planEvents(home, plan), ...routineEvents(home, plan, nowMs, horizon, offset)];
+  const events = [
+    ...planEvents(home, plan),
+    ...routineEvents(home, plan, nowMs, horizon, offset),
+    ...scheduledEvents(home, nowMs, horizon),
+  ];
   events.sort((a, b) => a.atMs - b.atMs || a.rank - b.rank || a.seq - b.seq);
 
   const changes: Change[] = [];
@@ -167,7 +174,7 @@ export function simulate(
 function planEvents(home: Home, plan: Plan): Event[] {
   const events: Event[] = expandWrites(home, plan).map((w, seq) => ({
     atMs: w.atMs,
-    rank: 1,
+    rank: 2,
     seq,
     source: 'plan',
     actionIndex: w.actionIndex,
@@ -180,7 +187,7 @@ function planEvents(home: Home, plan: Plan): Event[] {
     if (!('mode' in a)) return;
     events.push({
       atMs: Math.floor((a.at ? toMs(a.at) : nowMs) / MINUTE_MS) * MINUTE_MS,
-      rank: 1,
+      rank: 2,
       seq: events.length,
       source: 'plan',
       actionIndex,
@@ -194,8 +201,8 @@ function planEvents(home: Home, plan: Plan): Event[] {
 
 /**
  * Every routine step inside the horizon. Steps before `now` already happened. A pause stops
- * triggers inside [now, pauseUntil); the last pause of a routine in plan order wins. Steps of a
- * run that triggered before now still happen.
+ * triggers inside [now, pauseUntil); the last pause of a routine in plan order wins over earlier
+ * ones and over a pause already in the home. Steps of a run that triggered before now still happen.
  */
 function routineEvents(
   home: Home,
@@ -205,6 +212,7 @@ function routineEvents(
   offset: number,
 ): Event[] {
   const pausedUntil = new Map<string, number>();
+  for (const r of home.routines) if (r.pausedUntil) pausedUntil.set(r.id, toMs(r.pausedUntil));
   for (const a of plan.actions) {
     if ('routine' in a) pausedUntil.set(a.routine, toMs(a.pauseUntil));
   }
@@ -230,6 +238,27 @@ function routineEvents(
           }
         }
       }
+    }
+  }
+  return events;
+}
+
+/** Writes an earlier plan scheduled. As with routine steps, ones stamped before `now` already ran. */
+function scheduledEvents(home: Home, nowMs: number, horizon: Horizon): Event[] {
+  const events: Event[] = [];
+  for (const w of home.scheduled ?? []) {
+    const atMs = Math.floor(toMs(w.at) / MINUTE_MS) * MINUTE_MS;
+    if (atMs < nowMs || atMs > horizon.endMs) continue;
+    for (const [attr, value] of Object.entries(w.set)) {
+      events.push({
+        atMs,
+        rank: 1,
+        seq: events.length,
+        source: w.source,
+        device: w.device,
+        attr,
+        value,
+      });
     }
   }
   return events;

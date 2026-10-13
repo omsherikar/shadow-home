@@ -13,8 +13,8 @@ export interface Horizon {
 
 /**
  * The stretch of time to simulate: from `now` to the latest of `planEnd`, 12 h after the last
- * action, the end of the last presence window and the end of the last routine pause (the plan's
- * effects last that long), capped at the maximum horizon and at the end of the forecast. Any
+ * action, the end of the last presence window, the end of the last routine pause (the plan's
+ * effects last that long) and the last write an earlier plan scheduled, capped at the maximum horizon and at the end of the forecast. Any
  * cut is reported as an unknown, so a plan the engine can't see to the end is never SAFE.
  */
 export function computeHorizon(home: Home, plan: Plan): Horizon {
@@ -28,11 +28,14 @@ export function computeHorizon(home: Home, plan: Plan): Horizon {
   const planEndMs = plan.context.planEnd ? toMs(plan.context.planEnd) : 0;
   const windowEnds = (plan.context.presenceSchedule ?? []).map((w) => toMs(w.to));
   const pauseEnds = plan.actions.flatMap((a) => ('routine' in a ? [toMs(a.pauseUntil)] : []));
+  // Writes an earlier plan scheduled can interact with this one, so they are seen through too.
+  const scheduled = (home.scheduled ?? []).map((w) => floorToMinute(toMs(w.at)));
   const wanted = Math.max(
     planEndMs,
     lastActionMs + horizonAfterLastActionHours * HOUR_MS,
     ...windowEnds,
     ...pauseEnds,
+    ...scheduled.filter((ms) => ms >= startMs),
   );
 
   const forecast = forecastSpan(home);
