@@ -1,0 +1,28 @@
+import { randomBytes } from 'node:crypto';
+import { join } from 'node:path';
+import { serve } from '@hono/node-server';
+import { loadHome } from '@shadow-home/twin/node';
+import { createApp } from './app.ts';
+import { systemClock } from './clock.ts';
+import { initialState } from './live-home.ts';
+import { ShadowHomeService } from './service.ts';
+import { memoryStore } from './store.ts';
+
+const root = join(import.meta.dirname, '../../..');
+const homePath = process.env.SHADOW_HOME_FIXTURE ?? join(root, 'fixtures/demo-home.json');
+const port = Number(process.env.PORT ?? 3000);
+const home = loadHome(homePath);
+
+const service = new ShadowHomeService({
+  store: memoryStore(initialState(home)),
+  clock: systemClock(Date.parse(home.clock.now)),
+  // A fresh key each start: plan IDs from an earlier run stop working, which is what we want.
+  secret: process.env.SHADOW_HOME_SECRET ?? randomBytes(32).toString('base64url'),
+});
+
+const app = createApp(service, { onError: (e) => console.error('mcp:', e.message) });
+serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, (info) => {
+  console.log(
+    `Shadow Home MCP server on http://localhost:${info.port}/mcp (home time ${home.clock.now})`,
+  );
+});
