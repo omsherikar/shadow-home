@@ -1,0 +1,19 @@
+{
+  "id": "P024",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Kitchen lights to 50 percent please.",
+  "context": {
+    "now": "2027-01-16T08:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "light_kitchen",
+      "set": {
+        "brightness": 50
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The kitchen light is on/off only, and an assistant that copies the living room's dimming pattern sends a brightness it cannot accept."
+}

@@ -1,0 +1,46 @@
+{
+  "id": "P029",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "We're off to brunch, back around one. Lock up and kill the lights.",
+  "context": {
+    "now": "2027-01-17T10:00:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-17T10:20:00-06:00",
+        "to": "2027-01-17T13:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-17T13:00:00-06:00",
+    "stateOverrides": {
+      "front_door_lock": {
+        "sensor": {
+          "batteryPercent": 9
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "group": "indoor_lights",
+      "set": {
+        "onOff": false
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The plan is right on paper, but the front lock is at 9% battery, so whether it actually stays locked while nobody is home cannot be confirmed."
+}

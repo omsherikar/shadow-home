@@ -1,0 +1,19 @@
+{
+  "id": "P025",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Set the thermostat to sixty-nine.",
+  "context": {
+    "now": "2027-01-15T19:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 20.6
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The assistant correctly converts 69 F to Celsius but sends 20.6, which is in range and not on the thermostat's 0.5 step."
+}
