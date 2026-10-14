@@ -148,23 +148,37 @@ function ScreenView({
       </header>
 
       <section className={s.cards.length > 0 ? 'body two' : 'body'}>
-        {s.rows.length > 0 ? (
+        {s.rows.length > 0 || s.notes.length > 0 ? (
           <div className="changes">
-            <h2>{s.rowsTitle}</h2>
-            <ul className="rows">
-              {s.rows.map((row) => (
-                <li key={row.place} className="row">
-                  <span className="place">{row.place}</span>
-                  <span className="chips">
-                    {row.chips.map((chip) => (
-                      <span key={`${chip.tone}-${chip.text}`} className={`chip ${chip.tone ?? ''}`}>
-                        {chip.text}
+            {s.rows.length > 0 ? (
+              <>
+                <h2>{s.rowsTitle}</h2>
+                <ul className="rows">
+                  {s.rows.map((row) => (
+                    <li key={row.place} className="row">
+                      <span className="place">{row.place}</span>
+                      <span className="chips">
+                        {row.chips.map((chip) => (
+                          <span
+                            key={`${chip.tone}-${chip.text}`}
+                            className={`chip ${chip.tone ?? ''}`}
+                          >
+                            {chip.text}
+                          </span>
+                        ))}
                       </span>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {s.notes.length > 0 ? (
+              <ul className="notes">
+                {s.notes.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
         {s.cards.length > 0 ? (
@@ -172,9 +186,9 @@ function ScreenView({
             <h2>Why</h2>
             <ol className="cards">
               {s.cards.map((c) => (
-                <li key={`${c.rule}-${c.cause}`} className="card">
+                <li key={c.id} className="card">
                   <div className="cause">
-                    {c.cause} <span className="at">{c.at}</span>
+                    <span className="tag">{c.id}</span> {c.cause} <span className="at">{c.at}</span>
                   </div>
                   {c.breaks ? <div className="breaks">{c.breaks}</div> : null}
                   <div className="rule">
@@ -187,14 +201,6 @@ function ScreenView({
           </div>
         ) : null}
       </section>
-
-      {s.notes.length > 0 ? (
-        <ul className="notes">
-          {s.notes.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
-      ) : null}
 
       {s.timeline ? <TimelineView t={s.timeline} /> : null}
 
@@ -219,8 +225,8 @@ function ScreenView({
 
 const W = 1000;
 const LABEL_W = 150;
-const LANE_H = 30;
-const TOP = 24;
+const LANE_H = 21;
+const TOP = 20;
 
 function TimelineView({ t }: { t: Timeline }) {
   const span = Math.max(1, t.endMs - t.startMs);
@@ -228,13 +234,13 @@ function TimelineView({ t }: { t: Timeline }) {
   const h = TOP + t.lanes.length * LANE_H + 6;
   return (
     <svg className="timeline" viewBox={`0 0 ${W} ${h}`} role="img" aria-label="Timeline">
-      <text x={LABEL_W} y={14} className="tick">
+      <text x={LABEL_W} y={13} className="tick">
         now
       </text>
       {t.days.map((d) => (
         <g key={d.atMs}>
-          <line x1={x(d.atMs)} x2={x(d.atMs)} y1={18} y2={h} className="day" />
-          <text x={x(d.atMs) + 4} y={14} className="tick">
+          <line x1={x(d.atMs)} x2={x(d.atMs)} y1={16} y2={h} className="day" />
+          <text x={x(d.atMs) + 4} y={13} className="tick">
             {d.label}
           </text>
         </g>

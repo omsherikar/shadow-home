@@ -26,16 +26,16 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: clamp(12px, 1.55vw, 22px);
+  font-size: clamp(12px, 1.45vw, 21px);
 }
 
 .screen {
   --tone: var(--neutral);
   display: flex;
   flex-direction: column;
-  gap: 0.9em;
+  gap: 0.7em;
   height: 100vh;
-  padding: 1.2em 1.5em;
+  padding: 1em 1.4em;
   overflow: hidden;
 }
 
@@ -91,20 +91,19 @@ body {
 
 .speech h1 {
   margin: 0;
-  font-size: 1.7em;
+  font-size: 1.5em;
   line-height: 1.2;
 }
 
 .speech .reason {
-  margin: 0.25em 0 0;
+  margin: 0.2em 0 0;
   color: var(--soft);
-  font-size: 1.05em;
 }
 
 .speech .ask {
-  margin: 0.25em 0 0;
+  margin: 0.2em 0 0;
   color: var(--tone);
-  font-size: 1.1em;
+  font-size: 1.05em;
   font-weight: 650;
 }
 
@@ -118,7 +117,7 @@ body {
 }
 
 .body.two {
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 h2 {
@@ -179,12 +178,26 @@ h2 {
   border-style: dashed;
 }
 
+.cards {
+  gap: 0.35em;
+}
+
 .card {
-  padding: 0.4em 0.7em;
+  padding: 0.3em 0.6em;
   border-left: 4px solid var(--blocked);
   border-radius: 0.45em;
   background: var(--panel);
-  font-size: 0.88em;
+  font-size: 0.8em;
+  line-height: 1.3;
+}
+
+.card .tag {
+  padding: 0 0.3em;
+  border-radius: 0.3em;
+  background: color-mix(in srgb, var(--blocked) 25%, transparent);
+  color: var(--blocked);
+  font-size: 0.85em;
+  font-weight: 700;
 }
 
 .card .cause {
@@ -213,7 +226,7 @@ h2 {
 }
 
 .notes {
-  margin: 0;
+  margin: 0.6em 0 0;
   padding-left: 1.2em;
   color: var(--soft);
   font-size: 0.9em;
@@ -228,12 +241,12 @@ h2 {
 
 .timeline .tick {
   fill: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .timeline .lane {
   fill: var(--soft);
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .timeline .track {
@@ -256,7 +269,7 @@ h2 {
 
 .timeline .mark-label {
   fill: var(--blocked);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
 }
 

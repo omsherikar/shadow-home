@@ -453,6 +453,12 @@ describe('the plan view', () => {
       'Porch light',
       'House rules',
     ]);
+    // R1 and R2 break in the same minute, so they share one mark rather than overlap.
+    expect(s.timeline?.lanes.at(-1)?.marks.map((m) => m.label)).toEqual([
+      'R8 breaks',
+      'R1, R2 break',
+      'R3 breaks',
+    ]);
     expect(s.controls[0]).toEqual({
       label: 'Do it with 4 fixes',
       say: 'yes',
