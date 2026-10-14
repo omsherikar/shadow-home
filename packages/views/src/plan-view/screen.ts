@@ -470,7 +470,10 @@ function card(v: Violation, p: Preview, fixes: RepairChange[], names?: Names): C
   };
 }
 
-/** "Garage freezer stays on", "Coffee at 7 paused until Sun 6:00 PM", "Garage heater holds 5 °C". */
+/**
+ * "Garage freezer stays on", "Coffee at 7 paused until Sun 6:00 PM", "Garage heater holds 5 °C",
+ * "Front door locked Fri 6:00 PM".
+ */
 export function fixLabel(f: RepairChange, p: Preview, names?: Names): string {
   const rows = p.repair?.diff.filter((r) => r.target === f.target) ?? [];
   switch (f.kind) {
@@ -482,6 +485,13 @@ export function fixLabel(f: RepairChange, p: Preview, names?: Names): string {
       const setpoint = rows.find((r) => r.attr === 'heatingSetpointC');
       if (!setpoint) return f.description;
       return `${deviceName(f.target, names)} holds ${valuePhrase(setpoint.attr, setpoint.to)}`;
+    }
+    case 'add_action': {
+      // A step the plan left out: what it sets, and when.
+      const [step] = rows;
+      if (!step) return f.description;
+      const what = changePhrase(deviceName(f.target, names), step.attr, step.from, step.to);
+      return `${what} ${when(step.at, p.horizon.start)}`;
     }
     case 'leave_out':
     case 'drop_action': {

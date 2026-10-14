@@ -50,7 +50,7 @@ export interface Violation {
 
 export interface RepairChange {
   rule: string;
-  kind: 'leave_out' | 'nearest_value' | 'pause_routine' | 'drop_action';
+  kind: 'leave_out' | 'nearest_value' | 'pause_routine' | 'drop_action' | 'add_action';
   actionIndex?: number;
   target: string;
   description: string;
