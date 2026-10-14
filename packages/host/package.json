@@ -9,9 +9,12 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "record-demo": "node scripts/record-demo.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "3.1151.0",
+    "@aws-sdk/client-polly": "3.1151.0",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/ext-apps": "2.0.3",
     "next": "15.5.27",

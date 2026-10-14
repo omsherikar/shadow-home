@@ -24,15 +24,22 @@ export default defineConfig({
     {
       command: 'node packages/views/scripts/build.ts && node packages/server/src/main.ts',
       url: `${SERVER}/healthz`,
-      env: { PORT: '3100' },
+      env: { PORT: '3100', SHADOW_HOME_DEMO: '1' },
       reuseExistingServer: false,
       timeout: 60_000,
     },
     {
       command: 'npx next dev -p 3101',
       cwd: 'packages/host',
-      url: HOST,
-      env: { MCP_SERVER_URL: `${SERVER}/mcp` },
+      // The turn route, so the dev server has compiled it before the first test talks.
+      url: `${HOST}/api/turn`,
+      env: {
+        MCP_SERVER_URL: `${SERVER}/mcp`,
+        MOCK_MODEL: '1',
+        DEMO_MODE: '1',
+        DEMO_CLOCK: '1',
+        SHADOW_HOME_SILENT: '1',
+      },
       reuseExistingServer: false,
       timeout: 120_000,
     },

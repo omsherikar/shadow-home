@@ -259,3 +259,89 @@ button:disabled {
   opacity: 0.5;
   cursor: default;
 }
+
+.voice .mic {
+  min-width: 7em;
+  background: #26211d;
+  color: #e7e5e4;
+  border: 1px solid #3f3a35;
+}
+
+.voice .mic.on {
+  background: #0ea5e9;
+  color: #04111d;
+}
+
+.suggestions .play {
+  border-color: #0ea5e9;
+  background: #0c4a6e;
+  color: #e0f2fe;
+  font-weight: 700;
+}
+
+.demo-done {
+  margin: 0;
+  color: #67e8f9;
+}
+
+.transcript {
+  width: min(94vw, 1180px);
+  margin: 0;
+  padding: 0;
+  color: #d6d3d1;
+  font-size: 14px;
+  list-style: none;
+}
+
+.transcript .line {
+  padding: 3px 0;
+}
+
+.transcript .who {
+  display: inline-block;
+  min-width: 3.5em;
+  color: #a8a29e;
+  font-weight: 700;
+}
+
+.transcript .alexa .who {
+  color: #67e8f9;
+}
+
+.rule-card {
+  padding: 4% 6%;
+  font-size: clamp(14px, 1.7vw, 23px);
+}
+
+.rule-card h2 {
+  margin: 0 0 0.4em;
+  color: #94a3b8;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rule-card p,
+.rule-card ul {
+  margin: 0.4em 0;
+}
+
+.rule-card .headline {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+.rule-card .read-back {
+  color: #e0f2fe;
+  font-size: 1.15em;
+}
+
+.rule-card .conflicts {
+  padding-left: 1.2em;
+  color: #fbbf24;
+}
+
+.rule-card .sample-day,
+.rule-card .problem {
+  color: #cbd5e1;
+}

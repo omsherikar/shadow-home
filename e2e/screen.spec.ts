@@ -73,3 +73,28 @@ test('saying it does what tapping does: a yes by voice commits what the screen a
   await expect(v.locator('.chip.later', { hasText: 'Dishwasher on' })).toBeVisible();
   await page.screenshot({ path: 'test-results/dishwasher-done.png' });
 });
+
+test('the whole demo script plays in demo mode, with no manual steps', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Play the demo' }).click();
+  await expect(page.getByText('Demo finished.')).toBeVisible({ timeout: 150_000 });
+  const lines = await page
+    .getByRole('list', { name: 'Conversation' })
+    .locator('li')
+    .allInnerTexts();
+  const alexa = lines.filter((l) => l.startsWith('Alexa')).map((l) => l.replace(/^Alexa\s*/, ''));
+  // Friday: blocked, then done with the fixes. The dishwasher can't be confirmed; no.
+  expect(alexa[0]).toMatch(/^Blocked: that breaks 4 house rules\..*Do it with 4 fixes instead\?$/);
+  expect(alexa[1]).toBe('Done: 10 changes.');
+  expect(alexa[2]).toMatch(/^I can't confirm that's safe\..*Run it anyway\?$/);
+  expect(alexa[3]).toBe('Okay, nothing changed.');
+  // The new rule loses to the smoke rule.
+  expect(alexa[4]).toBe('Rule added. It clashes with R6; R6 wins by priority.');
+  // Sunday evening, without a manual step: the log, then the thermostat put back.
+  expect(alexa[5]).toMatch(/^Here's what changed: I'm away for the weekend/);
+  expect(alexa[6]).toMatch(/^Safe: Main thermostat to 20 °C\./);
+  expect(alexa[7]).toBe('Done: Main thermostat to 20 °C.');
+  await expect(page.getByText(/^Sun \d+:\d\d PM$/)).toBeVisible();
+  await page.screenshot({ path: 'test-results/demo-finished.png' });
+});

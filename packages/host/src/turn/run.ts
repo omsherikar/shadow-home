@@ -7,7 +7,7 @@ export interface ToolRunner {
   resourceUriFor(name: string): string | undefined;
 }
 
-const MAX_STEPS = 4;
+const MAX_STEPS = 6;
 
 /** One conversational turn: the model picks tool calls until it has something to say. */
 export async function runTurn(

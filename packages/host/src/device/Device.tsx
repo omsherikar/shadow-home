@@ -6,20 +6,49 @@ import {
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import type { DemoStep } from '../demo/steps.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import { spokenFrom } from '../turn/scripted.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
-import { HomeCard, type HomeState, LogCard, type LogState } from './cards.tsx';
+import {
+  HomeCard,
+  type HomeState,
+  LogCard,
+  type LogState,
+  RuleCard,
+  type RuleState,
+} from './cards.tsx';
+import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
+const TRANSCRIPT = 20;
+const DEMO_PAUSE_MS = 900;
 
-type Screen = { kind: 'home' } | { kind: 'view' } | { kind: 'log'; log: LogState };
+type Screen =
+  | { kind: 'home' }
+  | { kind: 'view' }
+  | { kind: 'log'; log: LogState }
+  | { kind: 'rule'; rule: RuleState };
+
+interface Line {
+  who: 'you' | 'alexa';
+  text: string;
+}
+
+export interface DeviceProps {
+  suggestions: string[];
+  /** The demo's lines, when the host runs in demo mode. */
+  demo: DemoStep[] | null;
+  /** Don't speak out loud (browser tests). */
+  silent: boolean;
+}
 
 /**
- * A simulated Echo Show: one screen, a caption of what was said, and a way to say something.
- * Results with a view go to the view; the home card and the activity log the host draws itself.
+ * A simulated Echo Show: one screen, a caption of what was said, a mic and a typed line.
+ * Results with a view go to the view; the home, the activity log and new house rules the host
+ * draws itself.
  */
-export function Device({ suggestions }: { suggestions: string[] }) {
+export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [home, setHome] = useState<HomeState | null>(null);
@@ -28,23 +57,35 @@ export function Device({ suggestions }: { suggestions: string[] }) {
   const [said, setSaid] = useState('');
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
+  const [listening, setListening] = useState(false);
+  const [transcript, setTranscript] = useState<Line[]>([]);
+  const [demoState, setDemoState] = useState<'idle' | 'playing' | 'finished'>('idle');
+  // Known only in the browser; deciding after the first render keeps the server's HTML the same.
+  const [micAvailable, setMicAvailable] = useState(false);
   const viewBox = useRef<HTMLDivElement>(null);
   const host = useRef<ScreenHost | null>(null);
   const history = useRef<Remembered[]>([]);
   const names = useRef<Names | undefined>(undefined);
   const screenNote = useRef<string | undefined>(undefined);
+  const working = useRef(false);
+  const mic = useRef<{ stop(): void } | null>(null);
 
   const note = useCallback((entry: Remembered) => {
     history.current = [...history.current.slice(-40), entry];
   }, []);
 
+  const line = useCallback((who: Line['who'], text: string) => {
+    setTranscript((t) => [...t.slice(1 - TRANSCRIPT), { who, text }]);
+  }, []);
+
   const remember = useCallback(
-    (call: ToolCall) => {
+    (call: ToolCall, by?: 'screen') => {
       const sc = call.result.structuredContent as Record<string, unknown> | undefined;
       note({
         name: call.name,
         arguments: call.arguments,
         ...(sc ? { structuredContent: sc } : {}),
+        ...(by ? { by } : {}),
       });
       const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
       if (fresh) names.current = fresh;
@@ -56,6 +97,18 @@ export function Device({ suggestions }: { suggestions: string[] }) {
     const r = await c.callTool({ name: 'get_home_state', arguments: {} });
     setHome((r.structuredContent as HomeState | undefined) ?? null);
   }, []);
+
+  const reply = useCallback(
+    async (text: string) => {
+      setSaid(text);
+      line('alexa', text);
+      note({ name: 'said', arguments: { text } });
+      if (!silent) await speak(text);
+    },
+    [line, note, silent],
+  );
+
+  useEffect(() => setMicAvailable(canListen()), []);
 
   useEffect(() => {
     let live = true;
@@ -77,10 +130,10 @@ export function Device({ suggestions }: { suggestions: string[] }) {
     if (!client || !viewBox.current) return;
     const screenHost = new ScreenHost(viewBox.current, client, {
       onViewCall: (call) => {
-        remember(call);
-        setSaid(
-          spokenFrom(call.result.structuredContent as Record<string, unknown>, call.result.content),
-        );
+        remember(call, 'screen');
+        const sc = call.result.structuredContent as Record<string, unknown> | undefined;
+        // approve_plan is the tap's paperwork; the commit after it is what to say.
+        if (call.name !== 'approve_plan') void reply(spokenFrom(sc, call.result.content));
         void refreshHome(client);
       },
       onModelContext: (text, structured) => {
@@ -94,7 +147,7 @@ export function Device({ suggestions }: { suggestions: string[] }) {
       host.current = null;
       void screenHost.close();
     };
-  }, [client, note, remember, refreshHome]);
+  }, [client, note, remember, refreshHome, reply]);
 
   const show = useCallback(async (calls: ToolCall[]) => {
     const withView = calls.findLast((c) => c.resourceUri);
@@ -107,16 +160,22 @@ export function Device({ suggestions }: { suggestions: string[] }) {
       });
       return;
     }
-    const log = calls.findLast((c) => c.name === 'get_activity_log');
-    if (log) setScreen({ kind: 'log', log: log.result.structuredContent as unknown as LogState });
+    const last = calls.at(-1);
+    const sc = last?.result.structuredContent as unknown;
+    if (last?.name === 'get_activity_log') setScreen({ kind: 'log', log: sc as LogState });
+    if (last?.name === 'add_house_rule') setScreen({ kind: 'rule', rule: sc as RuleState });
   }, []);
 
+  /** One turn: what was said goes to the assistant; its reply is shown, then spoken. */
   const say = useCallback(
     async (text: string) => {
       const words = text.trim();
-      if (!words || busy) return;
+      if (!words || working.current) return;
+      working.current = true;
+      stopSpeaking();
       setHeard(words);
       setSaid('');
+      line('you', words);
       setBusy(true);
       try {
         const res = await fetch('/api/turn', {
@@ -135,18 +194,64 @@ export function Device({ suggestions }: { suggestions: string[] }) {
         // What was said goes in before what it led to: a turn with no calls ("no") closes the question.
         note({ name: 'heard', arguments: { text: words } });
         for (const call of turn.calls) remember(call);
-        setSaid(turn.say);
         await show(turn.calls);
         if (client) await refreshHome(client);
+        setBusy(false);
+        await reply(turn.say);
       } catch (e) {
         note({ name: 'heard', arguments: { text: words } });
-        setSaid(`Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`);
-      } finally {
         setBusy(false);
+        await reply(`Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`);
+      } finally {
+        working.current = false;
       }
     },
-    [busy, client, note, refreshHome, remember, show],
+    [client, line, note, refreshHome, remember, reply, show],
   );
+
+  const toggleMic = useCallback(async () => {
+    if (mic.current) {
+      mic.current.stop();
+      return;
+    }
+    stopSpeaking();
+    setListening(true);
+    setHeard('');
+    const session = listenOnce((words) => setHeard(words));
+    mic.current = session;
+    try {
+      const words = await session.result;
+      mic.current = null;
+      setListening(false);
+      if (words) await say(words);
+    } catch (e) {
+      mic.current = null;
+      setListening(false);
+      setSaid(`I couldn't hear that: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [say]);
+
+  /** The whole demo, start to finish: a fresh home, then every line in order. */
+  const playDemo = useCallback(async () => {
+    if (!demo || demoState === 'playing') return;
+    setDemoState('playing');
+    const res = await fetch('/api/demo', { method: 'POST' });
+    if (!res.ok) {
+      setSaid('The demo controls are off on the server.');
+      setDemoState('idle');
+      return;
+    }
+    history.current = [];
+    screenNote.current = undefined;
+    setTranscript([]);
+    setScreen({ kind: 'home' });
+    if (client) await refreshHome(client);
+    for (const step of demo) {
+      await say(step.line);
+      await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS));
+    }
+    setDemoState('finished');
+  }, [client, demo, demoState, refreshHome, say]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -154,6 +259,7 @@ export function Device({ suggestions }: { suggestions: string[] }) {
     setDraft('');
   };
 
+  const ready = client !== null && demoState !== 'playing';
   return (
     <div className="room">
       <div className="device">
@@ -167,30 +273,52 @@ export function Device({ suggestions }: { suggestions: string[] }) {
             <div ref={viewBox} className="view" hidden={screen.kind !== 'view'} />
             {screen.kind === 'home' ? <HomeCard home={home} problem={problem} /> : null}
             {screen.kind === 'log' ? <LogCard log={screen.log} names={names.current} /> : null}
+            {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
           </div>
           <div className={busy ? 'caption thinking' : 'caption'}>
             {heard ? <p className="heard">“{heard}”</p> : null}
             {said ? <p className="said">{said}</p> : null}
           </div>
-          <div className={busy ? 'lightbar on' : 'lightbar'} aria-hidden="true" />
+          <div className={busy || listening ? 'lightbar on' : 'lightbar'} aria-hidden="true" />
         </div>
       </div>
 
       <form className="voice" onSubmit={submit}>
+        {micAvailable ? (
+          <button
+            type="button"
+            className={listening ? 'mic on' : 'mic'}
+            aria-pressed={listening}
+            disabled={!ready || busy}
+            onClick={() => void toggleMic()}
+          >
+            {listening ? 'Listening…' : 'Talk'}
+          </button>
+        ) : null}
         <input
           aria-label="Say something"
           placeholder="Type what you'd say to Alexa"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          disabled={!client}
+          disabled={!ready}
         />
-        <button type="submit" disabled={!client || busy || !draft.trim()}>
+        <button type="submit" disabled={!ready || busy || !draft.trim()}>
           Say it
         </button>
       </form>
       <div className="suggestions">
+        {demo ? (
+          <button
+            type="button"
+            className="play"
+            disabled={!client || demoState === 'playing'}
+            onClick={() => void playDemo()}
+          >
+            {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
+          </button>
+        ) : null}
         {suggestions.map((s) => (
-          <button key={s} type="button" disabled={!client || busy} onClick={() => void say(s)}>
+          <button key={s} type="button" disabled={!ready || busy} onClick={() => void say(s)}>
             {s}
           </button>
         ))}
@@ -200,6 +328,18 @@ export function Device({ suggestions }: { suggestions: string[] }) {
           </button>
         ) : null}
       </div>
+      {demoState === 'finished' ? <p className="demo-done">Demo finished.</p> : null}
+      {transcript.length > 0 ? (
+        <ol className="transcript" aria-label="Conversation">
+          {transcript.map((l, i) => (
+            // Lines are only ever appended, so the position is a stable key.
+            // biome-ignore lint/suspicious/noArrayIndexKey: append-only list
+            <li key={i} className={`line ${l.who}`}>
+              <span className="who">{l.who === 'you' ? 'You' : 'Alexa'}</span> {l.text}
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }

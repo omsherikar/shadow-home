@@ -22,7 +22,9 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 ## Commands
 
-- npm run dev       start everything locally: MCP server :3000, Echo Show host :3001 (in-memory store, scripted model)
+- npm run dev       start everything locally: MCP server :3000, Echo Show host :3001 (in-memory store, scripted model; MOCK_MODEL=0 for Bedrock)
+- npm run demo      the same, plus "Play the demo": the demo script start to finish, no model calls
+- npm run record-demo  record a real Bedrock run of each demo request into fixtures/demo-script.json (needs npm run dev)
 - npm test          Vitest across all workspaces
 - npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101)
 - npm run lint      Biome check
