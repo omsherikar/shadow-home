@@ -8,7 +8,10 @@ import type {
 import { spokenFrom } from './scripted.ts';
 import type { Model, ModelInput, ModelStep, Remembered } from './types.ts';
 
-/** One Converse call. The real one goes to Bedrock; tests pass their own. */
+/**
+ * One Converse call. The real one goes to Bedrock or, translated, to the Anthropic API; tests pass
+ * their own.
+ */
 export type Converse = (input: ConverseCommandInput) => Promise<ConverseCommandOutput>;
 
 /** An MCP tool as the model may see it. */
@@ -32,9 +35,10 @@ const MAX_TOKENS = 1024;
 const HISTORY = 30;
 
 /**
- * Bedrock's Converse loop as a `Model`: one step per call. It returns the first tool the model
- * asks for, or, once it answers in words, the server's speech fields for what it just did (its
- * own words only when no tool spoke, such as the activity log).
+ * The Converse loop as a `Model` (Bedrock, or the Anthropic API through anthropic.ts): one step
+ * per call. It returns the first tool the model asks for, or, once it answers in words, the
+ * server's speech fields for what it just did (its own words only when no tool spoke, such as the
+ * activity log).
  */
 export function bedrockModel(options: {
   converse: Converse;

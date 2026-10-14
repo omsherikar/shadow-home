@@ -1,17 +1,18 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { bedrockConverse } from '../src/turn/aws.ts';
 import { bedrockModel } from '../src/turn/bedrock.ts';
 import { DEMO_URL } from '../src/turn/demo-clock.ts';
 import { connectTools } from '../src/turn/mcp.ts';
+import { liveModel } from '../src/turn/providers.ts';
 import { runTurn } from '../src/turn/run.ts';
 import { type Beat, type RecordedPlan, recordedFrom } from '../src/turn/scripted.ts';
 
 /**
  * Records what a real model drafts for each demo request, for demo mode to replay with no model
- * calls. Needs the server running with its demo controls (npm run dev) and Bedrock access
- * (AWS_PROFILE, default shadow-home). Writes `recordedPlan` into fixtures/demo-script.json.
+ * calls. Needs the server running with its demo controls (npm run dev) and a live model:
+ * ANTHROPIC_API_KEY, or Bedrock with MODEL_PROVIDER=bedrock (AWS_PROFILE, default shadow-home).
+ * Writes `recordedPlan` into fixtures/demo-script.json.
  */
 const path = join(import.meta.dirname, '../../../fixtures/demo-script.json');
 const script = JSON.parse(readFileSync(path, 'utf8')) as { beats: Beat[] };
@@ -29,8 +30,7 @@ for (const beat of script.beats) {
   const tools = await connectTools();
   try {
     const model = bedrockModel({
-      converse: bedrockConverse(),
-      ...(process.env.BEDROCK_MODEL_ID ? { modelId: process.env.BEDROCK_MODEL_ID } : {}),
+      ...(await liveModel()),
       tools: tools.modelTools,
       home: await tools.homeBrief(),
       ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),

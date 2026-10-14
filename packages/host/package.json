@@ -10,9 +10,10 @@
     "build": "next build",
     "start": "next start -H 127.0.0.1 -p 3001",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "record-demo": "node scripts/record-demo.ts"
+    "record-demo": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local scripts/record-demo.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.109.1",
     "@aws-sdk/client-bedrock-runtime": "3.1151.0",
     "@aws-sdk/client-polly": "3.1151.0",
     "@modelcontextprotocol/client": "2.3.1",
