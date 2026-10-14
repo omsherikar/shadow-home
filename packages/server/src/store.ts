@@ -67,6 +67,8 @@ export interface PreviewRecord {
    */
   ownAsk?: string;
   askedOwn?: boolean;
+  /** For a repair or safe part: whether its parent's question offered it, so a yes to that counts. */
+  offeredByParent?: boolean;
   undo?: UndoExtras;
 }
 

@@ -259,19 +259,25 @@ export class ShadowHomeService {
           "That can't be undone, so it has to be proven safe first.",
         );
       }
-      if (record.tier === 'T2' || record.tier === 'T4') {
+      // A repair or safe part isn't what the person asked for, so it needs their yes whatever
+      // its tier, like any T2 or T4 plan.
+      const alternative = record.kind === 'repair' || record.kind === 'safe_part';
+      if (record.tier === 'T2' || record.tier === 'T4' || alternative) {
         const approved = await this.store.getApproval(record.nonce);
-        // If the preview's question offered an alternative ("Do just the part I can confirm?"),
-        // a yes to it was a yes to the alternative, not to this plan. This plan then asks its own
-        // question, and only a yes after that commits it.
-        const offeredOther = record.offers !== null && record.askedOwn !== true;
-        if ((!confirmed || offeredOther) && !approved) {
-          if (offeredOther) await this.store.putPreview({ ...record, askedOwn: true });
-          const ask = offeredOther ? record.ownAsk : record.speech.ask;
+        // A yes counts only if the question asked was about this plan: its own question, or for
+        // an alternative, the parent's question that offered it. A plan whose own question offered
+        // an alternative ("Do just the part I can confirm?") asks its own ("Run it anyway?") first.
+        const askedAboutThis =
+          record.askedOwn === true ||
+          (alternative ? record.offeredByParent === true : record.offers === null);
+        if ((!confirmed || !askedAboutThis) && !approved) {
+          if (!askedAboutThis) await this.store.putPreview({ ...record, askedOwn: true });
+          const ask =
+            (record.offers !== null ? record.ownAsk : record.speech.ask) ?? 'Shall I go ahead?';
           return {
             status: 'needs_confirmation',
             planId,
-            speech: { headline: 'I need a yes first.', ...(ask ? { ask } : {}) },
+            speech: { headline: 'I need a yes first.', ask },
             applied: [],
             held: [],
           };
@@ -633,6 +639,7 @@ export class ShadowHomeService {
       related: PreviewRecord['related'],
       offers: PreviewRecord['offers'] = null,
       ownAsk?: string,
+      offeredByParent?: boolean,
     ) => {
       const nonce = newNonce();
       await this.store.putPreview({
@@ -650,6 +657,7 @@ export class ShadowHomeService {
         related,
         offers,
         ...(ownAsk ? { ownAsk } : {}),
+        ...(offeredByParent !== undefined ? { offeredByParent } : {}),
         ...(meta.undo ? { undo: meta.undo } : {}),
       });
       return signPlanId(this.secret, { n: nonce, v: state.version, x: expires });
@@ -662,6 +670,9 @@ export class ShadowHomeService {
           a.repaired.tier,
           a.repaired.speech,
           {},
+          null,
+          undefined,
+          a.offered === 'repair',
         )
       : undefined;
     const safeId = a.safePart
@@ -672,6 +683,9 @@ export class ShadowHomeService {
           a.safePart.tier,
           a.safePart.speech,
           {},
+          null,
+          undefined,
+          a.offered === 'safe_part',
         )
       : undefined;
     const planId = await save(
