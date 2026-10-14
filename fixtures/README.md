@@ -18,7 +18,7 @@ A fictional home, "Cedar Hollow", used by the demo, the tests and ShadowBench. G
 | Groups | 3 | `all_plugs` (includes the freezer and aquarium on purpose), `all_lights`, `indoor_lights` |
 | Routines | 3 | Good night 22:30, Coffee at 7 (07:00, off after 30 min), Porch light 17:30 (off after 330 min) |
 | House rules | 12 | Five templates, authors, priorities, and the published catalog each one comes from |
-| Forecast | 56 hourly points | Fri 17:00 → Mon 00:00. Lows: 0 °C Sat 05:00, −6 °C Sun 05:00. Interpolate linearly between hours |
+| Forecast | 80 hourly points | Fri 17:00 → Tue 00:00, so a check on Sunday evening can still see 12 hours ahead. Lows: 0 °C Sat 05:00, −6 °C Sun 05:00, −3 °C Mon 05:00. Interpolate linearly between hours |
 
 **Deliberate traps for the demo and the benchmark**
 

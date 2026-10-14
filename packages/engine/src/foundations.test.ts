@@ -50,8 +50,8 @@ describe('forecastAt', () => {
 
   test('is undefined outside the forecast', () => {
     expect(forecastAt(home, t('2027-01-15T16:59:00'))).toBeUndefined();
-    expect(forecastAt(home, t('2027-01-18T00:01:00'))).toBeUndefined();
-    expect(forecastAt(home, t('2027-01-18T00:00:00'))).toBeCloseTo(-1.0);
+    expect(forecastAt(home, t('2027-01-19T00:01:00'))).toBeUndefined();
+    expect(forecastAt(home, t('2027-01-19T00:00:00'))).toBeCloseTo(0.0);
   });
 });
 
@@ -184,20 +184,20 @@ describe('computeHorizon', () => {
   });
 
   test('stops where the forecast ends and says so', () => {
-    const h = computeHorizon(home, plan({ context: { now: '2027-01-17T20:00:00-06:00' } }));
-    expect(h.endMs).toBe(t('2027-01-18T00:00:00'));
-    expect(h.unknowns).toEqual(['no forecast after 2027-01-18T00:00:00-06:00']);
+    const h = computeHorizon(home, plan({ context: { now: '2027-01-18T20:00:00-06:00' } }));
+    expect(h.endMs).toBe(t('2027-01-19T00:00:00'));
+    expect(h.unknowns).toEqual(['no forecast after 2027-01-19T00:00:00-06:00']);
   });
 
   test('an action past the forecast is unknown', () => {
     const h = computeHorizon(
       home,
       plan({
-        actions: [{ device: 'plug_tv', set: { onOff: false }, at: '2027-01-18T09:00:00-06:00' }],
+        actions: [{ device: 'plug_tv', set: { onOff: false }, at: '2027-01-19T09:00:00-06:00' }],
       }),
     );
     expect(h.unknowns).toContain(
-      'action 0 at 2027-01-18T09:00:00-06:00 is past the end of the simulation',
+      'action 0 at 2027-01-19T09:00:00-06:00 is past the end of the simulation',
     );
   });
 
