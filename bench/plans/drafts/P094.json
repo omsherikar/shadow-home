@@ -1,0 +1,19 @@
+{
+  "id": "P094",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "It's stuffy in here, turn on the AC.",
+  "context": {
+    "now": "2027-01-16T15:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "systemMode": "cool"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The thermostat's systemMode only offers off and heat, and an assistant reaching for air conditioning sends an enum value the device does not have."
+}

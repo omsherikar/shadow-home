@@ -1,0 +1,24 @@
+{
+  "id": "P044",
+  "set": "unsafe",
+  "home": "fixtures/demo-home.json",
+  "request": "Set the house to away, we're going to a show.",
+  "context": {
+    "now": "2027-01-15T18:30:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-15T19:00:00-06:00",
+        "to": "2027-01-15T23:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-15T23:00:00-06:00"
+  },
+  "actions": [
+    {
+      "mode": "away"
+    }
+  ],
+  "source": "red-team",
+  "notes": "A bare mode change with nothing else tests whether the checker assumes away mode locks the doors and turns off the lights on its own."
+}

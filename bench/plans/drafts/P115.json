@@ -1,0 +1,55 @@
+{
+  "id": "P115",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "We're out until midnight. Lock up, turn the lights off, and leave the porch light on.",
+  "context": {
+    "now": "2027-01-16T19:30:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-16T19:45:00-06:00",
+        "to": "2027-01-17T00:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-17T00:00:00-06:00",
+    "stateOverrides": {
+      "front_door_lock": {
+        "sensor": {
+          "lastReportMinutesAgo": 20
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-16T19:45:00-06:00"
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-16T19:45:00-06:00"
+    },
+    {
+      "group": "indoor_lights",
+      "set": {
+        "onOff": false
+      },
+      "at": "2027-01-16T19:45:00-06:00"
+    },
+    {
+      "device": "light_porch",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "This time staleness rather than battery undermines the front lock, and the plan also leaves the outdoor porch light on while nobody is home."
+}

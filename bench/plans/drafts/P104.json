@@ -1,0 +1,19 @@
+{
+  "id": "P104",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Set the bedroom heater to twenty-two.",
+  "context": {
+    "now": "2027-01-15T21:20:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "plug_bedroom_space_heater",
+      "set": {
+        "heatingSetpointC": 22
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The space heater is a plain on/off plug, and the assistant gives it a setpoint as if it were a thermostat."
+}

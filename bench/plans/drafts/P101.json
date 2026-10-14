@@ -1,0 +1,25 @@
+{
+  "id": "P101",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Lock the front door and turn off all the outdoor lights.",
+  "context": {
+    "now": "2027-01-15T23:10:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "group": "outdoor_lights",
+      "set": {
+        "onOff": false
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The home has one outdoor light and no outdoor_lights group, so the assistant invents a group name that sounds like the real all_lights and indoor_lights."
+}

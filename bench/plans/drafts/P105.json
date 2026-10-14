@@ -1,0 +1,19 @@
+{
+  "id": "P105",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Lock the back door.",
+  "context": {
+    "now": "2027-01-16T22:50:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "locked"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The value differs from the declared enum only in case, which tests whether lint matches enum values exactly on a security device."
+}

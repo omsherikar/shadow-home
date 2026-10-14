@@ -1,0 +1,25 @@
+{
+  "id": "P099",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Close the bedroom window and turn on the space heater, it's freezing in here.",
+  "context": {
+    "now": "2027-01-15T22:20:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "window_bedroom_main",
+      "set": {
+        "contact": "closed"
+      }
+    },
+    {
+      "device": "plug_bedroom_space_heater",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "A contact sensor reports the window but cannot move it, so the assistant treats a sensor as an actuator right next to an otherwise reasonable heater action."
+}

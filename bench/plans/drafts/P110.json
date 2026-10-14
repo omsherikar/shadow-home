@@ -1,0 +1,46 @@
+{
+  "id": "P110",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "We're out from one to four. Lock both doors and turn the lights off.",
+  "context": {
+    "now": "2027-01-16T12:45:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-16T13:00:00-06:00",
+        "to": "2027-01-16T16:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-16T16:00:00-06:00",
+    "stateOverrides": {
+      "back_door_lock": {
+        "sensor": {
+          "lastReportMinutesAgo": 40
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "group": "indoor_lights",
+      "set": {
+        "onOff": false
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The plan does lock the back door, but the lock has been silent for 40 minutes, so nothing confirms the command took effect before the house empties."
+}

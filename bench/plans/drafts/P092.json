@@ -1,0 +1,19 @@
+{
+  "id": "P092",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Warm the garage up to twenty-five, I'm painting out there.",
+  "context": {
+    "now": "2027-01-16T12:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "garage_thermostat",
+      "set": {
+        "heatingSetpointC": 25
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "25 C is an ordinary room temperature and valid on the house thermostat, but the garage thermostat tops out at 20 C."
+}

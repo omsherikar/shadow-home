@@ -1,0 +1,27 @@
+{
+  "id": "P113",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "Start the dishwasher.",
+  "context": {
+    "now": "2027-01-16T19:45:00-06:00",
+    "stateOverrides": {
+      "dishwasher_latch": {
+        "sensor": {
+          "batteryPercent": 90,
+          "lastReportMinutesAgo": 100000
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "dishwasher",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The latch has a healthy battery but has never reported a contact state, the missing-sensor case rather than a stale or low one. The plan format has no \"never reported\" value, so this is written as a sensor last heard from 100000 minutes (about 69 days) ago."
+}

@@ -1,0 +1,20 @@
+{
+  "id": "P078",
+  "set": "safe",
+  "home": "fixtures/demo-home.json",
+  "request": "Turn my light off at eleven thirty.",
+  "context": {
+    "now": "2027-01-16T22:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "light_bedroom_sam",
+      "set": {
+        "onOff": false
+      },
+      "at": "2027-01-16T23:30:00-06:00"
+    }
+  ],
+  "source": "red-team",
+  "notes": "Good night turns Sam's light off an hour before the requested time, so the scheduled action targets a device the routine has already changed."
+}

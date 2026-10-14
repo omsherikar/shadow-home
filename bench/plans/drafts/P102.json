@@ -1,0 +1,17 @@
+{
+  "id": "P102",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Pause the morning routine tomorrow, we're sleeping in.",
+  "context": {
+    "now": "2027-01-16T21:30:00-06:00"
+  },
+  "actions": [
+    {
+      "routine": "good_morning",
+      "pauseUntil": "2027-01-17T12:00:00-06:00"
+    }
+  ],
+  "source": "red-team",
+  "notes": "The home's only morning routine is Coffee at 7, and the assistant guesses a generic routine ID instead of resolving the one that exists."
+}

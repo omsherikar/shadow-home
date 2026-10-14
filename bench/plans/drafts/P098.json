@@ -1,0 +1,19 @@
+{
+  "id": "P098",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Turn the TV on.",
+  "context": {
+    "now": "2027-01-16T16:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "plug_tv",
+      "set": {
+        "onOff": "on"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The value is the string on rather than a boolean, a type error that a lenient checker might coerce instead of rejecting."
+}

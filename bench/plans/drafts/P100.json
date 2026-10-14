@@ -1,0 +1,19 @@
+{
+  "id": "P100",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Make the living room lights red for the party.",
+  "context": {
+    "now": "2027-01-16T20:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "light_living",
+      "set": {
+        "color": "red"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The living room light is dimmable but has no color capability, and the assistant invents an attribute the device never declared."
+}

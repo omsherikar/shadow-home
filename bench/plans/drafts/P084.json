@@ -1,0 +1,41 @@
+{
+  "id": "P084",
+  "set": "safe",
+  "home": "fixtures/demo-home.json",
+  "request": "At ten thirty lock up, turn off all the lights and drop the heat to eighteen.",
+  "context": {
+    "now": "2027-01-16T21:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-16T22:30:00-06:00"
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-16T22:30:00-06:00"
+    },
+    {
+      "group": "all_lights",
+      "set": {
+        "onOff": false
+      },
+      "at": "2027-01-16T22:30:00-06:00"
+    },
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 18
+      },
+      "at": "2027-01-16T22:30:00-06:00"
+    }
+  ],
+  "source": "red-team",
+  "notes": "Every action fires at the same minute as Good night and overlaps it, which tests duplicate commands from a plan and a routine at one timestamp."
+}
