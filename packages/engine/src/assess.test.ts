@@ -267,24 +267,100 @@ describe('repairs', () => {
     ]);
   });
 
-  test('a rule broken without a cause in the plan or a routine has no repair', () => {
-    // Everyone leaves with the lights on: nothing the plan did tipped R10.
+  const awayFrom = (from: string): Plan['context'] => ({
+    now: NOW,
+    presenceSchedule: [{ from, to: '2027-01-15T20:00:00-06:00', presence: 'nobody' }],
+  });
+
+  test('a step the plan left out is added as everyone leaves: each light still on goes off', () => {
+    // Everyone leaves at 18:00 with the lights on: nothing the plan did tipped R10, so the fix is
+    // to add the step R10 asks for, for each indoor light on then (the bedroom one is already off).
     const p: Plan = {
-      context: {
-        now: NOW,
-        presenceSchedule: [
-          {
-            from: '2027-01-15T18:00:00-06:00',
-            to: '2027-01-15T20:00:00-06:00',
-            presence: 'nobody',
-          },
-        ],
-      },
+      context: awayFrom('2027-01-15T18:00:00-06:00'),
       actions: [{ device: 'plug_tv', set: { onOff: false } }],
     };
     const result = check(home, p);
-    expect(result.reasons.find((r) => r.kind === 'violation' && r.rule === 'R10')).toBeDefined();
-    expect(repair(home, p, result)).toBeNull();
+    const r10 = result.reasons.find((r) => r.kind === 'violation' && r.rule === 'R10');
+    expect(r10).toBeDefined();
+    expect(r10 && 'cause' in r10).toBe(false);
+    const fixed = repair(home, p, result);
+    expect(fixed?.result.verdict).toBe('SAFE');
+    expect(fixed?.repairs.filter((r) => r.rule === 'R10')).toEqual(
+      ['light_living', 'light_kitchen', 'light_bedroom_sam'].map((device) => ({
+        rule: 'R10',
+        kind: 'add_action',
+        target: device,
+        description: `turn ${device} off at 18:00`,
+      })),
+    );
+    expect(fixed?.plan.actions).toContainEqual({
+      device: 'light_kitchen',
+      set: { onOff: false },
+      at: '2027-01-15T18:00:00-06:00',
+    });
+  });
+
+  test('a step needed from the start runs at once', () => {
+    const p: Plan = {
+      context: awayFrom(NOW),
+      actions: [{ device: 'plug_tv', set: { onOff: false } }],
+    };
+    const fixed = repair(home, p, check(home, p));
+    expect(fixed?.result.verdict).toBe('SAFE');
+    expect(fixed?.repairs.map((r) => r.description)).toContain('lock front_door_lock');
+    expect(fixed?.plan.actions).toContainEqual({
+      device: 'front_door_lock',
+      set: { lockState: 'LOCKED' },
+    });
+  });
+
+  test("a break the plan's own action causes is fixed by changing the plan, not by adding a step", () => {
+    // The heater is off; the plan turns it on at 19:00 with nobody home (R7).
+    const p: Plan = {
+      context: awayFrom('2027-01-15T18:00:00-06:00'),
+      actions: [
+        { group: 'indoor_lights', set: { onOff: false } },
+        { device: 'front_door_lock', set: { lockState: 'LOCKED' } },
+        {
+          device: 'plug_bedroom_space_heater',
+          set: { onOff: true },
+          at: '2027-01-15T19:00:00-06:00',
+        },
+      ],
+    };
+    const fixed = repair(home, p, check(home, p));
+    expect(fixed?.result.verdict).toBe('SAFE');
+    expect(fixed?.repairs).toEqual([
+      {
+        rule: 'R7',
+        kind: 'drop_action',
+        actionIndex: 2,
+        target: 'plug_bedroom_space_heater',
+        description: 'keep plug_bedroom_space_heater off',
+      },
+    ]);
+  });
+
+  test('a dropped action is described by the value just before it, which an added step may set', () => {
+    // The door starts unlocked: the search locks it as everyone leaves, then the plan's own 19:00
+    // unlock breaks R4 again and is left out, so the door stays locked, not unlocked.
+    const p: Plan = {
+      context: awayFrom('2027-01-15T18:00:00-06:00'),
+      actions: [
+        { group: 'indoor_lights', set: { onOff: false } },
+        {
+          device: 'front_door_lock',
+          set: { lockState: 'UNLOCKED' },
+          at: '2027-01-15T19:00:00-06:00',
+        },
+      ],
+    };
+    const fixed = repair(home, p, check(home, p));
+    expect(fixed?.result.verdict).toBe('SAFE');
+    expect(fixed?.repairs.map((r) => r.description)).toEqual([
+      'lock front_door_lock at 18:00',
+      'keep front_door_lock lockState at LOCKED',
+    ]);
   });
 
   test('nothing to repair on a SAFE plan', () => {

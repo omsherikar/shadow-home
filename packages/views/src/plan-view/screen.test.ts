@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { clock, midnights, shortName, when } from './format.ts';
 import {
   commitScreen,
+  fixLabel,
   MAX_CARDS,
   MAX_ROWS,
   previewScreen,
@@ -178,6 +179,35 @@ describe('rows of changes', () => {
     const later = { ...row('dishwasher', 'onOff', false, true), at: '2027-01-16T02:00:00-06:00' };
     const s = previewScreen(preview('SAFE', 'T0', { diff: [later] }), names);
     expect(s.rows[0]?.chips).toEqual([{ text: 'Dishwasher on at Sat 2:00 AM', tone: 'later' }]);
+  });
+});
+
+describe('what each fix did, in a few words', () => {
+  test('a step the fix added says what it sets and when; one at once says now', () => {
+    const later = {
+      ...row('back_door_lock', 'lockState', 'UNLOCKED', 'LOCKED'),
+      at: '2027-01-15T22:00:00-06:00',
+    };
+    const p = preview('UNSAFE', 'T3', {
+      repair: { planId: 'r1', verdict: 'SAFE', tier: 'T3', diff: [later], changes: [] },
+    });
+    const step = {
+      rule: 'R5',
+      kind: 'add_action' as const,
+      target: 'back_door_lock',
+      description: 'lock back_door_lock at 22:00',
+    };
+    expect(fixLabel(step, p, names)).toBe('Back door lock locked Fri 10:00 PM');
+    const atOnce = preview('UNSAFE', 'T3', {
+      repair: {
+        planId: 'r1',
+        verdict: 'SAFE',
+        tier: 'T3',
+        diff: [row('back_door_lock', 'lockState', 'UNLOCKED', 'LOCKED')],
+        changes: [],
+      },
+    });
+    expect(fixLabel(step, atOnce, names)).toBe('Back door lock locked now');
   });
 });
 

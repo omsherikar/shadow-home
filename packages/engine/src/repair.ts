@@ -1,17 +1,29 @@
-import { type Home, own, type Plan, type PlanAction, type Value } from '@shadow-home/twin';
+import {
+  type Home,
+  own,
+  type Plan,
+  type PlanAction,
+  type StateCond,
+  type Value,
+} from '@shadow-home/twin';
 import { ruleDevices } from './rules.ts';
 import { formatIso, offsetMinutes, toMs } from './time.ts';
 import { type CheckResult, check, type Reason, type Verdict } from './verdict.ts';
 
-export type RepairKind = 'leave_out' | 'nearest_value' | 'pause_routine' | 'drop_action';
+export type RepairKind =
+  | 'leave_out'
+  | 'nearest_value'
+  | 'pause_routine'
+  | 'drop_action'
+  | 'add_action';
 
 /** One change the repair search made, and the rule it answers. */
 export interface Repair {
   rule: string;
   kind: RepairKind;
-  /** The action it changes, in the original plan. Absent for an added routine pause. */
+  /** The action it changes, in the original plan. Absent for an added pause or step. */
   actionIndex?: number;
-  /** The device left out or given a new value, or the routine paused. */
+  /** The device left out, given a new value or added a step, or the routine paused. */
   target: string;
   /** Short and specific: "keep plug_garage_freezer on", "garage_thermostat heat at 5 °C instead of off". */
   description: string;
@@ -39,16 +51,19 @@ type Edit =
   | { kind: 'replace'; set: Record<string, Value> }
   | { kind: 'drop' };
 
+/** Steps the search added, by device, attribute and time. */
+type Adds = Map<string, PlanAction>;
+
 interface Candidate {
   repair: Repair;
-  apply(edits: Map<number, Edit>, pauses: Map<string, string>): void;
+  apply(edits: Map<number, Edit>, pauses: Map<string, string>, adds: Adds): void;
   /** Whether this change is what the final plan actually has. */
-  inEffect(edits: Map<number, Edit>, pauses: Map<string, string>): boolean;
+  inEffect(edits: Map<number, Edit>, pauses: Map<string, string>, adds: Adds): boolean;
 }
 
 interface Built {
   plan: Plan;
-  /** For each action of the built plan, the original index it came from; -1 for an added pause. */
+  /** For each action of the built plan, the original index it came from; -1 for an added one. */
   origin: number[];
 }
 
@@ -56,14 +71,17 @@ interface Built {
  * Search for a SAFE version of the plan. For each broken rule (most important first), try in
  * order: leave the device out of the group action that reached it, move the value to the nearest
  * one that passes in 1 °C steps, pause the routine that broke it for as long as the plan lasts,
- * or drop the action. Each round applies one candidate per broken rule and checks the result
- * again; a rule that still breaks moves on to its next candidate. Returns null when the plan is
- * already SAFE or nothing improves it.
+ * or drop the action; last, add the step the rule asks for (lock the door, turn the heater off)
+ * at the moment it would break, which is the only fix when the plan simply left a step out. Each
+ * round applies one candidate per broken rule and checks the result again; a rule that still
+ * breaks moves on to its next candidate. Returns null when the plan is already SAFE or nothing
+ * improves it.
  */
 export function repair(home: Home, plan: Plan, result: CheckResult): RepairResult | null {
   if (result.verdict === 'SAFE' || !result.lint.ok) return null;
   const edits = new Map<number, Edit>();
   const pauses = new Map<string, string>();
+  const adds: Adds = new Map();
   const chosen = new Map<string, { key: string; queue: Candidate[]; current: Candidate }>();
   const tried: Candidate[] = [];
   let built: Built = { plan, origin: plan.actions.map((_, i) => i) };
@@ -74,6 +92,7 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
     if (broken.length === 0) break;
     const nextEdits = new Map(edits);
     const nextPauses = new Map(pauses);
+    const nextAdds: Adds = new Map(adds);
     let progressed = false;
     for (const reason of broken) {
       const cause = reason.cause;
@@ -92,7 +111,7 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
         state.current = next;
       }
       chosen.set(reason.rule, state);
-      state.current.apply(nextEdits, nextPauses);
+      state.current.apply(nextEdits, nextPauses, nextAdds);
       tried.push(state.current);
       progressed = true;
     }
@@ -101,7 +120,9 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
     for (const [k, v] of nextEdits) edits.set(k, v);
     pauses.clear();
     for (const [k, v] of nextPauses) pauses.set(k, v);
-    built = build(home, plan, edits, pauses);
+    adds.clear();
+    for (const [k, v] of nextAdds) adds.set(k, v);
+    built = build(home, plan, edits, pauses, adds);
     current = check(home, built.plan);
   }
 
@@ -110,7 +131,7 @@ export function repair(home: Home, plan: Plan, result: CheckResult): RepairResul
   // one replaced (or a rule's earlier fix when its cause moved) is listed only if it still holds.
   const seen = new Set<string>();
   const repairs = tried
-    .filter((c) => c.inEffect(edits, pauses))
+    .filter((c) => c.inEffect(edits, pauses, adds))
     .map((c) => c.repair)
     .filter((r) => !seen.has(r.description) && seen.add(r.description));
   return { plan: built.plan, result: current, repairs };
@@ -184,12 +205,13 @@ function candidates(
   result: CheckResult,
 ): Candidate[] {
   const cause = reason.cause;
-  if (!cause) return [];
+  // Nothing changed toward the break (everyone leaving tipped it): only an added step can help.
+  if (!cause) return addedSteps(home, original, reason, result);
   const rule = reason.rule;
 
   if (cause.source !== 'plan') {
     const routine = home.routines.find((r) => r.id === cause.source);
-    if (!routine) return [];
+    if (!routine) return addedSteps(home, original, reason, result);
     const until = pauseEnd(home, original, result);
     const local = formatIso(toMs(until), offsetMinutes(home.home.utcOffset)).slice(0, 16);
     return [
@@ -206,12 +228,16 @@ function candidates(
         },
         inEffect: (_edits, pauses) => pauses.get(routine.id) === until,
       },
+      ...addedSteps(home, original, reason, result),
     ];
   }
 
   const action = original.actions[origin];
   if (!action || !('set' in action)) {
-    return origin >= 0 ? [drop(home, rule, origin, action)] : [];
+    return [
+      ...(origin >= 0 ? [drop(rule, origin, action, original, result, home)] : []),
+      ...addedSteps(home, original, reason, result),
+    ];
   }
   const device = home.devices.find((d) => d.id === cause.device);
   const out: Candidate[] = [];
@@ -222,7 +248,12 @@ function candidates(
         kind: 'leave_out',
         actionIndex: origin,
         target: cause.device,
-        description: keepPhrase(home, cause.device, cause.attr, action.group),
+        description: keepPhrase(
+          cause.device,
+          cause.attr,
+          stateAt(home, original, result, cause.device, cause.attr, whenMs(action, original), true),
+          action.group,
+        ),
       },
       apply: (edits) => {
         const e = edits.get(origin);
@@ -239,8 +270,113 @@ function candidates(
   } else if (device?.capabilities.heatingSetpointC?.type === 'number') {
     out.push(...nearestValues(home, rule, origin, action.set, device.id));
   }
-  out.push(drop(home, rule, origin, action));
+  out.push(drop(rule, origin, action, original, result, home));
+  out.push(...addedSteps(home, original, reason, result));
   return out;
+}
+
+/**
+ * The steps a broken rule asks for, each as an action at the moment it first breaks: the states
+ * "always" and "within_after" need that don't hold then, and for "never_when" the opposite of each
+ * forbidden state that holds then (every light still on, not just the first). Only states the
+ * rule names exactly, on attributes the device can be set to: true or false, or one of two values.
+ */
+function addedSteps(home: Home, plan: Plan, reason: RuleBreak, result: CheckResult): Candidate[] {
+  const rule = home.rules.find((r) => r.id === reason.rule);
+  if (!rule) return [];
+  const atMs = toMs(reason.firstAt);
+  const holds = (s: StateCond) => {
+    const v = stateAt(home, plan, result, s.device, s.attr, atMs);
+    return v !== undefined && ('eq' in s ? v === s.eq : v !== s.neq);
+  };
+  const writes: { device: string; attr: string; value: Value }[] = [];
+  const need = (s: StateCond, want: boolean) => {
+    const value = valueMaking(home, s, want);
+    if (value !== undefined) writes.push({ device: s.device, attr: s.attr, value });
+  };
+  switch (rule.template) {
+    case 'always':
+      if (!holds(rule.params.state)) need(rule.params.state, true);
+      break;
+    case 'within_after':
+      for (const s of rule.params.ensure) if (!holds(s)) need(s, true);
+      break;
+    case 'never_when': {
+      const x = rule.params.x;
+      for (const part of 'any' in x ? x.any : [x]) {
+        if (isState(part) && holds(part)) need(part, false);
+      }
+      break;
+    }
+  }
+  const at = atMs > toMs(plan.context.now) ? reason.firstAt : undefined;
+  return writes.map(({ device, attr, value }) => {
+    const key = `${device}\u0000${attr}\u0000${at ?? ''}`;
+    const action: PlanAction = at
+      ? { device, set: { [attr]: value }, at }
+      : { device, set: { [attr]: value } };
+    return {
+      repair: {
+        rule: rule.id,
+        kind: 'add_action' as const,
+        target: device,
+        description: `${stepPhrase(device, attr, value)}${at ? ` at ${at.slice(11, 16)}` : ''}`,
+      },
+      apply: (_edits: Map<number, Edit>, _pauses: Map<string, string>, adds: Adds) => {
+        adds.set(key, action);
+      },
+      inEffect: (_edits: Map<number, Edit>, _pauses: Map<string, string>, adds: Adds) =>
+        JSON.stringify(adds.get(key)) === JSON.stringify(action),
+    };
+  });
+}
+
+function isState(c: object): c is StateCond {
+  return 'device' in c && ('eq' in c || 'neq' in c);
+}
+
+/** The value that makes a state hold (or not), if the device can be set to exactly one. */
+function valueMaking(home: Home, s: StateCond, want: boolean): Value | undefined {
+  const cap = own(home.devices.find((d) => d.id === s.device)?.capabilities ?? {}, s.attr);
+  if (!cap) return undefined;
+  const named = 'eq' in s ? s.eq : s.neq;
+  if ('eq' in s === want) return named;
+  if (cap.type === 'boolean' && typeof named === 'boolean') return !named;
+  if (cap.type === 'enum' && cap.values.length === 2) return cap.values.find((v) => v !== named);
+  return undefined;
+}
+
+/**
+ * A device's value at a moment of the plan's nominal run: its starting state, then each change up
+ * to that minute (with `before`, only changes earlier than it).
+ */
+function stateAt(
+  home: Home,
+  plan: Plan,
+  result: CheckResult,
+  device: string,
+  attr: string,
+  atMs: number,
+  before = false,
+): Value | undefined {
+  let value =
+    own(own(plan.context.stateOverrides ?? {}, device)?.state ?? {}, attr) ??
+    own(home.devices.find((d) => d.id === device)?.state ?? {}, attr);
+  for (const e of result.timeline) {
+    const t = toMs(e.at);
+    if (e.device === device && e.attr === attr && (before ? t < atMs : t <= atMs)) value = e.to;
+  }
+  return value;
+}
+
+/** "turn plug_bedroom_space_heater off", "lock front_door_lock". */
+function stepPhrase(device: string, attr: string, value: Value): string {
+  if (attr === 'onOff' && typeof value === 'boolean')
+    return `turn ${device} ${value ? 'on' : 'off'}`;
+  if (attr === 'lockState' && (value === 'LOCKED' || value === 'UNLOCKED')) {
+    return `${value === 'LOCKED' ? 'lock' : 'unlock'} ${device}`;
+  }
+  return `set ${device} ${attr} to ${String(value)}`;
 }
 
 /**
@@ -298,7 +434,14 @@ function nearestValues(
   });
 }
 
-function drop(home: Home, rule: string, origin: number, action: PlanAction | undefined): Candidate {
+function drop(
+  rule: string,
+  origin: number,
+  action: PlanAction | undefined,
+  plan: Plan,
+  result: CheckResult,
+  home: Home,
+): Candidate {
   const target =
     action && 'device' in action
       ? action.device
@@ -310,7 +453,11 @@ function drop(home: Home, rule: string, origin: number, action: PlanAction | und
   const first = action && 'set' in action ? Object.entries(action.set)[0] : undefined;
   const description =
     action && 'device' in action && first
-      ? keepPhrase(home, action.device, first[0])
+      ? keepPhrase(
+          action.device,
+          first[0],
+          stateAt(home, plan, result, action.device, first[0], whenMs(action, plan), true),
+        )
       : `leave out action ${origin}`;
   return {
     repair: { rule, kind: 'drop_action', actionIndex: origin, target, description },
@@ -321,12 +468,26 @@ function drop(home: Home, rule: string, origin: number, action: PlanAction | und
   };
 }
 
-/** "keep plug_garage_freezer on", or "leave thermostat_main out of all_thermostats". */
-function keepPhrase(home: Home, deviceId: string, attr: string, group?: string): string {
-  const now = own(home.devices.find((d) => d.id === deviceId)?.state ?? {}, attr);
-  if (attr === 'onOff' && typeof now === 'boolean') return `keep ${deviceId} ${now ? 'on' : 'off'}`;
-  if (now !== undefined) return `keep ${deviceId} ${attr} at ${String(now)}`;
+/**
+ * "keep plug_garage_freezer on", or "leave thermostat_main out of all_thermostats". `before` is the
+ * device's value just before the action, which a step the search added may have set.
+ */
+function keepPhrase(
+  deviceId: string,
+  attr: string,
+  before: Value | undefined,
+  group?: string,
+): string {
+  if (attr === 'onOff' && typeof before === 'boolean') {
+    return `keep ${deviceId} ${before ? 'on' : 'off'}`;
+  }
+  if (before !== undefined) return `keep ${deviceId} ${attr} at ${String(before)}`;
   return group ? `leave ${deviceId} out of ${group}` : `leave ${deviceId} ${attr} as it is`;
+}
+
+/** When an action runs: its time, else the plan's now. */
+function whenMs(action: PlanAction, plan: Plan): number {
+  return toMs('at' in action && action.at ? action.at : plan.context.now);
 }
 
 /** How long a routine pause has to last: the plan's end, else the last presence window, else the simulation's end. */
@@ -342,6 +503,7 @@ function build(
   plan: Plan,
   edits: Map<number, Edit>,
   pauses: Map<string, string>,
+  adds: Adds,
 ): Built {
   const actions: PlanAction[] = [];
   const origin: number[] = [];
@@ -368,6 +530,10 @@ function build(
   });
   for (const [routine, pauseUntil] of pauses) {
     actions.push({ routine, pauseUntil });
+    origin.push(-1);
+  }
+  for (const step of adds.values()) {
+    actions.push(step);
     origin.push(-1);
   }
   return { plan: { ...plan, actions }, origin };

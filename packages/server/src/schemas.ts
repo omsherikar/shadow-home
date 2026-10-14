@@ -93,9 +93,17 @@ export const previewOutput = z.object({
       changes: z.array(
         z.object({
           rule: z.string(),
-          kind: z.enum(['leave_out', 'nearest_value', 'pause_routine', 'drop_action']),
+          kind: z.enum([
+            'leave_out',
+            'nearest_value',
+            'pause_routine',
+            'drop_action',
+            'add_action',
+          ]),
           actionIndex: z.number().int().optional().describe('The action it changes'),
-          target: z.string().describe('The device left out or given a new value, or the routine'),
+          target: z
+            .string()
+            .describe('The device left out, given a new value or a step added, or the routine'),
           description: z.string(),
         }),
       ),
