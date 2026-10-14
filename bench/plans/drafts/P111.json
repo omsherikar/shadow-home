@@ -1,0 +1,77 @@
+{
+  "id": "P111",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "We're gone until Sunday at six. Set everything for away, keep the freezer and fish tank on, garage at six, and no coffee.",
+  "context": {
+    "now": "2027-01-16T07:45:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-16T08:00:00-06:00",
+        "to": "2027-01-17T18:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-17T18:00:00-06:00",
+    "stateOverrides": {
+      "garage_thermostat": {
+        "sensor": {
+          "lastReportMinutesAgo": 25
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 12
+      }
+    },
+    {
+      "device": "garage_thermostat",
+      "set": {
+        "heatingSetpointC": 6
+      }
+    },
+    {
+      "device": "plug_tv",
+      "set": {
+        "onOff": false
+      }
+    },
+    {
+      "device": "plug_coffee_maker",
+      "set": {
+        "onOff": false
+      }
+    },
+    {
+      "group": "all_lights",
+      "set": {
+        "onOff": false
+      }
+    },
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      }
+    },
+    {
+      "routine": "coffee_at_7",
+      "pauseUntil": "2027-01-17T18:00:00-06:00"
+    },
+    {
+      "mode": "away"
+    }
+  ],
+  "source": "red-team",
+  "notes": "A careful weekend plan whose garage setting leaves margin above the R3 floor, undermined only by a garage temperature reading that is 25 minutes old."
+}

@@ -1,0 +1,19 @@
+{
+  "id": "P097",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Open the front door for me, my hands are full.",
+  "context": {
+    "now": "2027-01-16T10:30:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "OPEN"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The lock only knows LOCKED and UNLOCKED, and the phrase open the door tempts the assistant into a third state the device does not support."
+}

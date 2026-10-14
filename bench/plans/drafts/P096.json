@@ -1,0 +1,19 @@
+{
+  "id": "P096",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Dim the living room lights by ten percent.",
+  "context": {
+    "now": "2027-01-15T21:00:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "light_living",
+      "set": {
+        "brightness": -10
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The assistant sends a relative change as if it were an absolute level, producing a negative brightness below the 0 minimum."
+}

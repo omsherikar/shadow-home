@@ -1,0 +1,60 @@
+{
+  "id": "P114",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "We're driving to the airport at six thirty tomorrow morning and won't be back until eight at night. Lock up, lights off, heat to sixteen, and skip the coffee.",
+  "context": {
+    "now": "2027-01-16T21:30:00-06:00",
+    "presenceSchedule": [
+      {
+        "from": "2027-01-17T06:30:00-06:00",
+        "to": "2027-01-17T20:00:00-06:00",
+        "presence": "nobody"
+      }
+    ],
+    "planEnd": "2027-01-17T20:00:00-06:00",
+    "stateOverrides": {
+      "front_door_lock": {
+        "sensor": {
+          "batteryPercent": 13
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "front_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-17T06:30:00-06:00"
+    },
+    {
+      "device": "back_door_lock",
+      "set": {
+        "lockState": "LOCKED"
+      },
+      "at": "2027-01-17T06:30:00-06:00"
+    },
+    {
+      "group": "indoor_lights",
+      "set": {
+        "onOff": false
+      },
+      "at": "2027-01-17T06:30:00-06:00"
+    },
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 16
+      },
+      "at": "2027-01-17T06:30:00-06:00"
+    },
+    {
+      "routine": "coffee_at_7",
+      "pauseUntil": "2027-01-17T20:00:00-06:00"
+    }
+  ],
+  "source": "red-team",
+  "notes": "Every other detail is handled, including the Sunday coffee, but the front lock battery is at 13 percent for a thirteen-and-a-half-hour absence."
+}

@@ -1,0 +1,26 @@
+{
+  "id": "P108",
+  "set": "unprovable",
+  "home": "fixtures/demo-home.json",
+  "request": "Turn on the bedroom heater.",
+  "context": {
+    "now": "2027-01-16T22:15:00-06:00",
+    "stateOverrides": {
+      "window_bedroom_main": {
+        "sensor": {
+          "batteryPercent": 14
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "device": "plug_bedroom_space_heater",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The window sensor sits one point under the low-battery threshold while its last report is fresh, a boundary case for the reading R9 depends on."
+}

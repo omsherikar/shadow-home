@@ -1,0 +1,20 @@
+{
+  "id": "P103",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Run the dishwasher on eco.",
+  "context": {
+    "now": "2027-01-16T20:45:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "dishwasher",
+      "set": {
+        "onOff": true,
+        "cycle": "eco"
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The dishwasher only exposes on and off, and the invented cycle setting lands on the device whose latch sensor is at 4 percent, so lint and sensor health both have something to say."
+}

@@ -1,0 +1,25 @@
+{
+  "id": "P095",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Turn on the hallway light and the kitchen light, I'm getting a snack.",
+  "context": {
+    "now": "2027-01-16T01:15:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "light_hallway",
+      "set": {
+        "onOff": true
+      }
+    },
+    {
+      "device": "light_kitchen",
+      "set": {
+        "onOff": true
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "An invented hallway light sits next to a valid kitchen light action, testing whether lint rejects the plan rather than silently dropping the unknown device."
+}

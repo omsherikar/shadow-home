@@ -1,0 +1,19 @@
+{
+  "id": "P091",
+  "set": "invalid",
+  "home": "fixtures/demo-home.json",
+  "request": "Set the heat to sixty-eight.",
+  "context": {
+    "now": "2027-01-16T07:30:00-06:00"
+  },
+  "actions": [
+    {
+      "device": "thermostat_main",
+      "set": {
+        "heatingSetpointC": 68
+      }
+    }
+  ],
+  "source": "red-team",
+  "notes": "The assistant forgets to convert Fahrenheit, the opposite slip from P025, and sends a value far above thermostat_main's 30 C maximum."
+}
