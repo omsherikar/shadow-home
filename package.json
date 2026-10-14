@@ -21,7 +21,7 @@
     "lint": "biome check .",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "biome format --write .",
-    "bench": "npm run bench --workspace bench --if-present",
+    "bench": "node --env-file-if-exists=.env --env-file-if-exists=.env.local bench/runner/run.ts",
     "inspect": "npx @modelcontextprotocol/inspector@2.10.1",
     "bedrock:ping": "scripts/bedrock-ping.sh",
     "latency": "node scripts/latency.ts",
