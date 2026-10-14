@@ -113,6 +113,7 @@ export const previewInput = z.object({
   actions: z
     .array(planActionSchema)
     .min(1)
+    .max(50)
     .describe(
       'Device or group writes ({ device, set, at? }), routine pauses ({ routine, pauseUntil }) and mode changes ({ mode, at? }). Without `at`, an action runs now.',
     ),
@@ -268,13 +269,19 @@ export const addRuleInput = z.object({
   author: member,
   rule: compiledRuleSchema
     .optional()
-    .describe('The compiled rule. Without it the server needs its rule compiler.'),
+    .describe(
+      "A rule already compiled, used only when the server has no rule compiler (a recorded demo). Leave it out: the server compiles the person's words.",
+    ),
 });
 
 export const addRuleOutput = z.object({
-  status: z.enum(['added', 'pending_owner_approval', 'invalid', 'needs_compiler']),
+  status: z.enum(['added', 'pending_owner_approval', 'invalid', 'unclear', 'needs_compiler']),
   ruleId: z.string().optional(),
   readBack: z.string().optional(),
+  readings: z
+    .array(z.string())
+    .optional()
+    .describe('When the compilers read the words differently: each reading, read back'),
   problems: z.array(z.string()),
   conflicts: z.array(
     z.object({

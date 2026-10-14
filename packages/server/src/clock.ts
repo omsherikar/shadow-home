@@ -68,3 +68,30 @@ export function demoClock(homeStartMs: number, wallNow: () => number = Date.now)
     restart: rebase,
   };
 }
+
+/**
+ * Home time for the deployed server. Every Lambda instance must agree on it without talking to
+ * the others, and the twin's forecast ends after a few days, so the home starts over from the
+ * fixture's clock once a day at a fixed UTC hour and runs at real speed in between. `run()`
+ * names the current day's home, so the store keeps each day's state apart.
+ */
+export interface DailyClock extends Clock {
+  /** The UTC date the current home started on, e.g. "2026-10-19". */
+  run(): string;
+}
+
+const DAY_MS = 24 * 60 * 60_000;
+
+export function dailyClock(
+  homeStartMs: number,
+  restartUtcHour = 8,
+  wallNow: () => number = Date.now,
+): DailyClock {
+  const shift = restartUtcHour * 60 * 60_000;
+  const sinceRestart = () => (((wallNow() - shift) % DAY_MS) + DAY_MS) % DAY_MS;
+  return {
+    homeNowMs: () => homeStartMs + sinceRestart(),
+    wallNowMs: wallNow,
+    run: () => new Date(wallNow() - sinceRestart()).toISOString().slice(0, 10),
+  };
+}

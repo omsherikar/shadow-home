@@ -201,8 +201,10 @@ export function buildServer(service: ShadowHomeService): McpServer {
     {
       title: 'Add a house rule',
       description:
-        'Add a house rule. Returns a read-back, conflicts with existing rules and which wins, a check of the next 24 hours ' +
-        'against it, and whether the owner must approve it.',
+        "Add a house rule in the person's words. The server compiles it with three different models and keeps it only " +
+        'if all agree; otherwise it returns each reading and asks the person to say it again. Returns a read-back, ' +
+        'conflicts with existing rules and which wins, a check of the next 24 hours against it, and whether the owner ' +
+        'must approve it.',
       inputSchema: addRuleInput,
       outputSchema: addRuleOutput,
       annotations: {

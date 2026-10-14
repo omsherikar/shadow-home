@@ -1,5 +1,6 @@
 import type { Speech, Tier, Verdict } from '@shadow-home/engine';
 import type { Home, HomeMode, Plan, Value } from '@shadow-home/twin';
+import { copy } from './stored.ts';
 
 /** The home as it is now, plus what's needed to move it forward in time. */
 export interface LiveState {
@@ -143,38 +144,50 @@ export interface Store {
   listLog(): Promise<LogEntry[]>;
   /** A fresh home: this state, and no previews, approvals, commits or log. For the local demo. */
   reset(state: LiveState): Promise<void>;
+  /**
+   * Run one call's reads and writes as a unit: its writes land together, and only if nothing
+   * else changed the home since it read it. Otherwise the call runs again on the newer home, so
+   * `fn` must not act outside the store. The service already runs calls one at a time within a
+   * process; this keeps them in order across processes too (several Lambda instances).
+   */
+  atomically<T>(fn: () => Promise<T>): Promise<T>;
 }
 
+/**
+ * Everything in one process's memory: for local runs and tests. It hands out copies, as a
+ * real store would, so nothing changes unless it's saved.
+ */
 export function memoryStore(initial: LiveState): Store {
-  let state = initial;
+  let state = copy(initial);
   const previews = new Map<string, PreviewRecord>();
   const approvals = new Map<string, Approval>();
   const commits = new Map<string, unknown>();
   const log = new Map<string, LogEntry>();
   return {
-    loadState: async () => state,
+    loadState: async () => copy(state),
     saveState: async (s) => {
-      state = s;
+      state = copy(s);
     },
     putPreview: async (r) => {
-      previews.set(r.nonce, r);
+      previews.set(r.nonce, copy(r));
     },
-    getPreview: async (n) => previews.get(n),
+    getPreview: async (n) => copy(previews.get(n)),
     putApproval: async (n, a) => {
-      approvals.set(n, a);
+      approvals.set(n, copy(a));
     },
-    getApproval: async (n) => approvals.get(n),
+    getApproval: async (n) => copy(approvals.get(n)),
     putCommit: async (id, r) => {
-      commits.set(id, r);
+      commits.set(id, copy(r));
     },
-    getCommit: async (id) => commits.get(id),
+    getCommit: async (id) => copy(commits.get(id)),
     putLog: async (e) => {
-      log.set(e.id, e);
+      log.set(e.id, copy(e));
     },
-    listLog: async () => [...log.values()],
+    listLog: async () => copy([...log.values()]),
     reset: async (s) => {
-      state = s;
+      state = copy(s);
       for (const m of [previews, approvals, commits, log]) m.clear();
     },
+    atomically: (fn) => fn(),
   };
 }
