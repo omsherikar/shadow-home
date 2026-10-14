@@ -7,9 +7,10 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - Stay on Next.js 15.5: Amplify Hosting documents SSR support only for Next.js 12–15.
 - Route handlers use the Node runtime (`export const runtime = 'nodejs'`). No Edge runtime,
   no streamed responses (Amplify doesn't support them).
-- app/api/turn/route.ts: one conversational turn. Bedrock Converse loop (Claude Haiku-class model)
-  with the MCP client from @modelcontextprotocol/client, pointed at MCP_SERVER_URL.
-- app/api/speak/route.ts: Amazon Polly text → audio.
+- app/api/turn/route.ts: one conversational turn. A Converse-shaped model loop (Claude Haiku-class)
+  with the MCP client from @modelcontextprotocol/client, pointed at MCP_SERVER_URL. It runs on the
+  Anthropic API (src/turn/anthropic.ts translates), or on Bedrock with MODEL_PROVIDER=bedrock.
+- app/api/speak/route.ts: text → audio with ElevenLabs (SPEECH=polly for Amazon Polly).
 - app/mcp/route.ts: the browser's same-origin way to the MCP server (views call tools through it).
   Forward MCP protocol headers only; read responses whole.
 - Non-route code lives in src/: turn/ (the model loop and the scripted model), screen/ (the
@@ -18,13 +19,15 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
 - Demo mode (DEMO_MODE=1) replays fixtures/demo-script.json with recorded plans, no model calls.
-- MOCK_MODEL=1 swaps Bedrock for a scripted model so the app runs with no AWS credentials.
+- MOCK_MODEL=1 swaps the live model for a scripted one so the app runs with no keys.
 - DEMO_CLOCK=1: before a turn, move home time to the scene of the demo line heard (server needs
   SHADOW_HOME_DEMO=1). SHADOW_HOME_SILENT=1: don't speak (browser tests).
-- AWS: AWS_PROFILE (default shadow-home on a laptop; in AWS, the role's own credentials),
-  AWS_REGION (default us-east-1), BEDROCK_MODEL_ID, POLLY_VOICE. Load the AWS SDK only where it's
-  used, so the scripted model starts fast.
-- Deployed on Amplify Hosting (amplify.yml at the repo root) with the stack's HostComputeRoleArn
-  as its compute role; behind Amplify's proxy the site's host arrives as X-Forwarded-Host.
+- Keys: ANTHROPIC_API_KEY (ANTHROPIC_MODEL_ID overrides the model), ELEVENLABS_API_KEY
+  (ELEVENLABS_VOICE_ID overrides the voice). AWS, when chosen: AWS_PROFILE (default shadow-home on a
+  laptop; in AWS, the role's own credentials), AWS_REGION (default us-east-1), BEDROCK_MODEL_ID,
+  POLLY_VOICE. Load each SDK only where it's used, so the scripted model starts fast.
+- Deployed on Cloud Run from packages/host/Dockerfile (Next's standalone server; NEXT_OUTPUT=standalone
+  only there), keys from Secret Manager. Amplify Hosting still works (amplify.yml, the stack's
+  HostComputeRoleArn); behind Amplify's proxy the site's host arrives as X-Forwarded-Host.
 - What the device says comes from the server's speech fields when a tool returned them.
 - The screen is read from across a room: at most 5 diff rows, large type, verdict as icon + word + color.

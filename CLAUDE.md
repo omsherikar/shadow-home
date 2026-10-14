@@ -22,14 +22,14 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 ## Commands
 
-- npm run dev       start everything locally: MCP server :3000, Echo Show host :3001 (in-memory store, scripted model; MOCK_MODEL=0 for Bedrock)
+- npm run dev       start everything locally: MCP server :3000, Echo Show host :3001 (in-memory store; the live model on the Anthropic API when ANTHROPIC_API_KEY is in .env or .env.local, else the scripted model; MOCK_MODEL=1 forces it)
 - npm run demo      the same, plus "Play the demo": the demo script start to finish, no model calls
-- npm run record-demo  record a real Bedrock run of each demo request into fixtures/demo-script.json (needs npm run dev)
+- npm run record-demo  record a live model run of each demo request into fixtures/demo-script.json (needs npm run dev)
 - npm test          Vitest across all workspaces
 - npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101)
-- npm run synth     bundle the server for Lambda and synthesize the CDK stack (no AWS account needed)
-- npm run deploy    the same, then cdk deploy to us-east-1 (docs/deploy.md); the host goes on Amplify Hosting
-- DynamoDB store tests run when DYNAMODB_ENDPOINT points at DynamoDB Local (CI does this)
+- npm run deploy    build both containers in Cloud Build and deploy the server and host to Cloud Run (docs/deploy.md)
+- npm run synth     bundle the server for Lambda and synthesize the CDK stack (no AWS account needed); deploy:aws deploys it
+- Store tests run against local stand-ins when set: DYNAMODB_ENDPOINT (DynamoDB Local), FIRESTORE_EMULATOR_HOST (CI does both)
 - npm run lint      Biome check
 - npm run bench     ShadowBench report to bench/reports/
 - npm run inspect   MCP Inspector (point it at http://localhost:3000/mcp)
@@ -38,11 +38,12 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 - packages/twin     home model types (Matter clusters + Alexa interface names), fixture loader
 - packages/engine   lint → hygiene → simulate (3 runs) → rules → verdict + repairs + tier
-- packages/rules    the house-rule compiler: three Strands agents on Bedrock that must agree
-- packages/server   MCP server: 7 tools, MCP App resources, plan signing, in-memory and DynamoDB stores, Lambda entry
+- packages/rules    the house-rule compiler: three Strands agents (Anthropic API, or Bedrock) that must agree
+- packages/server   MCP server: 7 tools, MCP App resources, plan signing, in-memory, Firestore and DynamoDB stores, Cloud Run and Lambda entries
 - packages/views    MCP App views (diff + timeline), one HTML file each, built with esbuild
-- packages/host     simulated Alexa: Next.js 15.5 app; route handlers run the Bedrock loop and Polly
-- packages/infra    AWS CDK (MCP server on Lambda + Function URL, DynamoDB, Secrets Manager); the host deploys on Amplify Hosting (amplify.yml)
+- packages/host     simulated Alexa: Next.js 15.5 app; route handlers run the model loop (Anthropic API) and the voice (ElevenLabs)
+- packages/infra    the server bundle (Cloud Run and Lambda) and the AWS CDK stack (Lambda + Function URL, DynamoDB, Secrets Manager)
+- scripts/gcp       the Google Cloud deploy: Cloud Build config and deploy.ts (Cloud Run, Firestore, Secret Manager)
 - bench/            ShadowBench: plans, labels (read-only for Claude), runner, reports
 - docs/             plan.md, friction-log.md
 

@@ -33,7 +33,7 @@ npm run bench      # ShadowBench report in bench/reports/
 | `packages/rules` | House rules in five templates; plain-language compiler |
 | `packages/server` | MCP server (7 tools, Streamable HTTP, MCP Apps view) |
 | `packages/views` | MCP App views: diff and timeline |
-| `packages/host` | Simulated Alexa: Next.js app, Bedrock voice loop, Polly |
+| `packages/host` | Simulated Alexa: Next.js app, Claude voice loop, ElevenLabs voice |
 | `packages/infra` | AWS CDK |
 | `bench/` | ShadowBench: hand-labelled plans and the runner |
 | `fixtures/` | The fictional demo home and the demo script |
