@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hourlyLimit, perHour } from '@/limit.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
 import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
@@ -19,6 +20,10 @@ function namesOf(home: HomeBrief): Names {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// Each live turn spends model calls on the owner's key; the site is public, so this instance takes
+// at most LIVE_TURNS_PER_HOUR (default 60). Scripted and demo turns cost nothing and don't count.
+const liveTurns = hourlyLimit(perHour('LIVE_TURNS_PER_HOUR', 60));
 
 const turnRequest = z.object({
   text: z.string().min(1).max(500),
@@ -53,6 +58,13 @@ export async function POST(request: Request): Promise<Response> {
   if (fromOtherSite(request)) return OTHER_SITE();
   const parsed = turnRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad turn request' }, { status: 400 });
+  const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
+  if (!scripted && !liveTurns()) {
+    return Response.json({
+      say: "I've had a lot of requests this hour. Try again later.",
+      calls: [],
+    });
+  }
   const beats = await loadBeats();
   if (process.env.DEMO_CLOCK === '1') await sceneTimeFor(parsed.data.text, beats);
 
@@ -62,7 +74,6 @@ export async function POST(request: Request): Promise<Response> {
     // Names come from the home itself, so what "the thermostat" means never depends on what the
     // browser happened to see before (a reload, a log with no names).
     const request: TurnRequest = { ...(parsed.data as TurnRequest), names: namesOf(home) };
-    const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
     const model = scripted
       ? scriptedModel(beats)
       : bedrockModel({
