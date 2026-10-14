@@ -1,0 +1,28 @@
+# Amplify Hosting build for the Echo Show host (packages/host), a Next.js 15.5 app in an npm
+# workspaces monorepo. Set AMPLIFY_MONOREPO_APP_ROOT=packages/host and these app variables:
+#   MCP_SERVER_URL   the stack's McpUrl output (required)
+#   BEDROCK_MODEL_ID, POLLY_VOICE   optional overrides
+# and set the stack's HostComputeRoleArn as the app's compute role (Bedrock and Polly).
+version: 1
+applications:
+  - appRoot: packages/host
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - nvm install 22 && nvm use 22
+            # Install from the workspace root; the parentheses keep this step in packages/host.
+            - (cd ../.. && npm ci)
+        build:
+          commands:
+            # Server-side code reads its settings at run time; Amplify passes them only to the
+            # build, so write them where Next loads them.
+            - env | grep -E '^(MCP_SERVER_URL|BEDROCK_MODEL_ID|POLLY_VOICE)=' >> .env.production || true
+            - (cd ../.. && npm run build -w @shadow-home/host)
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - .next/cache/**/*

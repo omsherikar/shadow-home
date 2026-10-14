@@ -276,6 +276,20 @@ describe('fixes for a live session', () => {
     expect(fromOtherSite(req('http://192.168.1.20:3001'))).toBe(true);
   });
 
+  test('behind a proxy, the forwarded host is the site’s own', () => {
+    const req = (origin: string) =>
+      new Request('https://internal:3000/api/turn', {
+        method: 'POST',
+        headers: {
+          host: 'internal:3000',
+          'x-forwarded-host': 'main.d1example.amplifyapp.com',
+          origin,
+        },
+      });
+    expect(fromOtherSite(req('https://main.d1example.amplifyapp.com'))).toBe(false);
+    expect(fromOtherSite(req('https://example.test'))).toBe(true);
+  });
+
   test('"undo it" names no device; "the lights" is every light; words match whole', () => {
     const names = {
       devices: {

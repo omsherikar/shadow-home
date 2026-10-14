@@ -21,7 +21,10 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - MOCK_MODEL=1 swaps Bedrock for a scripted model so the app runs with no AWS credentials.
 - DEMO_CLOCK=1: before a turn, move home time to the scene of the demo line heard (server needs
   SHADOW_HOME_DEMO=1). SHADOW_HOME_SILENT=1: don't speak (browser tests).
-- AWS: AWS_PROFILE (default shadow-home), AWS_REGION (default us-east-1), BEDROCK_MODEL_ID,
-  POLLY_VOICE. Load the AWS SDK only where it's used, so the scripted model starts fast.
+- AWS: AWS_PROFILE (default shadow-home on a laptop; in AWS, the role's own credentials),
+  AWS_REGION (default us-east-1), BEDROCK_MODEL_ID, POLLY_VOICE. Load the AWS SDK only where it's
+  used, so the scripted model starts fast.
+- Deployed on Amplify Hosting (amplify.yml at the repo root) with the stack's HostComputeRoleArn
+  as its compute role; behind Amplify's proxy the site's host arrives as X-Forwarded-Host.
 - What the device says comes from the server's speech fields when a tool returned them.
 - The screen is read from across a room: at most 5 diff rows, large type, verdict as icon + word + color.
