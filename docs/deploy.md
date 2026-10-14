@@ -20,8 +20,18 @@ wins; the shell's own variables win over either). With the Anthropic key there,
 Optional overrides: `ANTHROPIC_MODEL_ID` (the voice loop's model), `RULE_COMPILER_MODELS` (three
 model IDs, comma-separated), `ELEVENLABS_VOICE_ID`.
 
-Both services are public, so anyone with the URLs spends from these keys. Set a monthly spend
-limit in the Anthropic console, and keep an eye on ElevenLabs' character quota.
+Both services are public, so anyone with the URLs spends from these keys. Each instance caps
+what it spends in any rolling hour:
+
+- `LIVE_TURNS_PER_HOUR` (host, default 60): live-model turns; past it the device says to try
+  later. Scripted and demo turns don't count.
+- `SPEECH_PER_HOUR` (host, default 120): ElevenLabs replies; past it the browser speaks.
+- `RULE_COMPILES_PER_HOUR` (server, default 10): plain-words rules, three model calls each; past
+  it the rule isn't compiled ("I couldn't work out that rule just now").
+
+With at most 2 host and 4 server instances, that bounds the worst hour. Change one with
+`gcloud run services update shadow-home-host --region=us-central1 --update-env-vars=LIVE_TURNS_PER_HOUR=30`.
+Also set a monthly spend limit in the Anthropic console, and keep an eye on ElevenLabs' quota.
 
 ## Google Cloud
 
