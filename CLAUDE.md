@@ -27,6 +27,9 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 - npm run record-demo  record a real Bedrock run of each demo request into fixtures/demo-script.json (needs npm run dev)
 - npm test          Vitest across all workspaces
 - npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101)
+- npm run synth     bundle the server for Lambda and synthesize the CDK stack (no AWS account needed)
+- npm run deploy    the same, then cdk deploy to us-east-1 (docs/deploy.md); the host goes on Amplify Hosting
+- DynamoDB store tests run when DYNAMODB_ENDPOINT points at DynamoDB Local (CI does this)
 - npm run lint      Biome check
 - npm run bench     ShadowBench report to bench/reports/
 - npm run inspect   MCP Inspector (point it at http://localhost:3000/mcp)
@@ -35,11 +38,11 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 - packages/twin     home model types (Matter clusters + Alexa interface names), fixture loader
 - packages/engine   lint → hygiene → simulate (3 runs) → rules → verdict + repairs + tier
-- packages/rules    rule templates, Strands compiler, agreement check, read-back
-- packages/server   MCP server: 7 tools, MCP App resources, plan signing, storage adapters
+- packages/rules    the house-rule compiler: three Strands agents on Bedrock that must agree
+- packages/server   MCP server: 7 tools, MCP App resources, plan signing, in-memory and DynamoDB stores, Lambda entry
 - packages/views    MCP App views (diff + timeline), one HTML file each, built with esbuild
 - packages/host     simulated Alexa: Next.js 15.5 app; route handlers run the Bedrock loop and Polly
-- packages/infra    AWS CDK (MCP server on Lambda, DynamoDB); the host deploys on Amplify Hosting
+- packages/infra    AWS CDK (MCP server on Lambda + Function URL, DynamoDB, Secrets Manager); the host deploys on Amplify Hosting (amplify.yml)
 - bench/            ShadowBench: plans, labels (read-only for Claude), runner, reports
 - docs/             plan.md, friction-log.md
 
