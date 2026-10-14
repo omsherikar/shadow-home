@@ -61,6 +61,12 @@ export interface PreviewRecord {
   related: { repair?: string; safePart?: string };
   /** The alternative this preview's question offered; a yes to it counts for that alternative. */
   offers: 'repair' | 'safe_part' | null;
+  /**
+   * When the preview's question offered an alternative: the question about this plan itself
+   * ("Run it anyway?"), and whether it has been asked. Only a yes to it commits this plan.
+   */
+  ownAsk?: string;
+  askedOwn?: boolean;
   undo?: UndoExtras;
 }
 

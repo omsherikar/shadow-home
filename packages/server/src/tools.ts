@@ -16,7 +16,13 @@ import {
   undoOutput,
 } from './schemas.ts';
 import type { ShadowHomeService } from './service.ts';
-import { NAMES_META_KEY, PLAN_VIEW_MIME, PLAN_VIEW_URI, planViewHtml } from './view.ts';
+import {
+  APPROVAL_META_KEY,
+  NAMES_META_KEY,
+  PLAN_VIEW_MIME,
+  PLAN_VIEW_URI,
+  planViewHtml,
+} from './view.ts';
 
 const VERSION = '0.1.0';
 
@@ -34,7 +40,20 @@ function result<T extends Record<string, unknown>>(
 }
 
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
-const onScreen = { ui: { resourceUri: PLAN_VIEW_URI } };
+// The flat key is the older form some MCP Apps hosts still read.
+const onScreen = { ui: { resourceUri: PLAN_VIEW_URI }, 'ui/resourceUri': PLAN_VIEW_URI };
+
+/** Every plan ID in a result, wherever it sits: the plan, its repair and safe part, a fresh preview. */
+function planIds(value: unknown, out = new Set<string>()): Set<string> {
+  if (Array.isArray(value)) for (const v of value) planIds(v, out);
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'planId' && typeof v === 'string') out.add(v);
+      else planIds(v, out);
+    }
+  }
+  return out;
+}
 
 /** A fresh MCP server over the shared service. The HTTP handler builds one per request. */
 export function buildServer(service: ShadowHomeService): McpServer {
@@ -48,8 +67,15 @@ export function buildServer(service: ShadowHomeService): McpServer {
     },
   );
 
-  // What the plan view draws needs names; they go in `_meta`, which the model doesn't read.
-  const forScreen = async () => ({ ...onScreen, [NAMES_META_KEY]: await service.names() });
+  // What the plan view needs and the model mustn't have goes in `_meta`, which the model doesn't
+  // read: names to draw with, and the tokens that let a tap approve the plans on screen.
+  const forScreen = async (out: unknown) => ({
+    ...onScreen,
+    [NAMES_META_KEY]: await service.names(),
+    [APPROVAL_META_KEY]: Object.fromEntries(
+      [...planIds(out)].map((id) => [id, service.approvalToken(id)]),
+    ),
+  });
 
   server.registerResource(
     'plan-view',
@@ -98,7 +124,11 @@ export function buildServer(service: ShadowHomeService): McpServer {
     },
     async (input) => {
       const out = await service.previewPlan(input);
-      return result(`${out.verdict} (${out.tier}): ${out.speech.headline}`, out, await forScreen());
+      return result(
+        `${out.verdict} (${out.tier}): ${out.speech.headline}`,
+        out,
+        await forScreen(out),
+      );
     },
   );
 
@@ -124,7 +154,7 @@ export function buildServer(service: ShadowHomeService): McpServer {
       return result(
         `${out.status}${out.reason ? ` (${out.reason})` : ''}: ${out.speech.headline}`,
         out,
-        await forScreen(),
+        await forScreen(out),
       );
     },
   );
@@ -144,7 +174,7 @@ export function buildServer(service: ShadowHomeService): McpServer {
     async (input) => {
       const out = await service.undo(input);
       const head = out.preview ? `${out.preview.verdict} (${out.preview.tier}): ` : '';
-      return result(`${head}${out.speech.headline}`, out, await forScreen());
+      return result(`${head}${out.speech.headline}`, out, await forScreen(out));
     },
   );
 
@@ -193,7 +223,8 @@ export function buildServer(service: ShadowHomeService): McpServer {
     {
       title: 'Approve a plan',
       description:
-        'Record an on-screen approval for a previewed plan. Only the plan view calls this, on a tap.',
+        'Record an on-screen approval for a previewed plan. Only the plan view calls this, on a tap, ' +
+        'with the approval token it received; without that token it is refused.',
       inputSchema: approveInput,
       outputSchema: approveOutput,
       annotations: {

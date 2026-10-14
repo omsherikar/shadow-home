@@ -45,8 +45,15 @@ test('a preview_plan call shows the diff and timeline on the screen', async ({ p
 
   await v.getByRole('button', { name: /^Undo/ }).click();
   await expect(v.getByRole('heading', { name: 'Putting back' })).toBeVisible();
-  await expect(v.getByRole('button', { name: /Undo it\s*Say “yes”/ })).toBeVisible();
+  // Undoing unlocks the front door again, so the undo itself needs a yes (T2).
+  const yes = v.getByRole('button', { name: /Yes, undo it\s*Say “yes”/ });
+  await expect(yes).toBeVisible();
   await page.screenshot({ path: 'test-results/weekend-undo.png' });
+
+  // The tap is that yes: the view approves with the token only the screen has, then commits.
+  await yes.click();
+  await expect(v.getByText('DONE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Front door lock unlocked', { exact: true })).toBeVisible();
 });
 
 test('saying it does what tapping does: a yes by voice commits what the screen asked', async ({

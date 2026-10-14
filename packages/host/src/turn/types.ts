@@ -16,7 +16,10 @@ export interface ToolCall {
   resourceUri?: string;
 }
 
-/** What the browser keeps of earlier calls and sends back each turn: no view metadata. */
+/**
+ * What the browser keeps of the conversation and sends back each turn: tool calls without view
+ * metadata, plus `heard` (what the person said) and `closed` (a tap that changed nothing).
+ */
 export interface Remembered {
   name: string;
   arguments: Record<string, unknown>;

@@ -155,27 +155,38 @@ export function offeredAlternative(p: Preview): 'repair' | 'safe_part' | null {
   return null;
 }
 
+/**
+ * The same choices for a plan and for an undo: an undo is checked like any plan, so it can be
+ * blocked, unproven or need a yes too. Only the words change ("Undo it", "Keep it").
+ */
 function previewControls(p: Preview, offered: 'repair' | 'safe_part' | null): Control[] {
   const commit = (planId: string, safePartOnly = false): Action =>
     safePartOnly ? { kind: 'commit', planId, safePartOnly } : { kind: 'commit', planId };
-  if (p.kind === 'undo') {
-    return [
-      { label: 'Undo it', say: 'yes', action: commit(p.planId), primary: true },
-      { label: 'Keep it', say: 'cancel', action: DISMISS },
-    ];
-  }
+  const undo = p.kind === 'undo';
+  const cancel: Control = undo ? { label: 'Keep it', say: 'cancel', action: DISMISS } : CANCEL;
   switch (p.tier) {
     case 'T0':
     case 'T1':
-      return [{ label: 'Do it', say: 'yes', action: commit(p.planId), primary: true }, CANCEL];
+      return [
+        { label: undo ? 'Undo it' : 'Do it', say: 'yes', action: commit(p.planId), primary: true },
+        cancel,
+      ];
     case 'T2':
-      return [{ label: 'Yes, do it', say: 'yes', action: commit(p.planId), primary: true }, CANCEL];
+      return [
+        {
+          label: undo ? 'Yes, undo it' : 'Yes, do it',
+          say: 'yes',
+          action: commit(p.planId),
+          primary: true,
+        },
+        cancel,
+      ];
     case 'T3':
       if (offered === 'repair' && p.repair) {
         const n = count(p.repair.changes.length, 'fix', 'fixes');
         return [
           { label: `Do it with ${n}`, say: 'yes', action: commit(p.repair.planId), primary: true },
-          CANCEL,
+          cancel,
         ];
       }
       if (offered === 'safe_part') {
@@ -186,7 +197,7 @@ function previewControls(p: Preview, offered: 'repair' | 'safe_part' | null): Co
             action: commit(p.planId, true),
             primary: true,
           },
-          CANCEL,
+          cancel,
         ];
       }
       return [{ label: 'OK', say: 'okay', action: DISMISS, primary: true }];
@@ -200,10 +211,10 @@ function previewControls(p: Preview, offered: 'repair' | 'safe_part' | null): Co
             primary: true,
           },
           { label: 'Run it anyway', say: 'run it anyway', action: commit(p.planId) },
-          CANCEL,
+          cancel,
         ];
       }
-      return [{ label: 'Run it anyway', say: 'yes', action: commit(p.planId) }, CANCEL];
+      return [{ label: 'Run it anyway', say: 'yes', action: commit(p.planId) }, cancel];
     case 'T5':
       return [{ label: 'OK', say: 'okay', action: DISMISS, primary: true }];
   }

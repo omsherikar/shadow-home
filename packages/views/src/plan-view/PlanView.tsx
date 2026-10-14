@@ -2,7 +2,7 @@ import type { App } from '@modelcontextprotocol/ext-apps';
 import { useApp } from '@modelcontextprotocol/ext-apps/react';
 import { useCallback, useRef, useState } from 'react';
 import { type Control, type Screen, screenFor, type Timeline } from './screen.ts';
-import { type Commit, NAMES_META_KEY, type Names } from './types.ts';
+import { APPROVAL_META_KEY, type Commit, NAMES_META_KEY, type Names } from './types.ts';
 
 interface ToolResult {
   content?: { type: string; text?: string }[];
@@ -26,12 +26,16 @@ export function PlanView() {
   const [shown, setShown] = useState<Shown>({ kind: 'waiting' });
   // The last names seen, for a result that arrives without them.
   const names = useRef<Names | undefined>(undefined);
+  // Approval tokens for the plans shown so far: a tap is the only way to approve one.
+  const approvals = useRef<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const show = useCallback((r: ToolResult) => {
     const fresh = r._meta?.[NAMES_META_KEY] as Names | undefined;
     if (fresh) names.current = fresh;
+    const tokens = r._meta?.[APPROVAL_META_KEY] as Record<string, string> | undefined;
+    if (tokens) approvals.current = { ...approvals.current, ...tokens };
     if (r.isError) {
       setShown({ kind: 'message', text: textOf(r) || 'That didn’t work.' });
       return;
@@ -60,7 +64,7 @@ export function PlanView() {
       setBusy(true);
       setError(null);
       try {
-        const result = await perform(app, control);
+        const result = await perform(app, control, approvals.current);
         if (result) show(result);
         else setShown({ kind: 'message', text: 'Nothing changed.' });
         await tellModel(app, control, result);
@@ -82,7 +86,11 @@ export function PlanView() {
 }
 
 /** Do what a tap asks. A yes to a plan that needs one records an on-screen approval first. */
-async function perform(app: App, control: Control): Promise<ToolResult | null> {
+async function perform(
+  app: App,
+  control: Control,
+  approvals: Record<string, string>,
+): Promise<ToolResult | null> {
   const call = async (name: string, args: Record<string, unknown>) => {
     const r = (await app.callServerTool({ name, arguments: args })) as ToolResult;
     if (r.isError) throw new Error(textOf(r) || `${name} failed`);
@@ -95,17 +103,22 @@ async function perform(app: App, control: Control): Promise<ToolResult | null> {
   const first = await call('commit_plan', { planId: a.planId });
   const c = first.structuredContent as Commit | undefined;
   // Only the plan this button is for: a different plan ID means a new question, shown next.
-  if (c?.status !== 'needs_confirmation' || c.planId !== a.planId) return first;
-  await call('approve_plan', { planId: a.planId });
+  const approvalToken = approvals[a.planId];
+  if (c?.status !== 'needs_confirmation' || c.planId !== a.planId || !approvalToken) return first;
+  await call('approve_plan', { planId: a.planId, approvalToken });
   return call('commit_plan', { planId: a.planId });
 }
 
-/** Tell the assistant what happened on screen, so the conversation knows on its next turn. */
+/**
+ * Tell the assistant what happened on screen, so the conversation knows on its next turn. A tap
+ * that changes nothing (Cancel, OK) closes the question on screen, so a later "yes" can't answer it.
+ */
 async function tellModel(app: App, control: Control, result: ToolResult | null) {
   const what = result ? textOf(result) : 'Nothing changed.';
   try {
     await app.updateModelContext({
       content: [{ type: 'text', text: `On screen, the person tapped “${control.label}”. ${what}` }],
+      structuredContent: { tapped: control.label, closed: control.action.kind === 'dismiss' },
     });
   } catch {
     // A host that doesn't keep model context still works; the screen already shows the result.
