@@ -38,3 +38,33 @@ export function manualClock(homeStartMs: number, wallStartMs = 0): ManualClock {
     },
   };
 }
+
+/**
+ * Home time for the local demo: real speed, but the demo can move it forward to the next scene
+ * ("Sunday evening") and back to the start on a reset. Never backwards otherwise: the live twin
+ * only moves forward.
+ */
+export interface DemoClock extends Clock {
+  /** Move home time forward to `homeMs`; a time already passed leaves it where it is. */
+  jumpTo(homeMs: number): void;
+  /** Start again from `homeMs`, with the home reset to match. */
+  restart(homeMs: number): void;
+}
+
+export function demoClock(homeStartMs: number, wallNow: () => number = Date.now): DemoClock {
+  let homeBase = homeStartMs;
+  let wallBase = wallNow();
+  const homeNowMs = () => homeBase + (wallNow() - wallBase);
+  const rebase = (homeMs: number) => {
+    homeBase = homeMs;
+    wallBase = wallNow();
+  };
+  return {
+    homeNowMs,
+    wallNowMs: wallNow,
+    jumpTo(homeMs) {
+      if (homeMs > homeNowMs()) rebase(homeMs);
+    },
+    restart: rebase,
+  };
+}

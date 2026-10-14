@@ -139,6 +139,8 @@ export interface Store {
   putLog(entry: LogEntry): Promise<void>;
   /** Entries in the order they were first written. */
   listLog(): Promise<LogEntry[]>;
+  /** A fresh home: this state, and no previews, approvals, commits or log. For the local demo. */
+  reset(state: LiveState): Promise<void>;
 }
 
 export function memoryStore(initial: LiveState): Store {
@@ -168,5 +170,9 @@ export function memoryStore(initial: LiveState): Store {
       log.set(e.id, e);
     },
     listLog: async () => [...log.values()],
+    reset: async (s) => {
+      state = s;
+      for (const m of [previews, approvals, commits, log]) m.clear();
+    },
   };
 }
