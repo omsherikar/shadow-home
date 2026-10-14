@@ -68,8 +68,9 @@ export async function compileRule(
 /**
  * One normal form for a compiled rule, so two compiles that mean the same thing compare equal:
  * object keys in order, "any"/"all" and "ensure" lists sorted, "neq" on a true/false attribute
- * turned into "eq" of the other value, `not` around a single state turned into "neq", one-item
- * "any"/"all" unwrapped, and "refuse" only when true.
+ * turned into "eq" of the other value, `not` around a single state turned into "neq", `not`
+ * around presence turned into the opposite presence, one-item "any"/"all" unwrapped, the two sides
+ * of "never_together" in order, and "refuse" only when true.
  */
 export function normalize(rule: CompiledRule): CompiledRule {
   const out = structuredClone(rule) as CompiledRule & { refuse?: boolean };
@@ -80,6 +81,10 @@ export function normalize(rule: CompiledRule): CompiledRule {
   }
   if (Array.isArray(p.ensure)) {
     p.ensure = (p.ensure as Cond[]).map(normalCond).sort((a, b) => cmp(canonical(a), canonical(b)));
+  }
+  // The engine breaks "never_together" when both sides hold, so which side is "a" means nothing.
+  if (out.template === 'never_together') {
+    [p.a, p.b] = [p.a, p.b].sort((a, b) => cmp(canonical(a), canonical(b)));
   }
   return out;
 }
@@ -101,6 +106,14 @@ function normalCond(c: Cond): Cond {
     }
     if ('device' in inner && 'neq' in inner) {
       return { device: inner.device, attr: inner.attr, eq: inner.neq };
+    }
+    // Presence is never unknown: a member is home or away, and someone is home or nobody is. So
+    // "not home" is "away" on every input the engine sees, and "not nobody" is "anyone".
+    if ('presence' in inner) {
+      const p = inner.presence;
+      if (p === 'nobody') return { presence: 'anyone' };
+      if (p === 'anyone') return { presence: 'nobody' };
+      return { presence: { member: p.member, is: p.is === 'home' ? 'away' : 'home' } };
     }
     return { not: inner };
   }
