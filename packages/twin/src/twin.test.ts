@@ -42,7 +42,7 @@ describe('demo home fixture', () => {
     expect(home.devices).toHaveLength(21);
     expect(home.routines).toHaveLength(3);
     expect(home.rules).toHaveLength(12);
-    expect(home.forecast.hourly).toHaveLength(56);
+    expect(home.forecast.hourly).toHaveLength(80);
   });
 
   test('all_plugs sweeps in the freezer and the aquarium (the demo trap)', () => {

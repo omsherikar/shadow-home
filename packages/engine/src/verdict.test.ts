@@ -267,18 +267,18 @@ describe('verdict rules', () => {
   });
 
   test('a plan the forecast does not cover is UNPROVEN, and says why', () => {
-    const r = check(home, { context: { now: '2027-01-17T20:00:00-06:00' }, actions: [] });
+    const r = check(home, { context: { now: '2027-01-18T20:00:00-06:00' }, actions: [] });
     expect(r.verdict).toBe('UNPROVEN');
-    expect(r.unknowns).toEqual(['no forecast after 2027-01-18T00:00:00-06:00']);
+    expect(r.unknowns).toEqual(['no forecast after 2027-01-19T00:00:00-06:00']);
     expect(r.reasons).toEqual([
-      { kind: 'unknown', message: 'no forecast after 2027-01-18T00:00:00-06:00' },
+      { kind: 'unknown', message: 'no forecast after 2027-01-19T00:00:00-06:00' },
     ]);
   });
 
   test('an action past the end of the simulation is UNPROVEN, never SAFE', () => {
     const r = check(home, {
       context: { now: '2027-01-15T17:45:00-06:00' },
-      actions: [{ device: 'plug_tv', set: { onOff: false }, at: '2027-01-18T09:00:00-06:00' }],
+      actions: [{ device: 'plug_tv', set: { onOff: false }, at: '2027-01-19T09:00:00-06:00' }],
     });
     expect(r.verdict).toBe('UNPROVEN');
   });
