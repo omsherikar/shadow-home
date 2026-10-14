@@ -26,7 +26,7 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 - npm run demo      the same, plus "Play the demo": the demo script start to finish, no model calls
 - npm run record-demo  record a live model run of each demo request into fixtures/demo-script.json (needs npm run dev)
 - npm test          Vitest across all workspaces
-- npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101)
+- npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101); CI runs it on Playwright's Chromium (PLAYWRIGHT_CHROMIUM=1)
 - npm run deploy    build both containers in Cloud Build and deploy the server and host to Cloud Run (docs/deploy.md)
 - npm run synth     bundle the server for Lambda and synthesize the CDK stack (no AWS account needed); deploy:aws deploys it
 - Store tests run against local stand-ins when set: DYNAMODB_ENDPOINT (DynamoDB Local), FIRESTORE_EMULATOR_HOST (CI does both)

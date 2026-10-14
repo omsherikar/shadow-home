@@ -44,3 +44,20 @@ jobs:
       - run: node packages/infra/scripts/bundle.ts cloud-run
       # ShadowBench: fails if any plan stops matching its approved label, or p99 reaches 500 ms.
       - run: npm run bench -- --gate
+
+  # The Echo Show screen end to end in a browser: a preview on screen, a tap that commits the
+  # repair, a spoken yes, and the whole demo script in demo mode. No model calls.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_CHROMIUM: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
