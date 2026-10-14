@@ -1,0 +1,21 @@
+{
+  "name": "@shadow-home/rules",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turns a house rule in plain words into one of the five rule templates: three compiles that must agree.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./strands": "./src/strands.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "3.1151.0",
+    "@shadow-home/twin": "0.1.0",
+    "@strands-agents/sdk": "1.20.0",
+    "zod": "4.6.7"
+  }
+}
