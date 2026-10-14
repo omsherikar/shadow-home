@@ -7,10 +7,17 @@ export interface CheckerRun {
   rows: Scored[];
 }
 
+/** Shadow Home on a house whose physics differs from its twin's. */
+export type StressRun = CheckerRun;
+
 const ms = (n: number) => `${Math.round(n)} ms`;
 
 /** The report as Markdown: the metrics side by side, then every plan a checker got wrong. */
-export function markdownReport(runs: CheckerRun[], skipped: string[]): string {
+export function markdownReport(
+  runs: CheckerRun[],
+  skipped: string[],
+  stress: StressRun[] = [],
+): string {
   const [first] = runs;
   const lines = [
     '# ShadowBench report',
@@ -74,6 +81,40 @@ export function markdownReport(runs: CheckerRun[], skipped: string[]): string {
       lines.push(
         `| ${s.item.id} | ${s.item.set} | ${s.item.label.expected} | ${verdictOf(s.answer)} | ${rules} | ${s.item.request.replaceAll('|', '/')} |`,
       );
+    }
+  }
+  if (stress.length > 0) {
+    lines.push(
+      '',
+      '## Twin mismatch',
+      '',
+      "Shadow Home on a house whose physics is off from the twin's in one direction: colder (heat leaks out 20% faster, zones hold 20% less, heaters and appliances give 20% less) or warmer (the opposite). Devices, routines, rules and the forecast are unchanged; labels are the twin's.",
+      '',
+      '| House | Verdict matches the label | Unsafe plans called SAFE | Safe plans not let through |',
+      '| --- | --- | --- | --- |',
+    );
+    for (const s of stress) {
+      const missed = s.rows.filter(
+        (r) => r.item.label.expected === 'UNSAFE' && verdictOf(r.answer) === 'SAFE',
+      );
+      lines.push(
+        `| ${s.name} | ${pct(s.metrics.accuracy)} | ${missed.length}${missed.length ? ` (${missed.map((r) => r.item.id).join(', ')})` : ''} | ${pct(s.metrics.falseBlock)} |`,
+      );
+    }
+    for (const s of stress) {
+      const changed = s.rows.filter((r) => verdictOf(r.answer) !== r.item.label.expected);
+      if (changed.length === 0) continue;
+      lines.push('', `### ${s.name}: verdicts that differ from the label`, '');
+      lines.push(
+        '| Plan | Set | Label | On this house | Rules |',
+        '| --- | --- | --- | --- | --- |',
+      );
+      for (const r of changed) {
+        const rules = 'error' in r.answer ? r.answer.error : r.answer.rules.join(', ') || '-';
+        lines.push(
+          `| ${r.item.id} | ${r.item.set} | ${r.item.label.expected} | ${verdictOf(r.answer)} | ${rules} |`,
+        );
+      }
     }
   }
   return `${lines.join('\n')}\n`;
