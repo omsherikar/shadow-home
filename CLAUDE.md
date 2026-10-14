@@ -22,8 +22,9 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 
 ## Commands
 
-- npm run dev       start everything locally (in-memory store, mock model)
+- npm run dev       start everything locally: MCP server :3000, Echo Show host :3001 (in-memory store, scripted model)
 - npm test          Vitest across all workspaces
+- npm run e2e       Playwright: the Echo Show screen end to end, on its own ports (3100, 3101)
 - npm run lint      Biome check
 - npm run bench     ShadowBench report to bench/reports/
 - npm run inspect   MCP Inspector (point it at http://localhost:3000/mcp)
