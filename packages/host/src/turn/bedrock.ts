@@ -61,10 +61,9 @@ export function bedrockModel(options: {
           call: { name: use.name, arguments: (use.input ?? {}) as Record<string, unknown> },
         };
       }
-      const last = input.thisTurn.at(-1);
-      const structured = last?.result.structuredContent as Record<string, unknown> | undefined;
-      if (last && hasSpeech(structured))
-        return { say: spokenFrom(structured, last.result.content) };
+      // The last call that spoke, even if the model called something quieter after it.
+      const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
+      if (spoke) return { say: spokenFrom(structuredOf(spoke), spoke.result.content) };
       const words = blocks
         .map((b) => b.text ?? '')
         .join(' ')
@@ -72,6 +71,10 @@ export function bedrockModel(options: {
       return { say: words || 'Okay.' };
     },
   };
+}
+
+function structuredOf(c: { result: { structuredContent?: unknown } }) {
+  return c.result.structuredContent as Record<string, unknown> | undefined;
 }
 
 function hasSpeech(structured: Record<string, unknown> | undefined): boolean {
@@ -116,7 +119,13 @@ export function conversation(input: ModelInput): Message[] {
     });
   };
 
-  input.history.slice(-HISTORY).forEach((h, i) => {
+  // The recent past, starting where the person said or tapped something: never on a tool result
+  // whose call was cut off, which Converse would refuse.
+  const recent = input.history.slice(-HISTORY);
+  const from = recent.findIndex(
+    (h) => h.name === 'heard' || h.name === 'closed' || h.by === 'screen',
+  );
+  (from < 0 ? [] : recent.slice(from)).forEach((h, i) => {
     if (h.name === 'heard') push('user', { text: String(h.arguments.text ?? '') });
     else if (h.name === 'said') push('assistant', { text: String(h.arguments.text ?? '') });
     else if (h.name === 'closed') {

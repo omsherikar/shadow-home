@@ -115,10 +115,21 @@ async function perform(
  */
 async function tellModel(app: App, control: Control, result: ToolResult | null) {
   const what = result ? textOf(result) : 'Nothing changed.';
+  // What the tap ended on, for the device to say once: not each call on the way there.
+  const speech = result?.structuredContent?.speech as
+    | { headline?: string; reason?: string; ask?: string }
+    | undefined;
+  const say = speech?.headline
+    ? [speech.headline, speech.reason, speech.ask].filter(Boolean).join(' ')
+    : undefined;
   try {
     await app.updateModelContext({
       content: [{ type: 'text', text: `On screen, the person tapped “${control.label}”. ${what}` }],
-      structuredContent: { tapped: control.label, closed: control.action.kind === 'dismiss' },
+      structuredContent: {
+        tapped: control.label,
+        closed: control.action.kind === 'dismiss',
+        ...(say ? { say } : {}),
+      },
     });
   } catch {
     // A host that doesn't keep model context still works; the screen already shows the result.

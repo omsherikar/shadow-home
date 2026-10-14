@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { synthesize } from '@/turn/aws.ts';
 
 export const runtime = 'nodejs';
@@ -11,6 +12,7 @@ const speakRequest = z.object({ text: z.string().min(1).max(1500) });
  * available, so the browser speaks with its own voice instead.
  */
 export async function POST(request: Request): Promise<Response> {
+  if (fromOtherSite(request)) return OTHER_SITE();
   const parsed = speakRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad speak request' }, { status: 400 });
   try {

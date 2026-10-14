@@ -6,10 +6,13 @@
 
 let pollyAvailable = true;
 let playing: { stop(): void } | null = null;
+/** Bumped by every new reply and every stop: a reply still being fetched checks it before playing. */
+let generation = 0;
 
-/** Say a reply out loud. Resolves when it has finished, or was stopped. */
+/** Say a reply out loud: one at a time. Resolves when it has finished, or was stopped. */
 export async function speak(text: string): Promise<void> {
   stopSpeaking();
+  const mine = generation;
   if (!text.trim()) return;
   if (pollyAvailable) {
     try {
@@ -18,18 +21,23 @@ export async function speak(text: string): Promise<void> {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text }),
       });
-      if (res.ok) return play(await res.blob());
+      if (res.ok) {
+        const blob = await res.blob();
+        // Stopped, or a newer reply started, while this one was on its way: stay quiet.
+        return mine === generation ? play(blob) : undefined;
+      }
       // Don't ask again this session; the browser's voice takes over.
       if (res.status === 503) pollyAvailable = false;
     } catch {
       pollyAvailable = false;
     }
   }
-  return browserVoice(text);
+  return mine === generation ? browserVoice(text) : undefined;
 }
 
-/** Stop talking now: the person pressed the mic, or the demo moved on. */
+/** Stop talking now: the person pressed the mic, said something new, or the demo started over. */
 export function stopSpeaking(): void {
+  generation += 1;
   playing?.stop();
 }
 
@@ -37,19 +45,20 @@ function play(blob: Blob): Promise<void> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   return new Promise((resolve) => {
-    const done = () => {
-      URL.revokeObjectURL(url);
-      playing = null;
-      resolve();
-    };
-    audio.onended = done;
-    audio.onerror = done;
-    playing = {
+    const me = {
       stop: () => {
         audio.pause();
         done();
       },
     };
+    const done = () => {
+      URL.revokeObjectURL(url);
+      if (playing === me) playing = null;
+      resolve();
+    };
+    audio.onended = done;
+    audio.onerror = done;
+    playing = me;
     audio.play().catch(done);
   });
 }
@@ -60,21 +69,22 @@ function browserVoice(text: string): Promise<void> {
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    // Some browsers never fire `end`; don't let the conversation wait forever.
-    const timer = setTimeout(() => done(), 2000 + text.split(' ').length * 500);
-    const done = () => {
-      clearTimeout(timer);
-      playing = null;
-      resolve();
-    };
-    utterance.onend = done;
-    utterance.onerror = done;
-    playing = {
+    const me = {
       stop: () => {
         synth.cancel();
         done();
       },
     };
+    // Some browsers never fire `end`; don't let the conversation wait forever.
+    const timer = setTimeout(() => done(), 2000 + text.split(' ').length * 500);
+    const done = () => {
+      clearTimeout(timer);
+      if (playing === me) playing = null;
+      resolve();
+    };
+    utterance.onend = done;
+    utterance.onerror = done;
+    playing = me;
     synth.speak(utterance);
   });
 }

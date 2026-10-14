@@ -148,15 +148,26 @@ function yesTo(p: PreviewLike): ModelStep | null {
   return commit({ planId: p.planId, confirmed: true });
 }
 
+const PRONOUNS = new Set(['it', 'that', 'this', 'them', 'those', 'everything', 'all']);
+
 /**
- * "the thermostat" → the device whose name says it with the fewest other words: "Main
- * thermostat" rather than "Garage heater thermostat". Ties keep every match.
+ * The devices "undo the …" names, by whole words: "the thermostat" is the one whose name says it
+ * with the fewest other words ("Main thermostat", not "Garage heater thermostat"), "the lights" is
+ * every light, and "it" names no device in particular (the whole last change).
  */
 export function devicesNamed(words: string, names?: Names): string[] {
-  if (!words || !names) return [];
-  const matches = Object.entries(names.devices).filter(([, d]) =>
-    d.name.toLowerCase().includes(words),
-  );
+  const asked = normalise(words)
+    .split(' ')
+    .filter((w) => w && w !== 'the');
+  if (!names || asked.length === 0 || asked.every((w) => PRONOUNS.has(w))) return [];
+  const stem = (w: string) => w.replace(/s$/, '');
+  const wanted = asked.map(stem);
+  const matches = Object.entries(names.devices).filter(([, d]) => {
+    const own = normalise(d.name).split(' ').map(stem);
+    return wanted.every((w) => own.includes(w));
+  });
+  const plural = asked.at(-1)?.endsWith('s') === true;
+  if (plural || matches.length <= 1) return matches.map(([id]) => id);
   const size = (name: string) => name.split(' ').length;
   const fewest = Math.min(...matches.map(([, d]) => size(d.name)));
   return matches.filter(([, d]) => size(d.name) === fewest).map(([id]) => id);
