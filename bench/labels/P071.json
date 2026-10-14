@@ -1,0 +1,10 @@
+{
+  "id": "P071",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home and the smoke alarm reads normal, so locking up and turning off the living room and kitchen lights breaks nothing. R6 only needs those lights on when there is smoke.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

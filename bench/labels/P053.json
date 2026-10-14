@@ -1,0 +1,12 @@
+{
+  "id": "P053",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "all_plugs turns on the bedroom space heater at Fri 21:15 while the fresh window sensor (65%, 2 min) reports the main bedroom window open, which breaks R9. Everyone is home, so the coffee maker coming on breaks nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

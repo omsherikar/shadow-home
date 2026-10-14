@@ -1,0 +1,12 @@
+{
+  "id": "P046",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R8"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Coffee at 7 is paused only until Sat 12:00, so it turns the coffee maker on at Sun 07:00 while nobody is home until 16:00 (R8).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

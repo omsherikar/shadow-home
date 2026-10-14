@@ -1,0 +1,12 @@
+{
+  "id": "P058",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R7"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The bedroom space heater is already on and the plan never switches it off, so it runs with nobody home from Sat 19:15 to 22:30, breaking R7. Doors lock and indoor lights go off at 19:00, before anyone leaves.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

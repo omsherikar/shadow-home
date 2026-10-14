@@ -1,0 +1,16 @@
+{
+  "id": "P120",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R9",
+    "R11"
+  ],
+  "expectedUnknowns": [
+    "window_bedroom_main: silent 30 min is over 10 min",
+    "dishwasher_latch: battery 4% is under 15%"
+  ],
+  "rationale": "The dishwasher and the space heater both start Sat 22:40. R9 needs the bedroom window, whose sensor has been silent 30 min, and R11 needs the latch at 4% battery, so neither can be checked.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

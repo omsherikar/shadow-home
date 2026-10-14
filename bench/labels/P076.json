@@ -1,0 +1,10 @@
+{
+  "id": "P076",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The freezer and aquarium stay on, Coffee at 7 is paused until Sun 18:00, and both doors lock and every light goes off before the house empties at 18:00. The garage heater at 5 C switches on below 4.5 C and its 1.5 kW outpaces the loss even on Sunday's -6 C night, so the garage bottoms out near 4.49 C, above R3's 4 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

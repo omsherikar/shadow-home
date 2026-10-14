@@ -1,0 +1,10 @@
+{
+  "id": "P101",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: no group called outdoor_lights; the home's groups are all_plugs, all_lights and indoor_lights.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

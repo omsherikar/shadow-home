@@ -1,0 +1,14 @@
+{
+  "id": "P027",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R11"
+  ],
+  "expectedUnknowns": [
+    "dishwasher_latch: silent 45 min is over 10 min"
+  ],
+  "rationale": "The dishwasher starts at Sun 20:00, so R11 depends on the latch, and the latch sensor has been silent for 45 minutes, over the 10 minute limit, despite its 80% battery. Turning the kitchen light off with everyone home breaks nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

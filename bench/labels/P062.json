@@ -1,0 +1,10 @@
+{
+  "id": "P062",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "21.5 C is inside thermostat_main's 7-30 range on its 0.5 step, and no rule limits house temperature. The garage heater is untouched and holds about 9 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

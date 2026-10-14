@@ -1,0 +1,10 @@
+{
+  "id": "P082",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "With the new battery the latch sensor is fresh and reads closed, so R11 can be checked and holds while the dishwasher runs; everyone is home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

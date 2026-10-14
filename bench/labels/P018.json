@@ -1,0 +1,10 @@
+{
+  "id": "P018",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The main bedroom lamp is dimmable so 40 is valid, and the kitchen light takes plain on/off. Everyone is home, so Coffee at 7 at Sat 07:00 is fine too.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

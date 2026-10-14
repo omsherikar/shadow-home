@@ -1,0 +1,14 @@
+{
+  "id": "P030",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [
+    "garage_thermostat: silent 90 min is over 10 min"
+  ],
+  "rationale": "At a 6 C setpoint the garage would bottom out near 5.5 C on Sunday's -6 C night, above R3's 4 C, but the garage thermostat has been silent for 90 minutes, so the garage temperature R3 reads is unknown.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

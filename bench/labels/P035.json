@@ -1,0 +1,13 @@
+{
+  "id": "P035",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R2",
+    "R3"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Turning off plug_aquarium breaks R2 at once. With the garage heater off from Sat 13:00, the garage drops under 4 C at Sun 06:03 and to about 3.3 C by 09:40, under R3's 4 C before the plan ends at 10:00.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

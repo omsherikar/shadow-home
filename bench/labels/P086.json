@@ -1,0 +1,10 @@
+{
+  "id": "P086",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Both doors lock and the indoor lights go off at 10:15, the minute the house empties, and the space heater and coffee maker are already off (Coffee at 7 finished at 07:30), so R4, R5, R7, R8 and R10 hold until noon. The 18 C setback and 20 C restore touch no rule, and the garage heater stays at 9 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

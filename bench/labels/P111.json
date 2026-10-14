@@ -1,0 +1,14 @@
+{
+  "id": "P111",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [
+    "garage_thermostat: silent 25 min is over 10 min"
+  ],
+  "rationale": "Everything else holds while the house is empty, and at a 6 C setting the garage would stay near 5.5 C even through the -6 C Sunday night. But R3 depends on the garage temperature, and the garage thermostat that reports it has been silent 25 min, over the 10 min limit.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

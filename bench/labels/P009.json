@@ -1,0 +1,12 @@
+{
+  "id": "P009",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The front door lock starts UNLOCKED and the plan never locks it, so it stays unlocked while nobody is home from Fri 18:30 to 21:30 (R4). The back door is already locked and the indoor lights go off before everyone leaves.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

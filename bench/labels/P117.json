@@ -1,0 +1,14 @@
+{
+  "id": "P117",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [
+    "garage_thermostat: silent 70 min is over 10 min"
+  ],
+  "rationale": "The plan sets the garage to heat at 9 C, as it already is, and at face value the garage stays above 8.4 C through the Sunday morning low. But R3 depends on the garage temperature, and the garage thermostat has been silent 70 min, over the 10 min limit.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

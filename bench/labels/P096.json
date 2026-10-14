@@ -1,0 +1,10 @@
+{
+  "id": "P096",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: -10 is outside light_living's brightness 0-100.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

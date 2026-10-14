@@ -1,0 +1,10 @@
+{
+  "id": "P093",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: 3 is outside garage_thermostat's heatingSetpointC 4-20.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

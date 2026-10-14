@@ -1,0 +1,12 @@
+{
+  "id": "P042",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The front door unlocks at 11:45 while nobody is home until 12:00, breaking R4 for 15 minutes.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

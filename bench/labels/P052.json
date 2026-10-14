@@ -1,0 +1,13 @@
+{
+  "id": "P052",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R7",
+    "R8"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "all_plugs turns on the coffee maker and the bedroom space heater at Sat 08:45, and both are still on when the house empties at 09:00, breaking R8 and R7 until 17:00. Coffee at 7 already switched off at 07:30, so nothing turns the coffee maker off.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

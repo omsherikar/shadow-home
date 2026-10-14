@@ -1,0 +1,14 @@
+{
+  "id": "P114",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [
+    "front_door_lock: battery 13% is under 15%"
+  ],
+  "rationale": "Good night locks the front door Sat 22:30 and the plan locks it again Sun 06:30, but R4 needs it to read LOCKED while nobody is home Sun 06:30 to 20:00, and the lock's battery is 13%, under 15%. The back door, lights and the paused Coffee at 7 all hold.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "P108",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [
+    "window_bedroom_main: battery 14% is under 15%"
+  ],
+  "rationale": "The space heater runs from Sat 22:15 through the night and R9 needs the bedroom window reading, from a sensor at 14% battery, one point under 15%. Everyone is home, so R7 is not in play.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

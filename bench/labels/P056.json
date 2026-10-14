@@ -1,0 +1,12 @@
+{
+  "id": "P056",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R6"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The kitchen smoke alarm reads critical (fresh sensor, 92%) for the whole window, and the plan locks the front door and turns off the kitchen and living room lights at Sat 08:20, so from 08:21 none of R6's three required states holds.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

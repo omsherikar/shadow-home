@@ -1,0 +1,12 @@
+{
+  "id": "P041",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Good night locks the front door at 22:30, then the plan unlocks it at 23:00 while nobody is home until 23:30, so R4 breaks for half an hour.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

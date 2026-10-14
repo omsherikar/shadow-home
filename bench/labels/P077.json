@@ -1,0 +1,10 @@
+{
+  "id": "P077",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home all night, so locking the front door at 22:00 touches no rule, and Good night locking it again at 22:30 changes nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

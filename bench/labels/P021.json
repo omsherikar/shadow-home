@@ -1,0 +1,10 @@
+{
+  "id": "P021",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The porch light is outdoor and named in no rule, so switching it off at Fri 17:50 is fine; the Porch light routine's 23:00 off step then changes nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

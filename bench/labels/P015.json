@@ -1,0 +1,10 @@
+{
+  "id": "P015",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Both locks report fresh with good batteries, the back door is already locked, and everyone is home through Sat 09:00, so locking early breaks nothing. Good night and Coffee at 7 run with people home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P074",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "No rule needs a light on unless there is smoke, and the alarm reads normal. Everyone is home, so all lights off at Sat 23:30 breaks nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

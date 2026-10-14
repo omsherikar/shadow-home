@@ -1,0 +1,12 @@
+{
+  "id": "P050",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R10"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The plan locks both doors but leaves the living room, kitchen and Sam's lights on from 18:20 with nobody home (R10).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

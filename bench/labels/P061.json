@@ -1,0 +1,10 @@
+{
+  "id": "P061",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The bedroom lamp at 30% breaks nothing with everyone home. Good night turns it off at 22:30, so the 22:45 off step changes nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P070",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The space heater goes off, both doors lock and the indoor lights go off at Sun 11:00, before the house empties at 11:15, so R4, R5, R7, R8 and R10 hold through 12:45.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

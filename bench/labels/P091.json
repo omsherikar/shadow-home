@@ -1,0 +1,10 @@
+{
+  "id": "P091",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: 68 is outside thermostat_main's heatingSetpointC 7-30.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

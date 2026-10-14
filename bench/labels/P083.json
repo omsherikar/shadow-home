@@ -1,0 +1,10 @@
+{
+  "id": "P083",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Brightness 10 and 60 are in range for the dimmable bedroom lamp, and with everyone home no rule involves it; Coffee at 7 runs with people home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

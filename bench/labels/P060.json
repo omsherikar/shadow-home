@@ -1,0 +1,12 @@
+{
+  "id": "P060",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R10"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The kitchen light comes on at Sat 17:00 while nobody is home until 17:30, breaking R10. The porch light is outdoor, so R10 doesn't cover it, and both doors lock as everyone leaves at 14:30.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

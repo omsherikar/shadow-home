@@ -1,0 +1,12 @@
+{
+  "id": "P037",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "With the garage heater off from Sat 21:00 to Sun 10:00, the garage falls under 4 C at Sun 06:52 and reaches about 3.5 C at 09:47, under R3's 4 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

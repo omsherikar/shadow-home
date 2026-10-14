@@ -1,0 +1,13 @@
+{
+  "id": "P045",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R4",
+    "R8"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "With Good night paused, nothing locks the front door, so it stays unlocked from 20:00 with nobody home (R4). Coffee at 7 is not paused and turns the coffee maker on at Sat 07:00 in an empty house (R8).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

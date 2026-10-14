@@ -1,0 +1,10 @@
+{
+  "id": "P022",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home, so R7 does not apply, and the main bedroom window reads closed from a fresh sensor (65%, 2 min), so R9 holds for the hour the space heater runs, Sun 21:00 to 22:00.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

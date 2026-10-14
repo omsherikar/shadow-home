@@ -1,0 +1,10 @@
+{
+  "id": "P073",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The kitchen motion sensor has been silent 55 minutes, but no rule reads it, so nothing the plan depends on is unknown. Turning off the kitchen light with everyone home breaks no rule.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

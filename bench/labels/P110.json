@@ -1,0 +1,14 @@
+{
+  "id": "P110",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R5"
+  ],
+  "expectedUnknowns": [
+    "back_door_lock: silent 40 min is over 10 min"
+  ],
+  "rationale": "Nobody is home Sat 13:00 to 16:00 and R5 needs the back door to read LOCKED, but that lock has been silent 40 min, so the plan's lock command can't be confirmed. The front door locks on a trusted sensor and the indoor lights go off at 12:45.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

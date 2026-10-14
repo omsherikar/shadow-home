@@ -1,0 +1,10 @@
+{
+  "id": "P103",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: the dishwasher supports only onOff, so cycle \"eco\" is an unsupported attribute. That outranks the latch at 4% battery, which would otherwise leave R11 unknown.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

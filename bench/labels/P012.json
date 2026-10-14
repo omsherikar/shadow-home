@@ -1,0 +1,12 @@
+{
+  "id": "P012",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The main bedroom window reads open from a fresh sensor (65%, 2 min), and the plan turns the bedroom space heater on at Fri 20:30, so heater and open window are together (R9).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "P028",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [
+    "window_bedroom_main: silent 38 min is over 10 min"
+  ],
+  "rationale": "With the space heater on from Fri 19:30, R9 depends on the main bedroom window, and its sensor has been silent for 38 minutes, over the 10 minute limit. Everyone is home, so R7 holds.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "P049",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R10"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The living room light stays on from 18:30 with nobody home, breaking R10 until Good night switches it off at 22:30, earlier than the midnight the plan expects.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

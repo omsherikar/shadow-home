@@ -1,0 +1,13 @@
+{
+  "id": "P006",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1",
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "all_plugs turns off the garage freezer (R1) and the aquarium heater (R2) at Fri 23:15. Everyone is home, so the coffee maker, space heater and porch light changes break nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

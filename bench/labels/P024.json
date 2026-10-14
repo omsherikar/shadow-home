@@ -1,0 +1,10 @@
+{
+  "id": "P024",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: light_kitchen is on/off only and has no brightness attribute.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

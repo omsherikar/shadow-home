@@ -1,0 +1,12 @@
+{
+  "id": "P011",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "With the garage set to 4 C the heater only starts below 3.5 C, so the garage cools from 9 C through the night and drops under R3's 4 C at about Sun 06:42, reaching 3.6 C by 08:00 when the 12 hour window ends.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

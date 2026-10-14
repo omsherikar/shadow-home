@@ -1,0 +1,12 @@
+{
+  "id": "P033",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "all_plugs turns off the aquarium heater at 22:45 (R2). The freezer is switched back on in the same minute, after the sweep in plan order, so it never ends a minute off and R1 holds.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

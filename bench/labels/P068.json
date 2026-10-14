@@ -1,0 +1,10 @@
+{
+  "id": "P068",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The pause stops Coffee at 7 on Sun 07:00, and the 09:30 to 10:00 brew happens with everyone home, so R8 doesn't apply.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

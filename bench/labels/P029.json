@@ -1,0 +1,14 @@
+{
+  "id": "P029",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [
+    "front_door_lock: battery 9% is under 15%"
+  ],
+  "rationale": "The plan locks the front door, but front_door_lock reports 9% battery, under 15%, so nobody can confirm it stays locked while the house is empty from 10:20 to 13:00 (R4). The back door, lights and every other rule hold.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

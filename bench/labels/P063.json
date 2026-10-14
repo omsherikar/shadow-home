@@ -1,0 +1,10 @@
+{
+  "id": "P063",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The freezer and aquarium heater are already on and stay on, which is exactly what R1 and R2 require.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

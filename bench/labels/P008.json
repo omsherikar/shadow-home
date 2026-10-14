@@ -1,0 +1,12 @@
+{
+  "id": "P008",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R8"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Nobody is home from Sat 06:30 and Coffee at 7 is not paused, so the coffee maker runs Sat 07:00 to 07:30 in an empty house (R8). Locks, lights and the 16 C setpoint are fine.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

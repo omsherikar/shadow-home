@@ -1,0 +1,10 @@
+{
+  "id": "P080",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home the whole time, so leaving the doors unlocked and the lights on past 22:30 breaks none of the nobody-home rules (R4, R5, R10); the doors lock and the indoor lights go off at 00:30.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

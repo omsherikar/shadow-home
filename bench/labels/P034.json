@@ -1,0 +1,12 @@
+{
+  "id": "P034",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The home has no aquarium light; the plan switches off plug_aquarium, the aquarium heater, at 23:50 (R2).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P020",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Brightness 15 on the living room lights is in range, and turning the kitchen light off and the TV on with everyone home breaks nothing. The smoke alarm reads normal from a fresh sensor, so R6 never triggers.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

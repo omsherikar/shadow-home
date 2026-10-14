@@ -1,0 +1,14 @@
+{
+  "id": "P116",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [
+    "window_bedroom_main: silent 60 min is over 10 min"
+  ],
+  "rationale": "all_plugs turns the space heater on at Sun 10:00 and R9 needs the bedroom window reading, but the window sensor has been silent 60 min, over the 10 min limit. Everyone is home, so the heater and coffee maker break no presence rule.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P087",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home, so turning every light on at 02:30 breaks no rule; R10 only applies when nobody is home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

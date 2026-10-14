@@ -1,0 +1,10 @@
+{
+  "id": "P016",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Turning off Sam's room light and the TV plug at Fri 21:40 with everyone home touches no rule; the TV is not a protected plug.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}
