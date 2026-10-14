@@ -9,6 +9,14 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The deployed server's DynamoDB store is tested against DynamoDB Local.
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:latest
+        ports:
+          - 8000:8000
+    env:
+      DYNAMODB_ENDPOINT: http://127.0.0.1:8000
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v5
@@ -19,6 +27,8 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      # The Lambda bundle builds and the stack synthesizes (no AWS account needed).
+      - run: npm run synth -w @shadow-home/infra
       - run: npm run bench
       # From Oct 20: fail the build if ShadowBench regresses.
       # - run: node bench/runner/gate.js --min-catch-rate <from first report> --max-p99-ms 500
