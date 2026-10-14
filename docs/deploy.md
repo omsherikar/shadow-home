@@ -68,7 +68,13 @@ The deployed home starts over from `fixtures/demo-home.json` every day at 08:00 
 
 Use the MCP URL it printed (it ends in `/mcp`):
 
+- `node scripts/check-mcp.ts <mcp-url>` runs the contract checklist: Alexa+'s 2025-03-26
+  handshake, both protocol eras, the seven tools with their annotations and schemas, the plan
+  view resource, and commit_plan's refusals (a tampered ID, an UNSAFE plan, a stale preview). It
+  commits two small plans, so the home it checks changes.
 - `node scripts/latency.ts <mcp-url> 50` reports the round trip of `preview_plan`, p50 and p99.
+  From far away most of that is the network; Cloud Run's request logs give the server's own time:
+  `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="shadow-home-mcp"' --format='value(httpRequest.latency)'`.
 - `npm run inspect`, then point the Inspector at the URL.
 - The spec-checker agent runs the whole checklist against a URL you give it.
 
