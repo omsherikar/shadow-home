@@ -571,6 +571,11 @@ export class ShadowHomeService {
     });
   }
 
+  /** Start the home over (the local demo's reset). Waits for any call in progress. */
+  reset(state: LiveState): Promise<void> {
+    return this.exclusive(() => this.store.reset(state));
+  }
+
   /** The token that lets the screen showing this plan approve it (see plan-id.ts). */
   approvalToken(planId: string): string {
     return approvalToken(this.secret, planId);

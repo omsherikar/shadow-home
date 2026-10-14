@@ -1,14 +1,26 @@
 import { createMcpHonoApp } from '@modelcontextprotocol/hono';
 import { createMcpHandler } from '@modelcontextprotocol/server';
+import type { Home } from '@shadow-home/twin';
 import type { Hono } from 'hono';
+import { z } from 'zod';
+import type { DemoClock } from './clock.ts';
+import { initialState } from './live-home.ts';
 import type { ShadowHomeService } from './service.ts';
+import { isoAt } from './time.ts';
 import { buildServer } from './tools.ts';
 
 export interface AppOptions {
   /** Hostnames allowed in the Host header. Default: localhost only (DNS rebinding protection). */
   allowedHosts?: string[];
   onError?: (error: Error) => void;
+  /**
+   * The local demo's controls at /demo: move home time forward to the next scene, and start the
+   * home over. Never part of the MCP surface, so no model can move time.
+   */
+  demo?: { clock: DemoClock; home: Home };
 }
+
+const jump = z.object({ now: z.iso.datetime({ offset: true }) });
 
 /**
  * The HTTP app: MCP over Streamable HTTP at /mcp, for 2026-07-28 clients and, statelessly,
@@ -26,5 +38,23 @@ export function createApp(service: ShadowHomeService, options: AppOptions = {}):
     const parsedBody = (c as unknown as { get(key: string): unknown }).get('parsedBody');
     return handler.fetch(c.req.raw, { parsedBody });
   });
+
+  const demo = options.demo;
+  if (demo) {
+    const now = () => ({ homeNow: isoAt(demo.clock.homeNowMs(), demo.home.home.utcOffset) });
+    app.get('/demo', (c) => c.json(now()));
+    app.post('/demo/clock', async (c) => {
+      const parsedBody = (c as unknown as { get(key: string): unknown }).get('parsedBody');
+      const body = jump.safeParse(parsedBody ?? (await c.req.json().catch(() => null)));
+      if (!body.success) return c.json({ error: 'Send { "now": ISO time with offset }' }, 400);
+      demo.clock.jumpTo(Date.parse(body.data.now));
+      return c.json(now());
+    });
+    app.post('/demo/reset', async (c) => {
+      demo.clock.restart(Date.parse(demo.home.clock.now));
+      await service.reset(initialState(demo.home));
+      return c.json(now());
+    });
+  }
   return app;
 }
