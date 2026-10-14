@@ -31,7 +31,7 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 - npm run synth     bundle the server for Lambda and synthesize the CDK stack (no AWS account needed); deploy:aws deploys it
 - Store tests run against local stand-ins when set: DYNAMODB_ENDPOINT (DynamoDB Local), FIRESTORE_EMULATOR_HOST (CI does both)
 - npm run lint      Biome check
-- npm run bench     ShadowBench report to bench/reports/
+- npm run bench     ShadowBench report to bench/reports/ (no model calls); -- --judge adds the LLM judge (one call per plan, cached); -- --gate is CI's check
 - npm run inspect   MCP Inspector (point it at http://localhost:3000/mcp)
 
 ## Map

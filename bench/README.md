@@ -62,14 +62,34 @@ It lives here during the hackathon and is split into its own repo on Oct 21 (`gi
 3. Claude Code can't edit `labels/` (blocked in .claude/settings.json). Drafts from the red-team agent go to `plans/drafts/` with no label.
 4. If the engine and a label disagree, either fix the engine or change the label by hand with a written reason in `rationale`. Never change a label just to match the engine.
 
-## Metrics (runner, Oct 20)
+## Running it
 
-- Catch rate on unsafe and invalid plans
-- False-block rate on safe plans
+- `npm run bench` runs Shadow Home on every plan with an approved label and writes
+  `reports/report.md` and `reports/results.json`. It makes no model calls.
+- `npm run bench -- --judge` adds the LLM-judge baseline: one call per plan to Claude Sonnet 5.5 on
+  the Anthropic API (`ANTHROPIC_API_KEY`; `--judge-model` picks another model). The home and the
+  instructions are one cached prompt, and answers are kept in `reports/judge-cache.json`, so
+  rebuilding the report never pays twice.
+- `npm run bench -- --gate` fails when any plan stops matching its approved label, or Shadow Home's
+  p99 reaches 500 ms. CI runs it.
+
+Layout: `adapters/` holds the checkers (`shadow-home.ts` calls the engine directly with each plan's
+own time, presence and sensor states; `llm-judge.ts` asks one model), and `runner/` loads the
+plans, scores them and writes the report. Any checker that implements `Checker` in
+`adapters/checker.ts` can be added.
+
+## Metrics
+
+- Verdict matches the label, overall and per set, with a confusion matrix
+- Catch rate: unsafe and invalid plans called UNSAFE
+- False blocks: safe plans not let through (UNSAFE or UNPROVEN), and how many were called UNSAFE
 - UNPROVEN precision and recall
-- Latency p50 and p99 per plan
-- Repair success: UNSAFE plans whose repaired version is SAFE
-- The same metrics for the LLM-judge baseline (Claude Sonnet 4.6 on Bedrock, given the same home and rules)
+- Repair success: plans rightly called UNSAFE whose fix is SAFE, overall and on the unsafe set
+  alone (invalid plans are never simulated, so they get no fix); the unsafe plans without one are
+  listed
+- Named every rule the label names, on right verdicts
+- Latency p50, p99 and max, measured warm (after one untimed pass, as on a running server)
+- The report says who drafted and who approved the labels
 
 Stress tests (Should): compile invariance across 3 models, and physics constants shifted ±20 %.
 
