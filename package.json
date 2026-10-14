@@ -13,8 +13,8 @@
     "bench"
   ],
   "scripts": {
-    "dev": "node scripts/dev.ts",
-    "demo": "node scripts/dev.ts --demo",
+    "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/dev.ts",
+    "demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/dev.ts --demo",
     "record-demo": "npm run record-demo -w @shadow-home/host",
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run --passWithNoTests",
@@ -27,7 +27,8 @@
     "latency": "node scripts/latency.ts",
     "e2e": "playwright test",
     "synth": "npm run synth -w @shadow-home/infra",
-    "deploy": "npm run deploy -w @shadow-home/infra"
+    "deploy": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/gcp/deploy.ts",
+    "deploy:aws": "npm run deploy -w @shadow-home/infra"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

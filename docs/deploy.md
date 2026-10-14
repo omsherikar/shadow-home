@@ -1,70 +1,136 @@
 # Deploying Shadow Home
 
-Everything runs locally without AWS (`npm run dev`). This page puts the MCP server on AWS Lambda
-with a public URL, and the Echo Show host on Amplify Hosting. Region: us-east-1.
+Everything runs locally without any cloud account (`npm run dev`). This page puts the MCP server
+and the Echo Show host on Google Cloud Run. The AWS stack (Lambda, DynamoDB, Amplify) is still
+here and works the same way once an account can run it; it's at the end.
 
-## What gets created
+## Keys
 
-`packages/infra` is one CDK stack, `ShadowHome`:
+The live model, the house-rule compiler and the device's voice need two keys:
 
-- **MCP server:** one Lambda (Node 22, arm64) behind a public Function URL. Its state is in a
-  DynamoDB table and its plan-ID key in Secrets Manager. House rules in plain words are compiled
-  with Bedrock (three Claude models that must agree).
-- **Host role:** an IAM role that lets the host on Amplify call Bedrock and Polly.
-- **Outputs:**
-  - `McpUrl`, the MCP endpoint for Alexa+, MCP Inspector and the host.
-  - `HostComputeRoleArn`, the role to give the host on Amplify.
+- `ANTHROPIC_API_KEY`: the voice loop (Claude Haiku 5.5) and the rule compiler (Sonnet 5.5,
+  Haiku 5.5 and Opus 5.5, which must agree).
+- `ELEVENLABS_API_KEY`: the device's voice. Optional; without it the browser speaks.
+
+Put them in `.env` or `.env.local` at the repo root (both git-ignored), one `NAME=value` per line.
+`npm run dev`, `npm run demo`, `npm run record-demo` and `npm run deploy` load both (`.env.local`
+wins; the shell's own variables win over either). With the Anthropic key there,
+`npm run dev` uses the live model (`MOCK_MODEL=1` keeps the scripted one).
+
+Optional overrides: `ANTHROPIC_MODEL_ID` (the voice loop's model), `RULE_COMPILER_MODELS` (three
+model IDs, comma-separated), `ELEVENLABS_VOICE_ID`.
+
+Both services are public, so anyone with the URLs spends from these keys. Set a monthly spend
+limit in the Anthropic console, and keep an eye on ElevenLabs' character quota.
+
+## Google Cloud
+
+### What gets created
+
+`npm run deploy` (scripts/gcp/deploy.ts) sets up, in one project and region (default
+`us-central1`):
+
+- **MCP server:** Cloud Run service `shadow-home-mcp`, public, 1 vCPU, at most 4 instances. Its
+  state is in Firestore (the `homes` collection) and its plan-ID key in Secret Manager.
+- **Echo Show host:** Cloud Run service `shadow-home-host`, public, at most 2 instances, pointed at
+  the server's `/mcp`.
+- **Secrets:** `shadow-home-plan-key` (made once and kept), `shadow-home-anthropic-key`,
+  `shadow-home-elevenlabs-key`.
+- **Identity:** the service account `shadow-home-run`, which can use Firestore and read those three
+  secrets, and nothing else.
+- **Images:** built by Cloud Build (scripts/gcp/cloudbuild.yaml) into the Artifact Registry
+  repository `shadow-home`.
 
 The deployed home starts over from `fixtures/demo-home.json` every day at 08:00 UTC
-(`docs/decisions.md`, 72).
+(`docs/decisions.md`, 72). Old days expire through Firestore TTL on `expiresAt`.
 
-## Before the first deploy
+### Before the first deploy
 
-1. The AWS account must be fully registered. Until then Lambda, DynamoDB and CloudFormation
-   answer "needs a subscription for the service".
+1. A Google Cloud project with billing turned on (Cloud Run and Cloud Build need it, even within
+   the free tier).
+2. The Google Cloud CLI, signed in:
+   - `brew install --cask google-cloud-sdk`
+   - `gcloud auth login`
+   - `gcloud config set project <project-id>`
+3. The keys in `.env` or `.env.local` (above). The first deploy stores them as secrets.
+
+### Deploy
+
+- `npm run deploy` turns on the services it needs, creates what's missing, builds both containers
+  and deploys both services. It prints the MCP URL and the host's URL. The first run takes a few
+  minutes; later runs only build and roll forward.
+- `npm run deploy -- --update-keys` stores the keys from the env files again (the plan-ID key is
+  never replaced: a new one would void plan IDs in flight).
+- `GCP_REGION` picks another region. `MIN_INSTANCES=1` keeps one server instance warm, which costs
+  a little while idle; use it while recording and judging.
+
+### Check the server
+
+Use the MCP URL it printed (it ends in `/mcp`):
+
+- `node scripts/latency.ts <mcp-url> 50` reports the round trip of `preview_plan`, p50 and p99.
+- `npm run inspect`, then point the Inspector at the URL.
+- The spec-checker agent runs the whole checklist against a URL you give it.
+
+The same container runs on a laptop against the Firestore emulator:
+
+- `docker run --rm -p 127.0.0.1:8080:8080 gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators gcloud emulators firestore start --host-port=0.0.0.0:8080`
+- `docker build -f packages/server/Dockerfile -t shadow-home-server .`
+- `docker run --rm -p 127.0.0.1:3300:8080 -e FIRESTORE_EMULATOR_HOST=host.docker.internal:8080 -e GOOGLE_CLOUD_PROJECT=demo-shadow-home -e METADATA_SERVER_DETECTION=none -e SHADOW_HOME_SECRET=local-only shadow-home-server`
+  serves it at http://localhost:3300/mcp
+
+### Remove it
+
+In the console, or:
+
+- `gcloud run services delete shadow-home-mcp shadow-home-host --region=us-central1`
+- `gcloud secrets delete shadow-home-plan-key` (and the two key secrets)
+- `gcloud artifacts repositories delete shadow-home --location=us-central1`
+
+Old homes in Firestore expire on their own; deleting the database is a console action.
+
+## AWS (when an account can run it)
+
+`packages/infra` is one CDK stack, `ShadowHome`, in us-east-1:
+
+- **MCP server:** one Lambda (Node 22, arm64) behind a public Function URL, state in DynamoDB, the
+  plan-ID key in Secrets Manager. Set `RULE_COMPILER=anthropic` to compile rules on the Anthropic
+  API; the stack sets `bedrock`.
+- **Host role:** an IAM role that lets the host on Amplify call Bedrock and Polly.
+- **Outputs:** `McpUrl` (the MCP endpoint) and `HostComputeRoleArn`.
+
+Before the first deploy:
+
+1. The AWS account must be fully registered. Until then S3, Lambda, DynamoDB and CloudFormation
+   answer "needs a subscription for the service", and Bedrock refuses Claude.
 2. In the Bedrock console (us-east-1), make sure Claude Sonnet 4.6, Haiku 4.5 and Opus 4.6 can be
    called; `npm run bedrock:ping` checks one.
 3. Sign in, then bootstrap CDK once per account and region:
    - `aws login --profile shadow-home`
-   - `export AWS_PROFILE=shadow-home`
    - `npm run bootstrap -w @shadow-home/infra`
 
-## Deploy the server
+   Bootstrap, deploy and destroy use the `shadow-home` profile unless `AWS_PROFILE` names
+   another.
 
-- `npm run deploy` bundles the server, synthesizes the stack and deploys it.
+Deploy:
+
+- `npm run deploy:aws` bundles the server, synthesizes the stack and deploys it.
 - `npm run synth` does the same without deploying; it needs no AWS account.
+- Before deploying, the bundle runs on a laptop against DynamoDB Local:
+  `docker run --rm -p 127.0.0.1:8000:8000 amazon/dynamodb-local`, then
+  `npm run bundle -w @shadow-home/infra` and `npm run serve-lambda -w @shadow-home/infra`
+  (http://localhost:3200/mcp).
 
-## Check the server
+The host on Amplify Hosting:
 
-Use the `McpUrl` output (it ends in `/mcp`):
+1. Create an app from this GitHub repository's `main` branch, with the app root `packages/host`.
+   Amplify reads `amplify.yml` at the repository root.
+2. Environment variables: `AMPLIFY_MONOREPO_APP_ROOT=packages/host`, `MCP_SERVER_URL=<McpUrl>`,
+   and `MODEL_PROVIDER=bedrock` with `SPEECH=polly` to use the role (optionally
+   `BEDROCK_MODEL_ID`, `POLLY_VOICE`).
+3. Under the app's settings, set the compute role to `HostComputeRoleArn`, then deploy.
 
-- `node scripts/latency.ts <McpUrl> 50` reports the round trip of `preview_plan`, p50 and p99.
-- `npm run inspect`, then point the Inspector at the URL.
-- The spec-checker agent runs the whole checklist against a URL you give it.
+Don't set `DEMO_MODE` or `DEMO_CLOCK` on a deployed host: they need the local server's demo
+controls. Record the demo locally with `npm run demo`.
 
-Before deploying, the same checks can run on a laptop against the deployed bundle:
-
-- `docker run --rm -p 127.0.0.1:8000:8000 amazon/dynamodb-local` (in a second terminal)
-- `npm run bundle -w @shadow-home/infra`
-- `npm run serve-lambda -w @shadow-home/infra` serves it at http://localhost:3200/mcp
-
-## Deploy the host on Amplify Hosting
-
-In the Amplify console:
-
-1. Create an app from this GitHub repository's `main` branch. It's a monorepo: set the app root
-   to `packages/host`. Amplify reads `amplify.yml` at the repository root.
-2. Add these environment variables:
-   - `AMPLIFY_MONOREPO_APP_ROOT=packages/host`
-   - `MCP_SERVER_URL=<McpUrl>`
-   - Optionally `BEDROCK_MODEL_ID` and `POLLY_VOICE`.
-3. Under the app's settings, set the compute role to `HostComputeRoleArn`.
-4. Deploy. The host talks to Bedrock (its own model loop) and Polly through that role.
-
-Don't set `DEMO_MODE` or `DEMO_CLOCK` on Amplify: they need the local server's demo controls.
-Record the demo locally with `npm run demo`.
-
-## Remove it
-
-`npm run destroy -w @shadow-home/infra` removes the stack. The table, secret and
-logs go with it. Delete the Amplify app in its console.
+`npm run destroy -w @shadow-home/infra` removes the stack; delete the Amplify app in its console.
