@@ -16,8 +16,10 @@ export interface LogState {
 
 /** The parts of add_house_rule the rule card shows. */
 export interface RuleState {
-  status: 'added' | 'pending_owner_approval' | 'invalid' | 'needs_compiler';
+  status: 'added' | 'pending_owner_approval' | 'invalid' | 'unclear' | 'needs_compiler';
   readBack?: string;
+  /** When the compilers read the words differently: each reading. */
+  readings?: string[];
   problems: string[];
   conflicts: { rule: string; text: string; priority: string; winner: string }[];
   sampleDay?: { verdict: string; brokenAt?: string };
@@ -92,6 +94,7 @@ const RULE_STATUS: Record<RuleState['status'], string> = {
   added: 'Rule added',
   pending_owner_approval: 'Waiting for the owner',
   invalid: 'Not added',
+  unclear: 'Say it another way',
   needs_compiler: 'Not added yet',
 };
 
@@ -102,6 +105,15 @@ export function RuleCard({ rule }: { rule: RuleState }) {
       <h2>{RULE_STATUS[rule.status]}</h2>
       <p className="headline">{rule.speech.headline}</p>
       {rule.readBack ? <p className="read-back">“{rule.readBack}”</p> : null}
+      {rule.readings?.length ? (
+        <ul className="readings" aria-label="Ways it could be read">
+          {rule.readings.map((r) => (
+            <li key={r} className="read-back">
+              “{r}”
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {rule.conflicts.length > 0 ? (
         <ul className="conflicts">
           {rule.conflicts.map((c) => (

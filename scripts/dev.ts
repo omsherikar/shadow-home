@@ -7,16 +7,22 @@ import { join } from 'node:path';
  *
  * Locally the server has its demo controls on, so demo lines move home time to their scene.
  * The host uses the scripted model unless MOCK_MODEL=0 (then Bedrock, with the shadow-home
- * AWS profile). `--demo` adds "Play the demo", which replays the demo script start to finish.
+ * AWS profile, and the server compiles house rules in plain words with Bedrock too). `--demo`
+ * adds "Play the demo", which replays the demo script start to finish.
  */
 const root = join(import.meta.dirname, '..');
 const demo = process.argv.includes('--demo');
+const live = process.env.MOCK_MODEL === '0';
 execFileSync(process.execPath, [join(root, 'packages/views/scripts/build.ts')], {
   stdio: 'inherit',
 });
 
 const parts = [
-  { name: 'server', workspace: '@shadow-home/server', env: { SHADOW_HOME_DEMO: '1' } },
+  {
+    name: 'server',
+    workspace: '@shadow-home/server',
+    env: { SHADOW_HOME_DEMO: '1', ...(live ? { RULE_COMPILER: 'bedrock' } : {}) },
+  },
   {
     name: 'host  ',
     workspace: '@shadow-home/host',

@@ -12,6 +12,7 @@ import {
   type TierResult,
   untrustedSensors,
 } from '@shadow-home/engine';
+import type { CompileOutcome } from '@shadow-home/rules';
 import {
   type Home,
   type HomeMode,
@@ -68,9 +69,17 @@ export interface ServiceOptions {
   secret: string;
   /** How long a plan ID stays valid. Default 5 minutes. */
   previewTtlMs?: number;
+  /**
+   * Turns a house rule in plain words into a template: several compilers that must agree. Without
+   * it, add_house_rule needs the compiled rule from the caller.
+   */
+  compileRule?: (input: { text: string; author: string; home: Home }) => Promise<CompileOutcome>;
 }
 
+const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * 60_000;
+/** Most log entries one catch-up step writes, well inside a DynamoDB transaction's 100 items. */
+const CATCH_UP_LIMIT = 40;
 
 /**
  * The seven tools' logic, independent of MCP. Calls run one at a time: each first brings the
@@ -81,6 +90,7 @@ export class ShadowHomeService {
   private readonly clock: Clock;
   private readonly secret: string;
   private readonly ttlMs: number;
+  private readonly compileRule: ServiceOptions['compileRule'];
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(options: ServiceOptions) {
@@ -88,6 +98,7 @@ export class ShadowHomeService {
     this.clock = options.clock;
     this.secret = options.secret;
     this.ttlMs = options.previewTtlMs ?? 5 * 60_000;
+    this.compileRule = options.compileRule;
   }
 
   /** Display names for the plan view: each device with its room, routines and household members. */
@@ -500,27 +511,95 @@ export class ShadowHomeService {
     });
   }
 
-  addHouseRule(input: z.infer<typeof addRuleInput>): Promise<AddRuleOutput> {
-    const compiled = input.rule;
+  async addHouseRule(input: z.infer<typeof addRuleInput>): Promise<AddRuleOutput> {
+    // With a compiler, the person's words decide: a compiled rule from the caller would skip the
+    // agreement check. Without one (the recorded demo), the caller's compiled rule is used.
+    let compiled = this.compileRule ? undefined : input.rule;
+    let hash: string | undefined;
     if (!compiled) {
-      return Promise.resolve({
+      const notCompiled = (problems: string[], headline: string): AddRuleOutput => ({
         status: 'needs_compiler',
-        problems: ['The rule compiler is not connected; send the compiled rule in `rule`.'],
+        problems,
         conflicts: [],
         needsOwnerApproval: false,
-        speech: { headline: "I can't turn that into a rule yet." },
+        speech: { headline },
       });
+      if (!this.compileRule) {
+        return notCompiled(
+          ['The rule compiler is not connected; send the compiled rule in `rule`.'],
+          "I can't turn that into a rule yet.",
+        );
+      }
+      // Compiling asks several models and takes seconds, so it happens before this call takes
+      // its turn with the home; the rule is then checked against the home as it is.
+      const { home } = await this.store.loadState();
+      const outcome = await this.compileRule({ text: input.text, author: input.author, home });
+      if (outcome.status === 'failed') {
+        return notCompiled(outcome.problems, "I couldn't work out that rule just now.");
+      }
+      if (outcome.status === 'unsupported') {
+        // The compiler's reason goes on screen; what's spoken is the server's own words.
+        return {
+          status: 'invalid',
+          problems: [outcome.reason],
+          conflicts: [],
+          needsOwnerApproval: false,
+          speech: {
+            headline: "I can't make that a house rule.",
+            reason: "It doesn't fit the kinds of rule I can check.",
+          },
+        };
+      }
+      if (outcome.status === 'disagree') {
+        const say = (r: (typeof outcome.readings)[number]) =>
+          readBack(home, { ...r, id: 'new', text: input.text, author: input.author } as Rule);
+        const sentences = outcome.readings.map(say);
+        // The read-back doesn't say how strict a rule is, so readings that differ only there
+        // read alike: name the priority, and whether it may never happen at all.
+        const alike = new Set(sentences).size < sentences.length;
+        const readings = alike
+          ? outcome.readings.map(
+              (r) => `${say(r)} (${r.priority}${r.refuse ? ', never allowed' : ''})`,
+            )
+          : sentences;
+        const onlyStrictness = alike && new Set(sentences).size === 1;
+        return {
+          status: 'unclear',
+          readings,
+          problems: outcome.unsupported,
+          conflicts: [],
+          needsOwnerApproval: false,
+          speech: onlyStrictness
+            ? {
+                headline: "I'm not sure how strict that rule is.",
+                reason: 'I can read it as more than one kind of rule.',
+                ask: "Can you say it again, and say whether it's about safety, security, a device, or comfort?",
+              }
+            : {
+                headline: "I'm not sure what that rule means.",
+                reason:
+                  readings.length > 1
+                    ? `I can read it ${readings.length} ways.`
+                    : "I'm not sure it's a rule I can check.",
+                ask: 'Can you say it again, naming the device and when it applies?',
+              },
+        };
+      }
+      compiled = outcome.rule;
+      hash = outcome.hash;
     }
+    const wanted = compiled;
     return this.exclusive(async () => {
       const { state, nowMs } = await this.current();
       const home = state.home;
       const id = `R${Math.max(0, ...home.rules.map((r) => Number(r.id.slice(1)) || 0)) + 1}`;
       const parsed = ruleSchema.safeParse({
-        ...compiled,
+        ...wanted,
         id,
         text: input.text,
         author: input.author,
         source: 'add_house_rule',
+        ...(hash ? { hash } : {}),
       });
       const invalid = (problems: string[]): AddRuleOutput => ({
         status: 'invalid',
@@ -800,52 +879,88 @@ export class ShadowHomeService {
   private async current(): Promise<{ state: LiveState; nowMs: number }> {
     const state = await this.store.loadState();
     const raw = this.clock.homeNowMs();
-    const fired: LogEntry[] = [];
-    let before = Number.NaN;
-    while (state.syncedToMs !== before) {
-      before = state.syncedToMs;
-      fired.push(...sync(state, raw));
-    }
-    if (fired.length > 0) {
-      const log = await this.store.listLog();
-      const devices = new Map(state.home.devices.map((d) => [d.id, d]));
-      for (const entry of fired) {
-        // Something a commit queued has now happened: record it on that commit so undo knows.
-        const queuedBy =
-          entry.source === 'scheduled' ? log.find((e) => e.id === entry.cause) : undefined;
-        if (queuedBy?.undo) {
-          const info = queuedBy.undo;
-          for (const c of entry.changes) {
-            if (c.target === 'home') {
-              info.mode = { before: c.from as HomeMode, after: c.to as HomeMode };
-              info.pendingModes = info.pendingModes.filter(
-                (m) => isoAt(m.atMs, state.home.home.utcOffset) !== entry.at,
-              );
-              continue;
-            }
-            info.writes.push({ device: c.target, attr: c.attr, from: c.from, to: c.to });
-            if (devices.get(c.target)?.irreversible?.includes(c.attr)) {
-              info.irreversible.push({ device: c.target, attr: c.attr });
-            }
-          }
-          info.scheduled = info.scheduled.filter((w) =>
-            (state.home.scheduled ?? []).some((q) => JSON.stringify(q) === JSON.stringify(w)),
-          );
-          await this.store.putLog(queuedBy);
-        }
-        await this.store.putLog(entry);
-      }
-      await this.store.saveState(state);
-    }
+    await this.record(state, syncUntil(state, raw));
     const nowMs = Math.max(Math.ceil(raw / 1000) * 1000, state.syncedToMs + 1000);
     return { state, nowMs };
   }
 
+  /**
+   * After a quiet spell, more may have fired than one call can log (a DynamoDB transaction holds
+   * 100 items). Then bring the twin forward to just before the entry that doesn't fit, saved on
+   * its own; true while there's more to catch up. Usually there isn't, and this saves nothing.
+   */
+  private async catchUpStep(): Promise<boolean> {
+    const state = await this.store.loadState();
+    const fired = syncUntil(structuredClone(state), this.clock.homeNowMs()).sort(
+      (a, b) => Date.parse(a.at) - Date.parse(b.at),
+    );
+    const cut = fired[CATCH_UP_LIMIT];
+    if (!cut) return false;
+    const untilMs = Date.parse(cut.at) - MINUTE_MS;
+    // One minute holding more than fits can't be split; the call goes ahead and may fail.
+    if (untilMs <= state.syncedToMs) return false;
+    const step = syncUntil(state, untilMs);
+    if (step.length === 0) return false;
+    await this.record(state, step);
+    return true;
+  }
+
+  /** Log what fired, note it on the commits that queued it, and save the twin. */
+  private async record(state: LiveState, fired: LogEntry[]): Promise<void> {
+    if (fired.length === 0) return;
+    const log = await this.store.listLog();
+    const devices = new Map(state.home.devices.map((d) => [d.id, d]));
+    for (const entry of fired) {
+      // Something a commit queued has now happened: record it on that commit so undo knows.
+      const queuedBy =
+        entry.source === 'scheduled' ? log.find((e) => e.id === entry.cause) : undefined;
+      if (queuedBy?.undo) {
+        const info = queuedBy.undo;
+        for (const c of entry.changes) {
+          if (c.target === 'home') {
+            info.mode = { before: c.from as HomeMode, after: c.to as HomeMode };
+            info.pendingModes = info.pendingModes.filter(
+              (m) => isoAt(m.atMs, state.home.home.utcOffset) !== entry.at,
+            );
+            continue;
+          }
+          info.writes.push({ device: c.target, attr: c.attr, from: c.from, to: c.to });
+          if (devices.get(c.target)?.irreversible?.includes(c.attr)) {
+            info.irreversible.push({ device: c.target, attr: c.attr });
+          }
+        }
+        info.scheduled = info.scheduled.filter((w) =>
+          (state.home.scheduled ?? []).some((q) => JSON.stringify(q) === JSON.stringify(w)),
+        );
+        await this.store.putLog(queuedBy);
+      }
+      await this.store.putLog(entry);
+    }
+    await this.store.saveState(state);
+  }
+
   private exclusive<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(fn, fn);
+    const unit = async () => {
+      for (;;) {
+        if (!(await this.store.atomically(() => this.catchUpStep()))) break;
+      }
+      return this.store.atomically(fn);
+    };
+    const run = this.queue.then(unit, unit);
     this.queue = run.catch(() => undefined);
     return run;
   }
+}
+
+/** Simulate the twin forward to `untilMs`, in as many syncs as that takes. */
+function syncUntil(state: LiveState, untilMs: number): LogEntry[] {
+  const fired: LogEntry[] = [];
+  let before = Number.NaN;
+  while (state.syncedToMs !== before) {
+    before = state.syncedToMs;
+    fired.push(...sync(state, untilMs));
+  }
+  return fired;
 }
 
 /** Net effect per attribute: the value before the first write, the value after the last. */

@@ -341,6 +341,10 @@ button:disabled {
   color: #fbbf24;
 }
 
+.rule-card .readings {
+  padding-left: 1.2em;
+}
+
 .rule-card .sample-day,
 .rule-card .problem {
   color: #cbd5e1;
