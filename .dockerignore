@@ -1,0 +1,15 @@
+# Container builds use the repository as their context. Leave out what gets installed or built
+# inside the build, and anything secret.
+.git
+**/node_modules
+**/dist
+**/.next
+**/cdk.out
+**/.env
+**/.env.*
+!**/.env.example
+.claude
+bench/reports
+test-results
+playwright-report
+coverage

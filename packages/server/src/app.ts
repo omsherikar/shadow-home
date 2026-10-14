@@ -1,4 +1,4 @@
-import { createMcpHonoApp } from '@modelcontextprotocol/hono';
+import { createMcpHonoApp, localhostOriginValidation } from '@modelcontextprotocol/hono';
 import { createMcpHandler } from '@modelcontextprotocol/server';
 import type { Home } from '@shadow-home/twin';
 import type { Hono } from 'hono';
@@ -12,6 +12,11 @@ import { buildServer } from './tools.ts';
 export interface AppOptions {
   /** Hostnames allowed in the Host header. Default: localhost only (DNS rebinding protection). */
   allowedHosts?: string[];
+  /**
+   * Accept any Host, behind a platform that routes by Host itself: Cloud Run only sends a request
+   * here if it named one of the service's own domains. Origins are checked as by default.
+   */
+  anyHost?: boolean;
   onError?: (error: Error) => void;
   /**
    * The local demo's controls at /demo: move home time forward to the next scene, and start the
@@ -31,7 +36,15 @@ export function createApp(service: ShadowHomeService, options: AppOptions = {}):
     legacy: 'stateless',
     ...(options.onError ? { onerror: options.onError } : {}),
   });
-  const app = createMcpHonoApp(options.allowedHosts ? { allowedHosts: options.allowedHosts } : {});
+  const app = createMcpHonoApp(
+    options.allowedHosts
+      ? { allowedHosts: options.allowedHosts }
+      : options.anyHost
+        ? { host: '0.0.0.0' }
+        : {},
+  );
+  // Bound to every address, the app checks no Origin; keep the default's: none, or localhost.
+  if (options.anyHost && !options.allowedHosts) app.use('*', localhostOriginValidation());
   app.get('/healthz', (c) => c.json({ ok: true }));
   app.all('/mcp', (c) => {
     // createMcpHonoApp's body parser stores the JSON body here; its Hono type doesn't declare it.
