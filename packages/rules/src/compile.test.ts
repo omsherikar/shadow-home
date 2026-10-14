@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { CompiledRule } from '@shadow-home/twin';
+import type { CompiledRule, Cond } from '@shadow-home/twin';
 import { loadHome } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import { type CompileAnswer, compileRule, normalize, ruleHash } from './compile.ts';
@@ -53,6 +53,35 @@ describe('three compiles that must agree', () => {
       ),
     );
     expect(out.status).toBe('agreed');
+  });
+
+  test('"not home" and "away" agree, and so do "not nobody" and "anyone"; home and away don’t', () => {
+    const door = (when: Cond): CompiledRule => ({
+      template: 'never_when',
+      priority: 'security',
+      params: { x: { device: 'front_door_lock', attr: 'lockState', eq: 'UNLOCKED' }, when },
+    });
+    const late = { time: { from: '22:00', to: '00:00' } };
+    expect(
+      ruleHash(door({ all: [late, { not: { presence: { member: 'om', is: 'home' } } }] })),
+    ).toBe(ruleHash(door({ all: [late, { presence: { member: 'om', is: 'away' } }] })));
+    expect(ruleHash(door({ not: { presence: 'nobody' } }))).toBe(
+      ruleHash(door({ presence: 'anyone' })),
+    );
+    expect(ruleHash(door({ presence: { member: 'om', is: 'home' } }))).not.toBe(
+      ruleHash(door({ presence: { member: 'om', is: 'away' } })),
+    );
+  });
+
+  test('"never together" with its two sides swapped agrees', () => {
+    const together = (a: Cond, b: Cond): CompiledRule => ({
+      template: 'never_together',
+      priority: 'device-protection',
+      params: { a, b },
+    });
+    const tv = { device: 'plug_tv', attr: 'onOff', eq: true };
+    const heater = { device: 'plug_bedroom_space_heater', attr: 'onOff', eq: true };
+    expect(ruleHash(together(tv, heater))).toBe(ruleHash(together(heater, tv)));
   });
 
   test('lists in a different order agree', () => {
@@ -134,6 +163,12 @@ describe('what the compiler model is told', () => {
     expect(prompt).toContain('heatingSetpointC 7 to 30');
     expect(prompt).toContain('- light_porch: Porch light (');
     expect(prompt).toContain('outdoor');
+  });
+
+  test('a time window’s end as the engine reads it: up to, not including', () => {
+    // 22:00 to 23:59 would leave out the last minute; the models must agree on one way to say it.
+    expect(prompt).toContain('up to but not including "to"');
+    expect(prompt).toContain('ends at "00:00"');
   });
 
   test('the home’s own rules as examples, compiled', () => {

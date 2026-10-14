@@ -35,7 +35,7 @@ Templates (params as JSON):
 
 Conditions:
 - S, a device state: {"device": id, "attr": attribute, "eq": value} or {"device": id, "attr": attribute, "neq": value}. Values are exactly as listed below (true/false for on/off, enum strings in their case).
-- C is S, or {"presence": "nobody"}, {"presence": "anyone"}, {"presence": {"member": id, "is": "home" | "away"}}, {"time": {"from": "HH:MM", "to": "HH:MM"}} (24-hour, home time, may cross midnight), {"any": [C, ...]}, {"all": [C, ...]}, {"not": C}.
+- C is S, or {"presence": "nobody"}, {"presence": "anyone"}, {"presence": {"member": id, "is": "home" | "away"}}, {"time": {"from": "HH:MM", "to": "HH:MM"}} (24-hour, home time, may cross midnight; it holds from "from" up to but not including "to", so a window that runs until midnight ends at "00:00"), {"any": [C, ...]}, {"all": [C, ...]}, {"not": C}.
 
 Priority, by what the rule protects (pick one):
 - life-safety: fire, smoke, heat sources, someone getting hurt
