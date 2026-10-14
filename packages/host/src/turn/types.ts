@@ -52,7 +52,7 @@ export interface ModelInput extends TurnRequest {
   thisTurn: ToolCall[];
 }
 
-/** Whatever decides the next step of a turn: a scripted stand-in today, Bedrock next. */
+/** Whatever decides the next step of a turn: the scripted stand-in, or a live model. */
 export interface Model {
   next(input: ModelInput): Promise<ModelStep>;
 }

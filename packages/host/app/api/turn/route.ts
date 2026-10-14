@@ -4,6 +4,7 @@ import { loadBeats } from '@/turn/beats.ts';
 import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
 import { sceneTimeFor } from '@/turn/demo-clock.ts';
 import { connectTools } from '@/turn/mcp.ts';
+import { liveModel } from '@/turn/providers.ts';
 import { runTurn } from '@/turn/run.ts';
 import { scriptedModel } from '@/turn/scripted.ts';
 import type { Names, TurnRequest } from '@/turn/types.ts';
@@ -43,9 +44,10 @@ export function GET(): Response {
 }
 
 /**
- * One conversational turn. Bedrock decides by default; DEMO_MODE=1 (the replayed demo) and
- * MOCK_MODEL=1 (no AWS account) use the scripted model, which makes no model calls. With
- * DEMO_CLOCK=1, a demo line first moves home time to its scene.
+ * One conversational turn. A live model decides by default (the Anthropic API, or Bedrock with
+ * MODEL_PROVIDER=bedrock); DEMO_MODE=1 (the replayed demo) and MOCK_MODEL=1 (no model key) use the
+ * scripted model, which makes no model calls. With DEMO_CLOCK=1, a demo line first moves home time
+ * to its scene.
  */
 export async function POST(request: Request): Promise<Response> {
   if (fromOtherSite(request)) return OTHER_SITE();
@@ -64,9 +66,7 @@ export async function POST(request: Request): Promise<Response> {
     const model = scripted
       ? scriptedModel(beats)
       : bedrockModel({
-          // The AWS SDK loads only when Bedrock is used, so the scripted model starts fast.
-          converse: (await import('@/turn/aws.ts')).bedrockConverse(),
-          ...(process.env.BEDROCK_MODEL_ID ? { modelId: process.env.BEDROCK_MODEL_ID } : {}),
+          ...(await liveModel()),
           tools: tools.modelTools,
           home,
           ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),

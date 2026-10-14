@@ -1,10 +1,10 @@
 /**
- * The device's ears and voice. Speech comes from Polly through /api/speak; if Polly isn't
- * available (no AWS account, no subscription), from the browser's own voice. Listening uses the
+ * The device's ears and voice. Speech comes from /api/speak (ElevenLabs, or Polly); if that isn't
+ * available (no key, no account), from the browser's own voice. Listening uses the
  * browser's speech recognition, which Chrome provides.
  */
 
-let pollyAvailable = true;
+let voiceAvailable = true;
 let playing: { stop(): void } | null = null;
 /** Bumped by every new reply and every stop: a reply still being fetched checks it before playing. */
 let generation = 0;
@@ -14,7 +14,7 @@ export async function speak(text: string): Promise<void> {
   stopSpeaking();
   const mine = generation;
   if (!text.trim()) return;
-  if (pollyAvailable) {
+  if (voiceAvailable) {
     try {
       const res = await fetch('/api/speak', {
         method: 'POST',
@@ -27,9 +27,9 @@ export async function speak(text: string): Promise<void> {
         return mine === generation ? play(blob) : undefined;
       }
       // Don't ask again this session; the browser's voice takes over.
-      if (res.status === 503) pollyAvailable = false;
+      if (res.status === 503) voiceAvailable = false;
     } catch {
-      pollyAvailable = false;
+      voiceAvailable = false;
     }
   }
   return mine === generation ? browserVoice(text) : undefined;
