@@ -18,12 +18,15 @@ export interface ToolCall {
 
 /**
  * What the browser keeps of the conversation and sends back each turn: tool calls without view
- * metadata, plus `heard` (what the person said) and `closed` (a tap that changed nothing).
+ * metadata, plus `heard` (what the person said), `said` (what the assistant said) and `closed`
+ * (a tap that changed nothing).
  */
 export interface Remembered {
   name: string;
   arguments: Record<string, unknown>;
   structuredContent?: Record<string, unknown>;
+  /** Set when a tap on screen made the call, not the assistant. */
+  by?: 'screen';
 }
 
 export interface TurnRequest {

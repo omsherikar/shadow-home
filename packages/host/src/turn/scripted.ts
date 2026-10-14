@@ -1,16 +1,36 @@
 import type { Model, ModelInput, ModelStep, Names, Remembered } from './types.ts';
 
-/** A beat of fixtures/demo-script.json: a line to say and the plan it should produce. */
+/** What a real model sent to preview_plan for a beat, recorded for demo mode to replay. */
+export interface RecordedPlan {
+  actions: Record<string, unknown>[];
+  requestedBy?: string;
+  presenceSchedule?: { from: string; to: string; presence: unknown }[];
+  planEnd?: string;
+}
+
+/** The preview_plan arguments a turn sent, without the intent (demo mode says its own words). */
+export function recordedFrom(calls: { name: string; arguments: Record<string, unknown> }[]) {
+  const preview = calls.find((c) => c.name === 'preview_plan');
+  if (!preview || !Array.isArray(preview.arguments.actions)) return null;
+  const { intent: _, ...rest } = preview.arguments;
+  return rest as unknown as RecordedPlan;
+}
+
+/** A beat of fixtures/demo-script.json: a line to say and the plan or rule it should produce. */
 export interface Beat {
   id: string;
   say: string | string[];
   author?: string;
   context?: {
+    /** The home time the scene happens at. */
+    now?: string;
     presenceSchedule?: { from: string; to: string; presence: unknown }[];
     planEnd?: string | null;
   };
   draftPlanExample?: Record<string, unknown>[];
-  recordedPlan?: Record<string, unknown>[] | null;
+  recordedPlan?: RecordedPlan | null;
+  /** For a house-rule beat: the rule the compiler should produce. */
+  expected?: { template?: string; compiled?: Record<string, unknown>; priority?: string };
 }
 
 /** A whole reply that means yes: "yes", "okay, do it", "yes please". Not "okay, what changed?". */
@@ -56,13 +76,22 @@ function firstStep(text: string, input: ModelInput, beats: Beat[]): ModelStep {
   }
   if (/\bwhat (did you change|changed|happened)\b/.test(text)) return call('get_activity_log', {});
   const beat = bestBeat(text, beats);
-  const actions = beat?.recordedPlan ?? beat?.draftPlanExample;
-  if (beat && actions) {
+  const rule = beat?.expected;
+  if (beat && rule?.template && rule.compiled) {
+    // The rule as the compiler should produce it, recorded in the demo script.
+    return call('add_house_rule', {
+      text: input.text,
+      author: beat.author ?? 'om',
+      rule: { template: rule.template, priority: rule.priority, params: rule.compiled },
+    });
+  }
+  if (beat?.recordedPlan) return call('preview_plan', { intent: input.text, ...beat.recordedPlan });
+  if (beat?.draftPlanExample) {
     const context = beat.context ?? {};
     return call('preview_plan', {
       intent: input.text,
       requestedBy: beat.author ?? 'om',
-      actions,
+      actions: beat.draftPlanExample,
       ...(context.presenceSchedule?.length ? { presenceSchedule: context.presenceSchedule } : {}),
       ...(context.planEnd ? { planEnd: context.planEnd } : {}),
     });
@@ -83,7 +112,8 @@ interface PreviewLike {
  * tapped since (a "no", Cancel, another request) closes it, so a later yes can't answer it.
  */
 function openQuestion(history: Remembered[]): { preview?: PreviewLike; confirm?: string } | null {
-  const last = history.at(-1);
+  // The assistant's own words (asking the question) don't close it.
+  const last = history.findLast((h) => h.name !== 'said');
   const sc = last?.structuredContent;
   if (!last || !sc) return null;
   if (last.name === 'preview_plan') return { preview: sc as unknown as PreviewLike };
@@ -118,12 +148,18 @@ function yesTo(p: PreviewLike): ModelStep | null {
   return commit({ planId: p.planId, confirmed: true });
 }
 
-/** "thermostat" → every device whose name contains it. */
-function devicesNamed(words: string, names?: Names): string[] {
+/**
+ * "the thermostat" → the device whose name says it with the fewest other words: "Main
+ * thermostat" rather than "Garage heater thermostat". Ties keep every match.
+ */
+export function devicesNamed(words: string, names?: Names): string[] {
   if (!words || !names) return [];
-  return Object.entries(names.devices)
-    .filter(([, d]) => d.name.toLowerCase().includes(words))
-    .map(([id]) => id);
+  const matches = Object.entries(names.devices).filter(([, d]) =>
+    d.name.toLowerCase().includes(words),
+  );
+  const size = (name: string) => name.split(' ').length;
+  const fewest = Math.min(...matches.map(([, d]) => size(d.name)));
+  return matches.filter(([, d]) => size(d.name) === fewest).map(([id]) => id);
 }
 
 /** The demo line most like what was said, if enough of its words are there. */
@@ -171,6 +207,13 @@ export function spokenFrom(
     | undefined;
   if (speech?.headline)
     return [speech.headline, speech.reason, speech.ask].filter(Boolean).join(' ');
+  const groups = structured?.groups as { label: string }[] | undefined;
+  if (groups) {
+    if (groups.length === 0) return 'Nothing has changed.';
+    const labels = groups.slice(0, 3).map((g) => g.label.replace(/[.!?]+$/, ''));
+    const more = groups.length > 3 ? `, and ${groups.length - 3} more` : '';
+    return `Here's what changed: ${labels.join('; ')}${more}. Say undo to put something back.`;
+  }
   return (
     (content ?? [])
       .map((c) => c.text ?? '')

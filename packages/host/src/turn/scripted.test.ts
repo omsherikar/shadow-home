@@ -4,7 +4,14 @@ import { describe, expect, test } from 'vitest';
 import { pick } from '../proxy.ts';
 import { VIEW_CSP, withPolicy } from '../screen/ScreenHost.ts';
 import { runTurn, type ToolRunner } from './run.ts';
-import { type Beat, bestBeat, normalise, scriptedModel, spokenFrom } from './scripted.ts';
+import {
+  type Beat,
+  bestBeat,
+  normalise,
+  recordedFrom,
+  scriptedModel,
+  spokenFrom,
+} from './scripted.ts';
 import type { Remembered } from './types.ts';
 
 const script = JSON.parse(
@@ -83,6 +90,14 @@ describe('the scripted stand-in for the model', () => {
     expect(await firstStep('yes', [t2, { name: 'closed', arguments: {} }])).toEqual(nothing);
     const log = { name: 'get_activity_log', arguments: {}, structuredContent: { entries: [] } };
     expect(await firstStep('yes', [t2, log])).toEqual(nothing);
+  });
+
+  test('the assistant asking the question does not close it', async () => {
+    const t2 = preview({ tier: 'T2', verdict: 'SAFE' });
+    const asked: Remembered = { name: 'said', arguments: { text: 'Back door lock unlocked?' } };
+    expect(await firstStep('Yes.', [t2, asked])).toMatchObject({
+      call: { name: 'commit_plan', arguments: { planId: 'p1', confirmed: true } },
+    });
   });
 
   test('only a whole yes is a yes: "okay, what changed?" reads the log', async () => {
@@ -193,5 +208,43 @@ describe('putting a view on screen', () => {
       ['content-type', 'mcp-protocol-version'],
     );
     expect([...forwarded.keys()].sort()).toEqual(['content-type', 'mcp-protocol-version']);
+  });
+});
+
+describe('recording a real model run for demo mode', () => {
+  test('keeps what the model sent to preview_plan, except the intent', () => {
+    expect(
+      recordedFrom([
+        { name: 'get_home_state', arguments: {} },
+        {
+          name: 'preview_plan',
+          arguments: { intent: 'away', requestedBy: 'om', actions: [{ mode: 'away' }] },
+        },
+      ]),
+    ).toEqual({ requestedBy: 'om', actions: [{ mode: 'away' }] });
+    expect(recordedFrom([{ name: 'get_activity_log', arguments: {} }])).toBeNull();
+  });
+
+  test('demo mode replays a recorded plan in place of the draft', async () => {
+    const recorded = scriptedModel([
+      {
+        id: 'b',
+        say: 'Set the house to away.',
+        draftPlanExample: [{ mode: 'home' }],
+        recordedPlan: { actions: [{ mode: 'away' }], requestedBy: 'maya' },
+      },
+    ]);
+    expect(
+      await recorded.next({ text: 'Set the house to away.', history: [], thisTurn: [] }),
+    ).toEqual({
+      call: {
+        name: 'preview_plan',
+        arguments: {
+          intent: 'Set the house to away.',
+          actions: [{ mode: 'away' }],
+          requestedBy: 'maya',
+        },
+      },
+    });
   });
 });

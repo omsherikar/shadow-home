@@ -14,6 +14,17 @@ export interface LogState {
   groups: { cause: string; label: string; entryIds: string[] }[];
 }
 
+/** The parts of add_house_rule the rule card shows. */
+export interface RuleState {
+  status: 'added' | 'pending_owner_approval' | 'invalid' | 'needs_compiler';
+  readBack?: string;
+  problems: string[];
+  conflicts: { rule: string; text: string; priority: string; winner: string }[];
+  sampleDay?: { verdict: string; brokenAt?: string };
+  needsOwnerApproval: boolean;
+  speech: { headline: string; reason?: string };
+}
+
 const MAX_GROUPS = 4;
 const MAX_LINES = 3;
 
@@ -75,4 +86,43 @@ export function LogCard({ log, names }: { log: LogState; names: Names | undefine
 
 function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+const RULE_STATUS: Record<RuleState['status'], string> = {
+  added: 'Rule added',
+  pending_owner_approval: 'Waiting for the owner',
+  invalid: 'Not added',
+  needs_compiler: 'Not added yet',
+};
+
+/** A new house rule: read back in fixed words, what it clashes with and which wins, a test day. */
+export function RuleCard({ rule }: { rule: RuleState }) {
+  return (
+    <div className="rule-card">
+      <h2>{RULE_STATUS[rule.status]}</h2>
+      <p className="headline">{rule.speech.headline}</p>
+      {rule.readBack ? <p className="read-back">“{rule.readBack}”</p> : null}
+      {rule.conflicts.length > 0 ? (
+        <ul className="conflicts">
+          {rule.conflicts.map((c) => (
+            <li key={c.rule}>
+              Clashes with {c.rule}, “{c.text}” ({c.priority}).{' '}
+              <strong>{c.winner === c.rule ? `${c.rule} wins` : 'The new rule wins'}</strong>.
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {rule.sampleDay ? (
+        <p className="sample-day">
+          The next 24 hours as things stand: {rule.sampleDay.verdict}
+          {rule.sampleDay.brokenAt ? `, broken at ${rule.sampleDay.brokenAt}` : ''}.
+        </p>
+      ) : null}
+      {rule.problems.map((p) => (
+        <p key={p} className="problem">
+          {p}
+        </p>
+      ))}
+    </div>
+  );
 }
