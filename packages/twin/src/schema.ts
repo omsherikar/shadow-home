@@ -154,6 +154,8 @@ const ruleBase = {
   author: id,
   ...ruleCore,
   source: z.string().optional(),
+  /** The hash of the compiled form every rule compiler agreed on (rules compiled from words). */
+  hash: z.string().optional(),
 };
 
 /** The five templates, each with its parameters, on top of `base`. */
