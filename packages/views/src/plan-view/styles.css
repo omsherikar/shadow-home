@@ -1,0 +1,309 @@
+/* Read from across a room: large type, verdict as icon + word + colour, at most 5 rows. */
+:root {
+  --bg: #0b1020;
+  --panel: #131c31;
+  --chip: #1e293b;
+  --text: #f1f5f9;
+  --soft: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #334155;
+  --safe: #34d399;
+  --blocked: #f87171;
+  --unsure: #fbbf24;
+  --done: #60a5fa;
+  --neutral: #94a3b8;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(12px, 1.55vw, 22px);
+}
+
+.screen {
+  --tone: var(--neutral);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+  height: 100vh;
+  padding: 1.2em 1.5em;
+  overflow: hidden;
+}
+
+.tone-safe {
+  --tone: var(--safe);
+}
+.tone-blocked {
+  --tone: var(--blocked);
+}
+.tone-unsure {
+  --tone: var(--unsure);
+}
+.tone-done {
+  --tone: var(--done);
+}
+
+.message {
+  margin: auto;
+  max-width: 80%;
+  font-size: 1.6em;
+  color: var(--soft);
+  text-align: center;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
+
+.badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 6.5em;
+  padding: 0.4em 0.8em;
+  border-radius: 0.8em;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 16%, transparent);
+}
+
+.badge .icon {
+  font-size: 2.4em;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.badge .word {
+  font-size: 0.85em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.speech h1 {
+  margin: 0;
+  font-size: 1.7em;
+  line-height: 1.2;
+}
+
+.speech .reason {
+  margin: 0.25em 0 0;
+  color: var(--soft);
+  font-size: 1.05em;
+}
+
+.speech .ask {
+  margin: 0.25em 0 0;
+  color: var(--tone);
+  font-size: 1.1em;
+  font-weight: 650;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.2em;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.body.two {
+  grid-template-columns: 1.15fr 1fr;
+}
+
+h2 {
+  margin: 0 0 0.45em;
+  color: var(--muted);
+  font-size: 0.78em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.rows,
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 7em 1fr;
+  gap: 0.6em;
+  align-items: baseline;
+}
+
+.place {
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+}
+
+.chip {
+  padding: 0.1em 0.5em;
+  border: 2px solid transparent;
+  border-radius: 0.45em;
+  background: var(--chip);
+  font-size: 0.92em;
+}
+
+.chip.flagged {
+  border-color: var(--blocked);
+  background: color-mix(in srgb, var(--blocked) 16%, transparent);
+}
+
+.chip.fixed {
+  border-color: var(--safe);
+  background: color-mix(in srgb, var(--safe) 13%, transparent);
+}
+
+.chip.later {
+  border-color: var(--line);
+  border-style: dashed;
+}
+
+.card {
+  padding: 0.4em 0.7em;
+  border-left: 4px solid var(--blocked);
+  border-radius: 0.45em;
+  background: var(--panel);
+  font-size: 0.88em;
+}
+
+.card .cause {
+  font-weight: 650;
+}
+
+.card .at,
+.card .author {
+  margin-left: 0.3em;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.card .breaks {
+  color: var(--blocked);
+  font-weight: 650;
+}
+
+.card .rule {
+  color: var(--soft);
+}
+
+.card .fix {
+  color: var(--safe);
+  font-weight: 650;
+}
+
+.notes {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--soft);
+  font-size: 0.9em;
+}
+
+.timeline {
+  width: 100%;
+  height: auto;
+  max-height: 24vh;
+  flex-shrink: 0;
+}
+
+.timeline .tick {
+  fill: var(--muted);
+  font-size: 14px;
+}
+
+.timeline .lane {
+  fill: var(--soft);
+  font-size: 15px;
+}
+
+.timeline .track {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+
+.timeline .day {
+  stroke: var(--line);
+  stroke-dasharray: 4 4;
+}
+
+.timeline .mark {
+  fill: var(--done);
+}
+
+.timeline .mark.blocked {
+  fill: var(--blocked);
+}
+
+.timeline .mark-label {
+  fill: var(--blocked);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7em;
+}
+
+.controls button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 2.8em;
+  padding: 0.45em 1.2em;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05em;
+  cursor: pointer;
+}
+
+.controls button small {
+  color: var(--muted);
+  font-size: 0.68em;
+}
+
+.controls button.primary {
+  border-color: var(--tone);
+  background: var(--tone);
+  color: var(--bg);
+  font-weight: 700;
+}
+
+.controls button.primary small {
+  color: color-mix(in srgb, var(--bg) 75%, transparent);
+}
+
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.controls .error {
+  margin: 0;
+  color: var(--blocked);
+}

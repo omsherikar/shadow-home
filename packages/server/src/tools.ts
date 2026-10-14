@@ -16,7 +16,7 @@ import {
   undoOutput,
 } from './schemas.ts';
 import type { ShadowHomeService } from './service.ts';
-import { PLAN_VIEW_HTML, PLAN_VIEW_MIME, PLAN_VIEW_URI } from './view.ts';
+import { NAMES_META_KEY, PLAN_VIEW_MIME, PLAN_VIEW_URI, planViewHtml } from './view.ts';
 
 const VERSION = '0.1.0';
 
@@ -34,6 +34,7 @@ function result<T extends Record<string, unknown>>(
 }
 
 const readOnly = { readOnlyHint: true, destructiveHint: false, openWorldHint: false } as const;
+const onScreen = { ui: { resourceUri: PLAN_VIEW_URI } };
 
 /** A fresh MCP server over the shared service. The HTTP handler builds one per request. */
 export function buildServer(service: ShadowHomeService): McpServer {
@@ -47,6 +48,9 @@ export function buildServer(service: ShadowHomeService): McpServer {
     },
   );
 
+  // What the plan view draws needs names; they go in `_meta`, which the model doesn't read.
+  const forScreen = async () => ({ ...onScreen, [NAMES_META_KEY]: await service.names() });
+
   server.registerResource(
     'plan-view',
     PLAN_VIEW_URI,
@@ -56,7 +60,7 @@ export function buildServer(service: ShadowHomeService): McpServer {
       mimeType: PLAN_VIEW_MIME,
     },
     async (uri) => ({
-      contents: [{ uri: uri.href, mimeType: PLAN_VIEW_MIME, text: PLAN_VIEW_HTML }],
+      contents: [{ uri: uri.href, mimeType: PLAN_VIEW_MIME, text: planViewHtml() }],
     }),
   );
 
@@ -90,13 +94,11 @@ export function buildServer(service: ShadowHomeService): McpServer {
       inputSchema: previewInput,
       outputSchema: previewOutput,
       annotations: readOnly,
-      _meta: { ui: { resourceUri: PLAN_VIEW_URI } },
+      _meta: onScreen,
     },
     async (input) => {
       const out = await service.previewPlan(input);
-      return result(`${out.verdict} (${out.tier}): ${out.speech.headline}`, out, {
-        ui: { resourceUri: PLAN_VIEW_URI },
-      });
+      return result(`${out.verdict} (${out.tier}): ${out.speech.headline}`, out, await forScreen());
     },
   );
 
@@ -115,12 +117,14 @@ export function buildServer(service: ShadowHomeService): McpServer {
         idempotentHint: true,
         openWorldHint: false,
       },
+      _meta: onScreen,
     },
     async (input) => {
       const out = await service.commitPlan(input);
       return result(
         `${out.status}${out.reason ? ` (${out.reason})` : ''}: ${out.speech.headline}`,
         out,
+        await forScreen(),
       );
     },
   );
@@ -135,12 +139,12 @@ export function buildServer(service: ShadowHomeService): McpServer {
       inputSchema: undoInput,
       outputSchema: undoOutput,
       annotations: readOnly,
-      _meta: { ui: { resourceUri: PLAN_VIEW_URI } },
+      _meta: onScreen,
     },
     async (input) => {
       const out = await service.undo(input);
       const head = out.preview ? `${out.preview.verdict} (${out.preview.tier}): ` : '';
-      return result(`${head}${out.speech.headline}`, out, { ui: { resourceUri: PLAN_VIEW_URI } });
+      return result(`${head}${out.speech.headline}`, out, await forScreen());
     },
   );
 
