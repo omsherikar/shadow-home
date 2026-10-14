@@ -90,7 +90,15 @@ export const previewOutput = z.object({
   horizon: z.object({ start: iso, end: iso }),
   repair: alternative
     .extend({
-      changes: z.array(z.object({ rule: z.string(), kind: z.string(), description: z.string() })),
+      changes: z.array(
+        z.object({
+          rule: z.string(),
+          kind: z.enum(['leave_out', 'nearest_value', 'pause_routine', 'drop_action']),
+          actionIndex: z.number().int().optional().describe('The action it changes'),
+          target: z.string().describe('The device left out or given a new value, or the routine'),
+          description: z.string(),
+        }),
+      ),
     })
     .nullable()
     .describe('A version of the plan that fixes what broke, with its own plan ID'),

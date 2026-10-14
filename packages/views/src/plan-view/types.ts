@@ -1,0 +1,116 @@
+/**
+ * The parts of Shadow Home's tool results the plan view reads. The server's zod schemas
+ * (packages/server/src/schemas.ts) are the source of truth; this is the view's side of them.
+ */
+
+export type Value = boolean | number | string;
+export type Verdict = 'SAFE' | 'UNSAFE' | 'UNPROVEN';
+export type Tier = 'T0' | 'T1' | 'T2' | 'T3' | 'T4' | 'T5';
+
+export interface Speech {
+  headline: string;
+  reason?: string;
+  ask?: string;
+}
+
+export interface DiffRow {
+  target: string;
+  name: string;
+  kind: 'device' | 'mode' | 'routine';
+  attr: string;
+  from: Value | null;
+  to: Value;
+  at: string;
+  actionIndex: number;
+  group?: string;
+  reversibility: 'holdable' | 'compensable' | 'irreversible';
+}
+
+export interface TimelineEntry {
+  at: string;
+  /** "plan", a routine ID, or what scheduled the write. */
+  source: string;
+  actionIndex?: number;
+  device: string;
+  attr: string;
+  from: Value | null;
+  to: Value;
+}
+
+export interface Violation {
+  rule: string;
+  text: string;
+  author: string;
+  priority: string;
+  refuse?: boolean;
+  run: string;
+  firstAt: string;
+  cause?: TimelineEntry;
+}
+
+export interface RepairChange {
+  rule: string;
+  kind: 'leave_out' | 'nearest_value' | 'pause_routine' | 'drop_action';
+  actionIndex?: number;
+  target: string;
+  description: string;
+}
+
+export interface Alternative {
+  planId: string;
+  verdict: Verdict;
+  tier: Tier;
+  diff: DiffRow[];
+}
+
+export interface Preview {
+  planId: string;
+  kind: 'plan' | 'repair' | 'safe_part' | 'undo';
+  verdict: Verdict;
+  tier: Tier;
+  speech: Speech;
+  diff: DiffRow[];
+  timeline: TimelineEntry[];
+  violations: Violation[];
+  invalid: { code: string; actionIndex: number | null; message: string }[];
+  unknowns: string[];
+  horizon: { start: string; end: string };
+  repair: (Alternative & { changes: RepairChange[] }) | null;
+  safePart: (Alternative & { dropped: number[] }) | null;
+}
+
+export interface Change {
+  target: string;
+  attr: string;
+  from: Value | null;
+  to: Value;
+}
+
+export interface Commit {
+  status: 'committed' | 'needs_confirmation' | 'refused';
+  reason?: string;
+  planId: string;
+  speech: Speech;
+  applied: Change[];
+  held: Change[];
+  undoToken?: string;
+  freshPreview?: Preview;
+}
+
+export interface Undo {
+  status: 'preview' | 'nothing_to_undo';
+  preview?: Preview;
+  cannotUndo: { target: string; attr: string; why: string }[];
+  notes: string[];
+  speech: Speech;
+}
+
+/** Display names the server sends in the result's `_meta`, keyed by ID. */
+export interface Names {
+  devices: Record<string, { name: string; room: string }>;
+  routines: Record<string, string>;
+  members: Record<string, string>;
+}
+
+/** Where the server puts `Names` in a tool result's `_meta`. */
+export const NAMES_META_KEY = 'shadow-home/names';

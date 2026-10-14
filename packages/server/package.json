@@ -18,6 +18,7 @@
     "@modelcontextprotocol/server": "2.3.1",
     "@shadow-home/engine": "0.1.0",
     "@shadow-home/twin": "0.1.0",
+    "@shadow-home/views": "0.1.0",
     "hono": "4.13.13",
     "zod": "4.6.7"
   },

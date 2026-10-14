@@ -22,6 +22,7 @@ import {
   type Value,
   validateHome,
 } from '@shadow-home/twin';
+import type { Names } from '@shadow-home/views';
 import type { z } from 'zod';
 import type { Clock } from './clock.ts';
 import { applyPlan, snapshot, sync } from './live-home.ts';
@@ -80,6 +81,19 @@ export class ShadowHomeService {
     this.clock = options.clock;
     this.secret = options.secret;
     this.ttlMs = options.previewTtlMs ?? 5 * 60_000;
+  }
+
+  /** Display names for the plan view: each device with its room, routines and household members. */
+  async names(): Promise<Names> {
+    const { home } = await this.store.loadState();
+    const rooms = new Map(home.rooms.map((r) => [r.id, r.name]));
+    return {
+      devices: Object.fromEntries(
+        home.devices.map((d) => [d.id, { name: d.name, room: rooms.get(d.room) ?? d.room }]),
+      ),
+      routines: Object.fromEntries(home.routines.map((r) => [r.id, r.name])),
+      members: Object.fromEntries(home.household.members.map((m) => [m.id, m.name])),
+    };
   }
 
   getHomeState(input: z.infer<typeof homeStateInput>): Promise<HomeStateOutput> {
@@ -685,6 +699,8 @@ export class ShadowHomeService {
               changes: a.repaired.detail.repairs.map((r) => ({
                 rule: r.rule,
                 kind: r.kind,
+                ...(r.actionIndex !== undefined ? { actionIndex: r.actionIndex } : {}),
+                target: r.target,
                 description: r.description,
               })),
             }

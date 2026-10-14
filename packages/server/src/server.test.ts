@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { type ServerType, serve } from '@hono/node-server';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { loadHome } from '@shadow-home/twin/node';
+import { NAMES_META_KEY, type Names, planScreen } from '@shadow-home/views';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app.ts';
 import { type ManualClock, manualClock } from './clock.ts';
@@ -119,14 +120,23 @@ describe.each(['legacy', 'modern'] as const)('over the %s protocol', (era) => {
       idempotentHint: true,
     });
     expect(byName.approve_plan?._meta).toEqual({ ui: { visibility: ['app'] } });
-    expect(byName.preview_plan?._meta).toEqual({
-      ui: { resourceUri: 'ui://shadow-home/plan-view.html' },
-    });
+    // Results the plan view draws: a check, a commit (with its undo button) and an undo.
+    for (const name of ['preview_plan', 'commit_plan', 'undo']) {
+      expect(byName[name]?._meta, name).toEqual({
+        ui: { resourceUri: 'ui://shadow-home/plan-view.html' },
+      });
+    }
   });
 
-  test('serves the plan view as an MCP App resource', async () => {
+  test('serves the built plan view as one self-contained MCP App resource', async () => {
     const r = await api.client.readResource({ uri: 'ui://shadow-home/plan-view.html' });
-    expect(r.contents[0]).toMatchObject({ mimeType: 'text/html;profile=mcp-app' });
+    const view = r.contents[0];
+    expect(view).toMatchObject({ mimeType: 'text/html;profile=mcp-app' });
+    const html = view && 'text' in view ? view.text : '';
+    expect(html).toContain('<div id="root"></div>');
+    expect(html.length).toBeGreaterThan(10_000);
+    // Nothing loaded from elsewhere: no script or style src, so a strict sandbox runs it as is.
+    expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=/);
   });
 
   test('preview, block, commit the repair, then undo just the thermostat', async () => {
@@ -382,3 +392,90 @@ test('a 2025-03-26 client (what Alexa+ sends) is served', async () => {
 });
 
 export type { ManualClock };
+
+describe('the plan view', () => {
+  let env: Awaited<ReturnType<typeof start>>;
+  let api: Awaited<ReturnType<typeof connect>>;
+  beforeAll(async () => {
+    env = await start();
+    api = await connect(env.url, 'legacy');
+  });
+  afterAll(async () => {
+    await api.client.close();
+    await env.close();
+  });
+
+  test('gets display names in _meta, outside what the model reads', async () => {
+    const r = await api.client.callTool({ name: 'preview_plan', arguments: weekend });
+    const names = r._meta?.[NAMES_META_KEY] as Names;
+    expect(r._meta?.ui).toEqual({ resourceUri: 'ui://shadow-home/plan-view.html' });
+    expect(names.devices.plug_garage_freezer).toEqual({ name: 'Garage freezer', room: 'Garage' });
+    expect(names.routines.coffee_at_7).toBe('Coffee at 7');
+    expect(names.members.maya).toBe('Maya');
+    expect(r.structuredContent).not.toHaveProperty(NAMES_META_KEY);
+  });
+
+  test('draws the blocked weekend plan: 5 rows at most, a card per broken rule, and its fix', async () => {
+    const r = await api.client.callTool({ name: 'preview_plan', arguments: weekend });
+    const preview = r.structuredContent as PreviewOutput;
+    const s = planScreen.previewScreen(preview, r._meta?.[NAMES_META_KEY] as Names);
+    expect(preview.repair?.changes).toContainEqual(
+      expect.objectContaining({ rule: 'R1', kind: 'leave_out', target: 'plug_garage_freezer' }),
+    );
+    expect(s).toMatchObject({ tone: 'blocked', word: 'UNSAFE', rowsTitle: 'With 4 fixes' });
+    expect(s.rows.length).toBeLessThanOrEqual(planScreen.MAX_ROWS);
+    expect(s.cards.map((c) => [c.cause, c.at, c.breaks, c.author, c.fix])).toEqual([
+      [
+        'Coffee at 7: Coffee maker on',
+        'Sat 7:00 AM',
+        undefined,
+        'Om',
+        'Coffee at 7 paused until Sun 6:00 PM',
+      ],
+      ['Your plan: Garage freezer off', 'now', undefined, 'Om', 'Garage freezer stays on'],
+      ['Your plan: Aquarium heater off', 'now', undefined, 'Maya', 'Aquarium heater stays on'],
+      [
+        'Your plan: Garage heater thermostat heating off',
+        'now',
+        'Breaks Sat 10:37 PM',
+        'Om',
+        'Garage heater thermostat holds 5 °C',
+      ],
+    ]);
+    const garage = s.rows.find((row) => row.place === 'Garage');
+    expect(garage?.chips).toEqual([
+      { text: 'Heater thermostat 9 → 5 °C', tone: 'fixed' },
+      { text: 'Freezer stays on', tone: 'fixed' },
+    ]);
+    expect(s.timeline?.lanes.map((l) => l.label)).toEqual([
+      'Your plan',
+      'Coffee at 7',
+      'Porch light',
+      'House rules',
+    ]);
+    expect(s.controls[0]).toEqual({
+      label: 'Do it with 4 fixes',
+      say: 'yes',
+      action: { kind: 'commit', planId: preview.repair?.planId },
+      primary: true,
+    });
+  });
+
+  test('after a commit, offers an undo by the token the commit returned', async () => {
+    const p = await api.call<PreviewOutput>('preview_plan', {
+      intent: 'Dim the living room to 30 percent.',
+      requestedBy: 'om',
+      actions: [{ device: 'light_living', set: { brightness: 30 } }],
+    });
+    const r = await api.client.callTool({ name: 'commit_plan', arguments: { planId: p.planId } });
+    const commit = r.structuredContent as CommitOutput;
+    const s = planScreen.commitScreen(commit, r._meta?.[NAMES_META_KEY] as Names);
+    expect(s).toMatchObject({ tone: 'done', word: 'DONE' });
+    expect(s.rows).toEqual([{ place: 'Living room', chips: [{ text: 'Lights 70 → 30%' }] }]);
+    expect(s.controls.map((c) => [c.label, c.say])).toEqual([
+      ['Undo', 'undo'],
+      ['Close', 'thanks'],
+    ]);
+    expect(s.controls[0]?.action).toEqual({ kind: 'undo', token: commit.undoToken });
+  });
+});
