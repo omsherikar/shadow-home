@@ -8,9 +8,9 @@
   "scripts": {
     "bundle": "node scripts/bundle.ts",
     "synth": "node scripts/bundle.ts && cdk synth --quiet",
-    "bootstrap": "node scripts/bundle.ts && cdk bootstrap",
-    "deploy": "node scripts/bundle.ts && cdk deploy",
-    "destroy": "cdk destroy",
+    "bootstrap": "node scripts/bundle.ts && AWS_PROFILE=${AWS_PROFILE:-shadow-home} cdk bootstrap",
+    "deploy": "node scripts/bundle.ts && AWS_PROFILE=${AWS_PROFILE:-shadow-home} cdk deploy",
+    "destroy": "AWS_PROFILE=${AWS_PROFILE:-shadow-home} cdk destroy",
     "serve-lambda": "node scripts/serve-lambda.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

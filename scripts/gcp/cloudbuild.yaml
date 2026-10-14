@@ -1,0 +1,13 @@
+# Builds both containers in Cloud Build (linux/amd64, which Cloud Run runs), side by side.
+# scripts/gcp/deploy.ts submits it with the image names; nothing here needs editing.
+steps:
+  - id: server
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-f', 'packages/server/Dockerfile', '-t', '${_SERVER_IMAGE}', '.']
+    waitFor: ['-']
+  - id: host
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '-f', 'packages/host/Dockerfile', '-t', '${_HOST_IMAGE}', '.']
+    waitFor: ['-']
+images: ['${_SERVER_IMAGE}', '${_HOST_IMAGE}']
+timeout: 1800s
