@@ -114,3 +114,9 @@ export interface Names {
 
 /** Where the server puts `Names` in a tool result's `_meta`. */
 export const NAMES_META_KEY = 'shadow-home/names';
+
+/**
+ * Where the server puts approval tokens, plan ID to token, for the plans a result shows. Only the
+ * screen reads `_meta`, so only a tap can approve a plan.
+ */
+export const APPROVAL_META_KEY = 'shadow-home/approval';

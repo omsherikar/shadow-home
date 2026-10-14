@@ -74,6 +74,44 @@ describe('a yes counts only for the question it answered', () => {
   });
 });
 
+describe('a yes to an offered alternative is not a yes to the plan', () => {
+  const dishwasherAndTv = {
+    intent: 'dishwasher at 2 and the TV off',
+    requestedBy: 'om',
+    actions: [
+      { device: 'dishwasher', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00' },
+      { device: 'plug_tv', set: { onOff: false } },
+    ] as PlanAction[],
+  };
+
+  test('"Do just the part I can confirm?" then a yes on the whole plan asks "Run it anyway?" first', async () => {
+    const { service } = setup('2027-01-15T21:30:00');
+    const p = await service.previewPlan(dishwasherAndTv);
+    expect(p).toMatchObject({ verdict: 'UNPROVEN', tier: 'T4' });
+    expect(p.speech.ask).toBe('Do just the part I can confirm?');
+
+    const first = await service.commitPlan({ planId: p.planId, confirmed: true });
+    expect(first).toMatchObject({
+      status: 'needs_confirmation',
+      planId: p.planId,
+      speech: { ask: 'Run it anyway?' },
+    });
+    expect((await service.getHomeState({})).scheduled).toEqual([]);
+
+    // Now the question was about this plan, so a yes commits it.
+    const second = await service.commitPlan({ planId: p.planId, confirmed: true });
+    expect(second.status).toBe('committed');
+    expect(second.held.map((c) => c.target)).toEqual(['dishwasher']);
+  });
+
+  test('a tap on screen approves the plan it is on, whatever the question offered', async () => {
+    const { service } = setup('2027-01-15T21:30:00');
+    const p = await service.previewPlan(dishwasherAndTv);
+    await service.approvePlan({ planId: p.planId, approvalToken: service.approvalToken(p.planId) });
+    expect((await service.commitPlan({ planId: p.planId })).status).toBe('committed');
+  });
+});
+
 describe('undo', () => {
   test('a stale undo is worked out again: a write that fired since is put back, not cancelled', async () => {
     const { clock, service } = setup('2027-01-15T21:30:00');

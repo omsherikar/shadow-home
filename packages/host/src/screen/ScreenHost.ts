@@ -13,25 +13,25 @@ export interface ScreenEvents {
   /** The view called a tool (a tap on screen). */
   onViewCall(call: ToolCall): void;
   /** The view told the assistant something for its next turn. */
-  onModelContext(text: string): void;
+  onModelContext(text: string, structured?: Record<string, unknown>): void;
 }
 
 const HOST = { name: 'shadow-home-echo', version: '0.1.0' };
 
 /**
  * What a view may do inside its frame: run its own inline script and styles, and nothing else.
- * No network, no other origins; it reaches the server only through the bridge.
+ * No fetches, forms or other origins; it reaches the server only through the bridge.
  */
 export const VIEW_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:";
+  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'";
 
-/** The view's HTML with the policy as its first element, before any script can run. */
+/**
+ * The view's HTML behind the policy. The meta goes before everything, not into the view's own
+ * <head>, so nothing in the view's HTML (a comment, a <header>, an early script) can come first:
+ * the parser opens the head for it, and a srcdoc document is never in quirks mode without a doctype.
+ */
 export function withPolicy(html: string): string {
-  const meta = `<meta http-equiv="Content-Security-Policy" content="${VIEW_CSP}">`;
-  const head = /<head[^>]*>/i.exec(html);
-  if (!head) return `${meta}${html}`;
-  const at = head.index + head[0].length;
-  return `${html.slice(0, at)}${meta}${html.slice(at)}`;
+  return `<meta http-equiv="Content-Security-Policy" content="${VIEW_CSP}">${html}`;
 }
 
 interface Frame {
@@ -94,6 +94,14 @@ export class ScreenHost {
     const iframe = document.createElement('iframe');
     iframe.setAttribute('sandbox', 'allow-scripts');
     iframe.title = 'Plan check';
+    // Set before the frame is in the page, so its only expected load is this document. A second
+    // load means the view navigated itself; whatever loaded then must not inherit the bridge.
+    iframe.srcdoc = withPolicy(html);
+    let loads = 0;
+    iframe.addEventListener('load', () => {
+      loads += 1;
+      if (loads > 1 && this.frame?.bridge === bridge) void this.close();
+    });
     this.container.replaceChildren(iframe);
     const target = iframe.contentWindow;
     if (!target) throw new Error('The view frame has no window');
@@ -125,16 +133,17 @@ export class ScreenHost {
         .map((c) => (c.type === 'text' ? c.text : ''))
         .join(' ')
         .trim();
-      if (text) this.events.onModelContext(text);
+      if (text || params.structuredContent) {
+        this.events.onModelContext(text, params.structuredContent);
+      }
       return {};
     };
     const ready = new Promise<void>((resolve) => {
       bridge.oninitialized = () => resolve();
     });
-    // Listen before the view loads, so its first message isn't missed.
-    await bridge.connect(new PostMessageTransport(target, target));
-    iframe.srcdoc = withPolicy(html);
+    // The document loads in a later task; connecting now listens before its first message.
     this.frame = { uri, bridge, ready };
+    await bridge.connect(new PostMessageTransport(target, target));
     return this.frame;
   }
 }

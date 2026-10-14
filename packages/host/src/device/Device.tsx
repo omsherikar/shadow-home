@@ -34,15 +34,23 @@ export function Device({ suggestions }: { suggestions: string[] }) {
   const names = useRef<Names | undefined>(undefined);
   const screenNote = useRef<string | undefined>(undefined);
 
-  const remember = useCallback((call: ToolCall) => {
-    const sc = call.result.structuredContent as Record<string, unknown> | undefined;
-    history.current = [
-      ...history.current.slice(-30),
-      { name: call.name, arguments: call.arguments, ...(sc ? { structuredContent: sc } : {}) },
-    ];
-    const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
-    if (fresh) names.current = fresh;
+  const note = useCallback((entry: Remembered) => {
+    history.current = [...history.current.slice(-40), entry];
   }, []);
+
+  const remember = useCallback(
+    (call: ToolCall) => {
+      const sc = call.result.structuredContent as Record<string, unknown> | undefined;
+      note({
+        name: call.name,
+        arguments: call.arguments,
+        ...(sc ? { structuredContent: sc } : {}),
+      });
+      const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
+      if (fresh) names.current = fresh;
+    },
+    [note],
+  );
 
   const refreshHome = useCallback(async (c: Client) => {
     const r = await c.callTool({ name: 'get_home_state', arguments: {} });
@@ -75,8 +83,10 @@ export function Device({ suggestions }: { suggestions: string[] }) {
         );
         void refreshHome(client);
       },
-      onModelContext: (text) => {
+      onModelContext: (text, structured) => {
         screenNote.current = text;
+        // A tap that changed nothing (Cancel, OK) closes the question on screen.
+        if (structured?.closed === true) note({ name: 'closed', arguments: {} });
       },
     });
     host.current = screenHost;
@@ -84,7 +94,7 @@ export function Device({ suggestions }: { suggestions: string[] }) {
       host.current = null;
       void screenHost.close();
     };
-  }, [client, remember, refreshHome]);
+  }, [client, note, remember, refreshHome]);
 
   const show = useCallback(async (calls: ToolCall[]) => {
     const withView = calls.findLast((c) => c.resourceUri);
@@ -122,17 +132,20 @@ export function Device({ suggestions }: { suggestions: string[] }) {
         if (!res.ok) throw new Error(`turn failed (${res.status})`);
         const turn = (await res.json()) as TurnResponse;
         screenNote.current = undefined;
+        // What was said goes in before what it led to: a turn with no calls ("no") closes the question.
+        note({ name: 'heard', arguments: { text: words } });
         for (const call of turn.calls) remember(call);
         setSaid(turn.say);
         await show(turn.calls);
         if (client) await refreshHome(client);
       } catch (e) {
+        note({ name: 'heard', arguments: { text: words } });
         setSaid(`Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`);
       } finally {
         setBusy(false);
       }
     },
-    [busy, client, refreshHome, remember, show],
+    [busy, client, note, refreshHome, remember, show],
   );
 
   const submit = (e: FormEvent) => {

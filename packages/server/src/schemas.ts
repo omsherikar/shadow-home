@@ -293,10 +293,16 @@ export const addRuleOutput = z.object({
 });
 export type AddRuleOutput = z.infer<typeof addRuleOutput>;
 
-export const approveInput = z.object({ planId: z.string().min(1) });
+export const approveInput = z.object({
+  planId: z.string().min(1),
+  approvalToken: z
+    .string()
+    .min(1)
+    .describe('The token the plan view received with this plan; only the screen has it'),
+});
 export const approveOutput = z.object({
   status: z.enum(['approved', 'refused']),
-  reason: z.enum(['tampered', 'expired', 'unknown_plan']).optional(),
+  reason: z.enum(['tampered', 'expired', 'unknown_plan', 'not_from_screen', 'unsafe']).optional(),
   planId: z.string(),
   approvedAt: z.string().optional(),
 });

@@ -8,6 +8,7 @@ import {
   reversibility,
   ruleAtoms,
   type Speech,
+  speech,
   type TierResult,
   untrustedSensors,
 } from '@shadow-home/engine';
@@ -26,7 +27,13 @@ import type { Names } from '@shadow-home/views';
 import type { z } from 'zod';
 import type { Clock } from './clock.ts';
 import { applyPlan, snapshot, sync } from './live-home.ts';
-import { newNonce, signPlanId, verifyPlanId } from './plan-id.ts';
+import {
+  approvalToken,
+  newNonce,
+  signPlanId,
+  verifyApprovalToken,
+  verifyPlanId,
+} from './plan-id.ts';
 import { readBack } from './read-back.ts';
 import type {
   AddRuleOutput,
@@ -254,14 +261,17 @@ export class ShadowHomeService {
       }
       if (record.tier === 'T2' || record.tier === 'T4') {
         const approved = await this.store.getApproval(record.nonce);
-        if (!confirmed && !approved) {
+        // If the preview's question offered an alternative ("Do just the part I can confirm?"),
+        // a yes to it was a yes to the alternative, not to this plan. This plan then asks its own
+        // question, and only a yes after that commits it.
+        const offeredOther = record.offers !== null && record.askedOwn !== true;
+        if ((!confirmed || offeredOther) && !approved) {
+          if (offeredOther) await this.store.putPreview({ ...record, askedOwn: true });
+          const ask = offeredOther ? record.ownAsk : record.speech.ask;
           return {
             status: 'needs_confirmation',
             planId,
-            speech: {
-              headline: 'I need a yes first.',
-              ...(record.speech.ask ? { ask: record.speech.ask } : {}),
-            },
+            speech: { headline: 'I need a yes first.', ...(ask ? { ask } : {}) },
             applied: [],
             held: [],
           };
@@ -561,7 +571,16 @@ export class ShadowHomeService {
     });
   }
 
-  approvePlan(input: { planId: string }): Promise<ApproveOutput> {
+  /** The token that lets the screen showing this plan approve it (see plan-id.ts). */
+  approvalToken(planId: string): string {
+    return approvalToken(this.secret, planId);
+  }
+
+  /**
+   * A tap on screen, standing in for a spoken yes. Only the plan view has the plan's approval
+   * token, so a model that can see this tool (a host that ignores `visibility`) can't use it.
+   */
+  approvePlan(input: { planId: string; approvalToken: string }): Promise<ApproveOutput> {
     return this.exclusive(async () => {
       const wallNow = this.clock.wallNowMs();
       const v = verifyPlanId(this.secret, input.planId, wallNow);
@@ -572,8 +591,15 @@ export class ShadowHomeService {
           planId: input.planId,
         };
       }
+      if (!verifyApprovalToken(this.secret, input.planId, input.approvalToken)) {
+        return { status: 'refused', reason: 'not_from_screen', planId: input.planId };
+      }
       const record = await this.store.getPreview(v.claims.n);
       if (!record) return { status: 'refused', reason: 'unknown_plan', planId: input.planId };
+      // Nothing can approve what never commits.
+      if (record.tier === 'T3' || record.tier === 'T5') {
+        return { status: 'refused', reason: 'unsafe', planId: input.planId };
+      }
       await this.store.putApproval(record.nonce, { at: wallNow, by: 'screen' });
       return {
         status: 'approved',
@@ -601,6 +627,7 @@ export class ShadowHomeService {
       speech: Speech,
       related: PreviewRecord['related'],
       offers: PreviewRecord['offers'] = null,
+      ownAsk?: string,
     ) => {
       const nonce = newNonce();
       await this.store.putPreview({
@@ -617,6 +644,7 @@ export class ShadowHomeService {
         irreversible: reversibility(home, p).some((x) => x.irreversibleOnceFired),
         related,
         offers,
+        ...(ownAsk ? { ownAsk } : {}),
         ...(meta.undo ? { undo: meta.undo } : {}),
       });
       return signPlanId(this.secret, { n: nonce, v: state.version, x: expires });
@@ -652,6 +680,8 @@ export class ShadowHomeService {
         ...(safeId ? { safePart: safeId } : {}),
       },
       a.offered,
+      // The question this plan asks when nothing else is offered: "Run it anyway?".
+      a.offered ? speech(home, plan, a.check, a.tier, a.diff).ask : undefined,
     );
 
     return {

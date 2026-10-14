@@ -318,6 +318,28 @@ describe('after a commit and for an undo', () => {
     ]);
   });
 
+  test('an undo that needs more than a yes offers what the check offered, not the whole undo', () => {
+    const blocked = preview('UNSAFE', 'T3', {
+      kind: 'undo',
+      repair: { planId: 'r1', verdict: 'SAFE', tier: 'T1', diff: [], changes: [] },
+    });
+    expect(previewScreen(blocked, names).controls.map((c) => [c.label, c.action])).toEqual([
+      ['Do it with 0 fixes', { kind: 'commit', planId: 'r1' }],
+      ['Keep it', { kind: 'dismiss' }],
+    ]);
+    const unproven = preview('UNPROVEN', 'T4', {
+      kind: 'undo',
+      safePart: { planId: 's1', verdict: 'SAFE', tier: 'T0', diff: [], dropped: [0] },
+    });
+    expect(previewScreen(unproven, names).controls[0]).toMatchObject({
+      label: 'Just the part I can confirm',
+      action: { kind: 'commit', planId: 'plan-1', safePartOnly: true },
+    });
+    expect(previewScreen(preview('SAFE', 'T2', { kind: 'undo' }), names).controls[0]?.label).toBe(
+      'Yes, undo it',
+    );
+  });
+
   test('content that is none of ours draws nothing', () => {
     expect(screenFor({ entries: [] })).toBeNull();
     expect(screenFor(undefined)).toBeNull();

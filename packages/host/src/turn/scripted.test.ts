@@ -74,6 +74,47 @@ describe('the scripted stand-in for the model', () => {
     ).toEqual({ planId: 's1', confirmed: true });
   });
 
+  test('a no, a Cancel tap or another request closes the question; a later yes answers nothing', async () => {
+    const t2 = preview({ tier: 'T2', verdict: 'SAFE' });
+    const nothing = { say: "There's nothing waiting for a yes." };
+    expect(await firstStep('yes', [t2, { name: 'heard', arguments: { text: 'no' } }])).toEqual(
+      nothing,
+    );
+    expect(await firstStep('yes', [t2, { name: 'closed', arguments: {} }])).toEqual(nothing);
+    const log = { name: 'get_activity_log', arguments: {}, structuredContent: { entries: [] } };
+    expect(await firstStep('yes', [t2, log])).toEqual(nothing);
+  });
+
+  test('only a whole yes is a yes: "okay, what changed?" reads the log', async () => {
+    const t2 = preview({ tier: 'T2', verdict: 'SAFE' });
+    expect(await firstStep('Okay, what changed?', [t2])).toEqual({
+      call: { name: 'get_activity_log', arguments: {} },
+    });
+    expect(await firstStep('Yes please', [t2])).toMatchObject({ call: { name: 'commit_plan' } });
+  });
+
+  test('a yes to an undo answers the undo’s own question, like any plan', async () => {
+    const undo = (p: Record<string, unknown>): Remembered => ({
+      name: 'undo',
+      arguments: { token: 'last' },
+      structuredContent: { status: 'preview', preview: { planId: 'u1', kind: 'undo', ...p } },
+    });
+    const step = await firstStep('yes', [
+      undo({ tier: 'T4', verdict: 'UNPROVEN', safePart: { planId: 's1' } }),
+    ]);
+    expect(step).toEqual({
+      call: {
+        name: 'commit_plan',
+        arguments: { planId: 'u1', safePartOnly: true, confirmed: true },
+      },
+    });
+    // "Run it anyway" acts on the undo on screen, not on an earlier plan still in the history.
+    const earlier = preview({ tier: 'T4', verdict: 'UNPROVEN' });
+    expect(
+      await firstStep('run it anyway', [earlier, undo({ tier: 'T4', verdict: 'UNPROVEN' })]),
+    ).toEqual({ call: { name: 'commit_plan', arguments: { planId: 'u1', confirmed: true } } });
+  });
+
   test('"undo the thermostat" names the thermostats', async () => {
     const names = {
       devices: {
@@ -127,12 +168,18 @@ describe('the scripted stand-in for the model', () => {
 });
 
 describe('putting a view on screen', () => {
-  test('the content policy comes first in the head, before any of the view’s script', () => {
-    const html = withPolicy('<!doctype html><html><head><title>x</title><script>1</script>');
-    expect(html.indexOf(VIEW_CSP)).toBeGreaterThan(0);
-    expect(html.indexOf(VIEW_CSP)).toBeLessThan(html.indexOf('<title>'));
+  test('the content policy comes before anything in the view, whatever its HTML', () => {
+    const meta = `<meta http-equiv="Content-Security-Policy" content="${VIEW_CSP}">`;
+    for (const html of [
+      '<!doctype html><html><head><title>x</title><script>1</script>',
+      '<!doctype html><!--<head>--><html><head><script>1</script>',
+      '<header>x</header><script>1</script>',
+      '<script>1</script><head></head>',
+    ]) {
+      expect(withPolicy(html).startsWith(meta)).toBe(true);
+    }
     expect(VIEW_CSP).toContain("default-src 'none'");
-    expect(withPolicy('<p>no head</p>').startsWith('<meta')).toBe(true);
+    expect(VIEW_CSP).toContain("form-action 'none'");
   });
 
   test('the MCP proxy passes on protocol headers and drops the browser’s own', () => {

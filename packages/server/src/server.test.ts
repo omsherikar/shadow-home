@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { type ServerType, serve } from '@hono/node-server';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { loadHome } from '@shadow-home/twin/node';
-import { NAMES_META_KEY, type Names, planScreen } from '@shadow-home/views';
+import { APPROVAL_META_KEY, NAMES_META_KEY, type Names, planScreen } from '@shadow-home/views';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app.ts';
 import { type ManualClock, manualClock } from './clock.ts';
@@ -58,6 +58,12 @@ async function start() {
   const { port } = server.address() as AddressInfo;
   const url = `http://localhost:${port}/mcp`;
   return { clock, url, close: () => new Promise<void>((r) => server.close(() => r())) };
+}
+
+/** The approval token a result gave the screen for a plan. */
+function tokenFor(result: { _meta?: Record<string, unknown> }, planId: string): string {
+  const tokens = result._meta?.[APPROVAL_META_KEY] as Record<string, string> | undefined;
+  return tokens?.[planId] ?? '';
 }
 
 async function connect(url: string, era: 'legacy' | 'modern') {
@@ -124,6 +130,7 @@ describe.each(['legacy', 'modern'] as const)('over the %s protocol', (era) => {
     for (const name of ['preview_plan', 'commit_plan', 'undo']) {
       expect(byName[name]?._meta, name).toEqual({
         ui: { resourceUri: 'ui://shadow-home/plan-view.html' },
+        'ui/resourceUri': 'ui://shadow-home/plan-view.html',
       });
     }
   });
@@ -263,23 +270,38 @@ describe('the commit contract', () => {
     expect(r.isError).toBe(true);
   });
 
-  test('switching off a smoke alarm is refused at T5', async () => {
-    const p = await api.call<PreviewOutput>('preview_plan', {
-      intent: 'Turn off the smoke alarm',
-      actions: [{ device: 'smoke_alarm_kitchen', set: { enabled: false } }],
+  test('switching off a smoke alarm is refused at T5, and nothing can approve it', async () => {
+    const shown = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: {
+        intent: 'Turn off the smoke alarm',
+        actions: [{ device: 'smoke_alarm_kitchen', set: { enabled: false } }],
+      },
     });
+    const p = shown.structuredContent as PreviewOutput;
     expect(p.tier).toBe('T5');
+    const approvalToken = tokenFor(shown, p.planId);
+    expect(await api.call('approve_plan', { planId: p.planId, approvalToken })).toMatchObject({
+      status: 'refused',
+      reason: 'unsafe',
+    });
     const r = await api.call<CommitOutput>('commit_plan', { planId: p.planId, confirmed: true });
     expect(r).toMatchObject({ status: 'refused', reason: 'refused_by_rule' });
   });
 
   test('the 2 AM dishwasher needs a yes or a tap, is held until 2 AM, then runs', async () => {
     env.clock.setHomeNow(Date.parse('2027-01-15T21:30:00-06:00'));
-    const p = await api.call<PreviewOutput>('preview_plan', {
-      intent: "Run the dishwasher at 2 AM when power's cheap.",
-      requestedBy: 'om',
-      actions: [{ device: 'dishwasher', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00' }],
+    const shown = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: {
+        intent: "Run the dishwasher at 2 AM when power's cheap.",
+        requestedBy: 'om',
+        actions: [{ device: 'dishwasher', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00' }],
+      },
     });
+    const p = shown.structuredContent as PreviewOutput;
+    // The screen gets the token that lets a tap approve this plan; the model doesn't.
+    const approvalToken = tokenFor(shown, p.planId);
     expect(p).toMatchObject({ verdict: 'UNPROVEN', tier: 'T4' });
     expect(p.speech.ask).toBe('Run it anyway?');
 
@@ -289,7 +311,20 @@ describe('the commit contract', () => {
       speech: { ask: 'Run it anyway?' },
     });
 
-    const tap = await api.call<{ status: string }>('approve_plan', { planId: p.planId });
+    // A model can see approve_plan on a host that ignores `visibility`; without the token, no.
+    const fromModel = await api.call<{ status: string; reason?: string }>('approve_plan', {
+      planId: p.planId,
+      approvalToken: 'guess',
+    });
+    expect(fromModel).toMatchObject({ status: 'refused', reason: 'not_from_screen' });
+    expect((await api.call<CommitOutput>('commit_plan', { planId: p.planId })).status).toBe(
+      'needs_confirmation',
+    );
+
+    const tap = await api.call<{ status: string }>('approve_plan', {
+      planId: p.planId,
+      approvalToken,
+    });
     expect(tap.status).toBe('approved');
     const committed = await api.call<CommitOutput>('commit_plan', { planId: p.planId });
     expect(committed.status).toBe('committed');

@@ -13,7 +13,8 @@ export interface Beat {
   recordedPlan?: Record<string, unknown>[] | null;
 }
 
-const YES = /^(yes|yeah|yep|sure|ok|okay|do it|go ahead)\b/;
+/** A whole reply that means yes: "yes", "okay, do it", "yes please". Not "okay, what changed?". */
+const YES = /^(yes|yeah|yep|sure|ok|okay|go ahead|do it)( (please|do it|go ahead|thanks))*$/;
 const NO = /^(no|nope|cancel|never ?mind|stop|keep it)\b/;
 
 /**
@@ -39,13 +40,14 @@ function firstStep(text: string, input: ModelInput, beats: Beat[]): ModelStep {
     return answerYes(input.history) ?? { say: "There's nothing waiting for a yes." };
   if (NO.test(text)) return { say: 'Okay, nothing changed.' };
   if (/\b(just|only) the (safe )?part\b/.test(text)) {
-    const p = lastPreview(input.history);
+    const p = openQuestion(input.history)?.preview;
     if (p?.safePart) return commit({ planId: p.planId, safePartOnly: true, confirmed: true });
     return { say: "There's no safe part on offer." };
   }
   if (/\brun it anyway\b/.test(text)) {
-    const p = lastPreview(input.history);
-    if (p) return commit({ planId: p.planId, confirmed: true });
+    const p = openQuestion(input.history)?.preview;
+    if (p?.tier === 'T4') return commit({ planId: p.planId, confirmed: true });
+    return { say: "There's nothing waiting to run." };
   }
   const undo = /^undo\b(?: the)?(.*)$/.exec(text);
   if (undo) {
@@ -76,24 +78,30 @@ interface PreviewLike {
   safePart?: { planId: string } | null;
 }
 
-/** What a yes commits: whatever the last question offered. */
-function answerYes(history: Remembered[]): ModelStep | null {
-  for (let i = history.length - 1; i >= 0; i--) {
-    const h = history[i];
-    const sc = h?.structuredContent;
-    if (!h || !sc) continue;
-    if (h.name === 'commit_plan') {
-      if (sc.status === 'needs_confirmation') return commit({ planId: sc.planId, confirmed: true });
-      const fresh = sc.freshPreview as PreviewLike | undefined;
-      if (fresh) return yesTo(fresh);
-      return null;
+/**
+ * The question still open: the one asked by the last thing in the conversation. Anything said or
+ * tapped since (a "no", Cancel, another request) closes it, so a later yes can't answer it.
+ */
+function openQuestion(history: Remembered[]): { preview?: PreviewLike; confirm?: string } | null {
+  const last = history.at(-1);
+  const sc = last?.structuredContent;
+  if (!last || !sc) return null;
+  if (last.name === 'preview_plan') return { preview: sc as unknown as PreviewLike };
+  if (last.name === 'undo') return sc.preview ? { preview: sc.preview as PreviewLike } : null;
+  if (last.name === 'commit_plan') {
+    if (sc.status === 'needs_confirmation' && typeof sc.planId === 'string') {
+      return { confirm: sc.planId };
     }
-    if (h.name === 'undo') {
-      const p = sc.preview as PreviewLike | undefined;
-      return p ? commit({ planId: p.planId, confirmed: true }) : null;
-    }
-    if (h.name === 'preview_plan') return yesTo(sc as unknown as PreviewLike);
+    if (sc.freshPreview) return { preview: sc.freshPreview as PreviewLike };
   }
+  return null;
+}
+
+/** What a yes commits: whatever the open question offered. */
+function answerYes(history: Remembered[]): ModelStep | null {
+  const q = openQuestion(history);
+  if (q?.confirm) return commit({ planId: q.confirm, confirmed: true });
+  if (q?.preview) return yesTo(q.preview);
   return null;
 }
 
@@ -108,11 +116,6 @@ function yesTo(p: PreviewLike): ModelStep | null {
     return commit({ planId: p.planId, safePartOnly: true, confirmed: true });
   }
   return commit({ planId: p.planId, confirmed: true });
-}
-
-function lastPreview(history: Remembered[]): PreviewLike | undefined {
-  const h = history.findLast((x) => x.name === 'preview_plan' && x.structuredContent);
-  return h?.structuredContent as PreviewLike | undefined;
 }
 
 /** "thermostat" → every device whose name contains it. */

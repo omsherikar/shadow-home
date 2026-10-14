@@ -55,6 +55,21 @@ export function verifyPlanId(secret: string, id: string, wallNowMs: number): Pla
   return { ok: true, claims };
 }
 
+/**
+ * Proof that an approval comes from the screen that showed the plan: an HMAC of the plan ID that
+ * the server sends only in a result's `_meta`. The plan view reads it; the model reads
+ * `structuredContent` and text, so it can't approve a plan in the person's place.
+ */
+export function approvalToken(secret: string, planId: string): string {
+  return createHmac('sha256', secret).update(`approve:${planId}`).digest('base64url');
+}
+
+export function verifyApprovalToken(secret: string, planId: string, token: string): boolean {
+  const expected = Buffer.from(approvalToken(secret, planId));
+  const given = Buffer.from(token);
+  return expected.length === given.length && timingSafeEqual(expected, given);
+}
+
 function mac(secret: string, payload: string): string {
   return createHmac('sha256', secret).update(`${PREFIX}.${payload}`).digest('base64url');
 }
