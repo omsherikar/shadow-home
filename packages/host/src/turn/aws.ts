@@ -2,13 +2,23 @@ import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-r
 import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
 import type { Converse } from './bedrock.ts';
 
+/** Set where AWS hands the code its own credentials: Lambda, Amplify Hosting compute, containers. */
+const IN_AWS = [
+  'AWS_ACCESS_KEY_ID',
+  'AWS_EXECUTION_ENV',
+  'AWS_LAMBDA_FUNCTION_NAME',
+  'AWS_CONTAINER_CREDENTIALS_FULL_URI',
+  'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',
+  'AWS_WEB_IDENTITY_TOKEN_FILE',
+];
+
 /**
- * One region for everything (docs/plan.md). Locally, the profile `aws login` signed in; where
- * credentials come from the environment (a deployed role), those, since a profile would hide them.
+ * One region for everything (docs/plan.md). On a laptop, the profile `aws login` signed in; where
+ * AWS provides credentials (a deployed role), those, since naming a profile would hide them.
  */
 const config = () => {
-  const profile =
-    process.env.AWS_PROFILE ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : 'shadow-home');
+  const inAws = IN_AWS.some((name) => process.env[name]);
+  const profile = process.env.AWS_PROFILE ?? (inAws ? undefined : 'shadow-home');
   return { region: process.env.AWS_REGION ?? 'us-east-1', ...(profile ? { profile } : {}) };
 };
 
