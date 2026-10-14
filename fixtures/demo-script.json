@@ -98,7 +98,7 @@
     },
     {
       "id": "add_rule_front_door",
-      "say": "Never unlock the front door after 10 PM unless I'm home.",
+      "say": "Never unlock the front door between 10 PM and 6 AM unless I'm home.",
       "author": "om",
       "expected": {
         "template": "never_when",
