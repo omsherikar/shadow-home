@@ -9,7 +9,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # The deployed server's DynamoDB store is tested against DynamoDB Local.
+    # The deployed server's stores are tested against DynamoDB Local and the Firestore emulator.
     services:
       dynamodb:
         image: amazon/dynamodb-local:latest
@@ -17,8 +17,15 @@ jobs:
           - 8000:8000
     env:
       DYNAMODB_ENDPOINT: http://127.0.0.1:8000
+      FIRESTORE_EMULATOR_HOST: 127.0.0.1:8080
     steps:
       - uses: actions/checkout@v6
+      # A service container can't be given a command, so the emulator starts here. Its image is
+      # large; it downloads in the background while npm installs.
+      - run: >-
+          nohup docker run -d --name firestore -p 8080:8080
+          gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+          gcloud emulators firestore start --host-port=0.0.0.0:8080 > /tmp/firestore.log 2>&1 &
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
@@ -26,9 +33,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - name: Wait for the Firestore emulator
+        run: |
+          for i in $(seq 1 90); do curl -sf http://127.0.0.1:8080 && exit 0; sleep 2; done
+          cat /tmp/firestore.log; docker logs firestore; exit 1
       - run: npm test
       # The Lambda bundle builds and the stack synthesizes (no AWS account needed).
       - run: npm run synth -w @shadow-home/infra
+      # So does the Cloud Run bundle.
+      - run: node packages/infra/scripts/bundle.ts cloud-run
       - run: npm run bench
       # From Oct 20: fail the build if ShadowBench regresses.
       # - run: node bench/runner/gate.js --min-catch-rate <from first report> --max-p99-ms 500

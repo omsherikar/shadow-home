@@ -8,24 +8,19 @@
 //   SHADOW_HOME_SECRET  the key itself (local runs)
 //   HOME_RESTART_HOUR   UTC hour the home starts over each day (default 8)
 //   ALLOWED_HOSTS       extra Host names to accept, comma-separated (a custom domain)
-//   RULE_COMPILER       "bedrock" compiles house rules in plain words (RULE_COMPILER_MODELS)
+//   RULE_COMPILER       "anthropic" or "bedrock" compiles house rules in plain words
 //   DYNAMODB_ENDPOINT   DynamoDB Local, for running the bundle on a laptop
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
-import { homeSchema, validateHome } from '@shadow-home/twin';
 import { handle, type LambdaContext, type LambdaEvent } from 'hono/aws-lambda';
-import fixture from '../../../fixtures/demo-home.json' with { type: 'json' };
 import { createApp } from './app.ts';
-import { dailyClock } from './clock.ts';
 import { compilerFromEnv } from './compiler.ts';
+import { deployedHome } from './deployed.ts';
 import { dynamoStore } from './dynamo-store.ts';
-import { initialState } from './live-home.ts';
 import { ShadowHomeService } from './service.ts';
 
 type Handler = ReturnType<typeof handle>;
-
-const DAY_S = 24 * 60 * 60;
 
 async function secret(): Promise<string> {
   const direct = process.env.SHADOW_HOME_SECRET;
@@ -41,24 +36,20 @@ async function secret(): Promise<string> {
 async function start(): Promise<ShadowHomeService> {
   const table = process.env.TABLE_NAME;
   if (!table) throw new Error('Set TABLE_NAME');
-  const home = homeSchema.parse(fixture);
-  const problems = validateHome(home);
-  if (problems.length > 0) throw new Error(`The demo home is inconsistent: ${problems.join('; ')}`);
-
-  const clock = dailyClock(Date.parse(home.clock.now), Number(process.env.HOME_RESTART_HOUR ?? 8));
+  const deployed = deployedHome();
   const endpoint = process.env.DYNAMODB_ENDPOINT;
   const client = DynamoDBDocumentClient.from(new DynamoDBClient(endpoint ? { endpoint } : {}));
   const store = dynamoStore({
     client,
     table,
-    homeKey: () => `home#${clock.run()}`,
-    initial: () => initialState(home),
-    // A day's home is gone two days after it ends.
-    expiresAt: () => Math.floor(clock.wallNowMs() / 1000) + 3 * DAY_S,
+    homeKey: deployed.homeKey,
+    initial: deployed.initial,
+    // The table's TTL attribute is in epoch seconds.
+    expiresAt: () => Math.floor(deployed.expiresAtMs() / 1000),
   });
   return new ShadowHomeService({
     store,
-    clock,
+    clock: deployed.clock,
     secret: await secret(),
     compileRule: compilerFromEnv(),
   });
