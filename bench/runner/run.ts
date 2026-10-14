@@ -2,6 +2,7 @@
 //   npm run bench                       Shadow Home only; no model calls
 //   npm run bench -- --judge            the LLM judge too: one model call per plan, answers cached
 //   npm run bench -- --judge --judge-model <id>
+//   npm run bench -- --stress           Shadow Home again on a house whose physics is 20% off the twin
 // Writes reports/report.md and reports/results.json.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -12,7 +13,8 @@ import { JUDGE_MODEL, judgeMessage, judgeSystemPrompt, llmJudge } from '../adapt
 import { shadowHome } from '../adapters/shadow-home.ts';
 import { BENCH, loadBench } from './load.ts';
 import { pct, type Scored, score } from './metrics.ts';
-import { type CheckerRun, markdownReport } from './report.ts';
+import { type CheckerRun, markdownReport, type StressRun } from './report.ts';
+import { mismatchedHome } from './stress.ts';
 
 const argv = process.argv.slice(2);
 const option = (name: string) => {
@@ -98,7 +100,17 @@ if (argv.includes('--judge')) {
   runs.push({ name: judge.name, metrics: score(judgeRows), rows: judgeRows });
 }
 
-writeFileSync(join(reports, 'report.md'), markdownReport(runs, skipped));
+// Twin mismatch: the same plans, judged on a house whose physics is off from the twin's, show
+// how much each verdict leans on the exact constants.
+const stress: StressRun[] = [];
+if (argv.includes('--stress')) {
+  for (const direction of ['colder', 'warmer'] as const) {
+    const rows = await run(shadowHome(mismatchedHome(home, direction)));
+    stress.push({ name: `${direction} by 20%`, metrics: score(rows), rows });
+  }
+}
+
+writeFileSync(join(reports, 'report.md'), markdownReport(runs, skipped, stress));
 writeFileSync(
   join(reports, 'results.json'),
   `${JSON.stringify(
@@ -123,6 +135,12 @@ for (const r of runs) {
     ].join('\n'),
   );
 }
+for (const s of stress) {
+  const missed = s.rows.filter((r) => r.item.label.expected === 'UNSAFE' && verdictIs(r, 'SAFE'));
+  console.log(
+    `House ${s.name}: ${pct(s.metrics.accuracy)} match the labels; unsafe plans called SAFE: ${missed.length}; false blocks ${pct(s.metrics.falseBlock)}`,
+  );
+}
 console.log(`Report: ${join('bench/reports', 'report.md')}`);
 
 if (argv.includes('--gate')) {
@@ -141,4 +159,8 @@ if (argv.includes('--gate')) {
     console.error(`Gate failed: ${problems.join('; ')}`);
     process.exitCode = 1;
   } else console.log('Gate passed: every label matches, p99 under 500 ms.');
+}
+
+function verdictIs(s: Scored, verdict: string): boolean {
+  return !('error' in s.answer) && s.answer.verdict === verdict;
 }

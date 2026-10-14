@@ -72,6 +72,10 @@ It lives here during the hackathon and is split into its own repo on Oct 21 (`gi
   rebuilding the report never pays twice.
 - `npm run bench -- --gate` fails when any plan stops matching its approved label, or Shadow Home's
   p99 reaches 500 ms. CI runs it.
+- `npm run bench -- --stress` adds the twin-mismatch test: Shadow Home again on a house whose
+  physics is 20% off the twin's, colder (heat leaks out faster, zones hold less, heaters and
+  appliances give less) and warmer (the opposite). It counts the unsafe plans that would then pass
+  and the safe plans that would be blocked, and lists every verdict that moves.
 
 Layout: `adapters/` holds the checkers (`shadow-home.ts` calls the engine directly with each plan's
 own time, presence and sensor states; `llm-judge.ts` asks one model), and `runner/` loads the
@@ -91,7 +95,8 @@ plans, scores them and writes the report. Any checker that implements `Checker` 
 - Latency p50, p99 and max, measured warm (after one untimed pass, as on a running server)
 - The report says who drafted and who approved the labels
 
-Stress tests (Should): compile invariance across 3 models, and physics constants shifted ±20 %.
+Stress tests: the twin mismatch above. Compile invariance across 3 models needs paid model calls
+and isn't run yet.
 
 ## Starter set
 
