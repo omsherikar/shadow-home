@@ -8,7 +8,6 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
-import { spokenFrom } from '../turn/scripted.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import {
   HomeCard,
@@ -131,15 +130,14 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     const screenHost = new ScreenHost(viewBox.current, client, {
       onViewCall: (call) => {
         remember(call, 'screen');
-        const sc = call.result.structuredContent as Record<string, unknown> | undefined;
-        // approve_plan is the tap's paperwork; the commit after it is what to say.
-        if (call.name !== 'approve_plan') void reply(spokenFrom(sc, call.result.content));
         void refreshHome(client);
       },
       onModelContext: (text, structured) => {
         screenNote.current = text;
         // A tap that changed nothing (Cancel, OK) closes the question on screen.
         if (structured?.closed === true) note({ name: 'closed', arguments: {} });
+        // Say what the tap ended on, once: not each call it made on the way there.
+        if (typeof structured?.say === 'string') void reply(structured.say);
       },
     });
     host.current = screenHost;
@@ -162,21 +160,28 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
     const last = calls.at(-1);
     const sc = last?.result.structuredContent as unknown;
+    // A failed call has nothing to draw; the reply says what went wrong.
+    if (!sc || last?.result.isError) return;
     if (last?.name === 'get_activity_log') setScreen({ kind: 'log', log: sc as LogState });
     if (last?.name === 'add_house_rule') setScreen({ kind: 'rule', rule: sc as RuleState });
   }, []);
 
-  /** One turn: what was said goes to the assistant; its reply is shown, then spoken. */
+  /**
+   * One turn: what was said goes to the assistant; its reply is shown, then spoken. Saying
+   * something stops the device mid-sentence. While a turn is in flight the controls are off.
+   */
   const say = useCallback(
     async (text: string) => {
       const words = text.trim();
-      if (!words || working.current) return;
-      working.current = true;
+      if (!words) return;
       stopSpeaking();
+      if (working.current) return;
+      working.current = true;
       setHeard(words);
       setSaid('');
       line('you', words);
       setBusy(true);
+      let answer: string;
       try {
         const res = await fetch('/api/turn', {
           method: 'POST',
@@ -196,15 +201,15 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         for (const call of turn.calls) remember(call);
         await show(turn.calls);
         if (client) await refreshHome(client);
-        setBusy(false);
-        await reply(turn.say);
+        answer = turn.say;
       } catch (e) {
         note({ name: 'heard', arguments: { text: words } });
-        setBusy(false);
-        await reply(`Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`);
+        answer = `Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`;
       } finally {
         working.current = false;
+        setBusy(false);
       }
+      await reply(answer);
     },
     [client, line, note, refreshHome, remember, reply, show],
   );
@@ -233,7 +238,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
 
   /** The whole demo, start to finish: a fresh home, then every line in order. */
   const playDemo = useCallback(async () => {
-    if (!demo || demoState === 'playing') return;
+    if (!demo || demoState === 'playing' || working.current) return;
+    stopSpeaking();
     setDemoState('playing');
     const res = await fetch('/api/demo', { method: 'POST' });
     if (!res.ok) {
@@ -311,7 +317,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           <button
             type="button"
             className="play"
-            disabled={!client || demoState === 'playing'}
+            disabled={!client || busy || demoState === 'playing'}
             onClick={() => void playDemo()}
           >
             {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}

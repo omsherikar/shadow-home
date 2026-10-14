@@ -29,7 +29,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'npx next dev -p 3101',
+      command: 'npx next dev -H 127.0.0.1 -p 3101',
       cwd: 'packages/host',
       // The turn route, so the dev server has compiled it before the first test talks.
       url: `${HOST}/api/turn`,

@@ -2,11 +2,15 @@ import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-r
 import { PollyClient, SynthesizeSpeechCommand } from '@aws-sdk/client-polly';
 import type { Converse } from './bedrock.ts';
 
-/** One region for everything (decision in docs/plan.md); the profile `aws login` signed in. */
-const config = () => ({
-  region: process.env.AWS_REGION ?? 'us-east-1',
-  profile: process.env.AWS_PROFILE ?? 'shadow-home',
-});
+/**
+ * One region for everything (docs/plan.md). Locally, the profile `aws login` signed in; where
+ * credentials come from the environment (a deployed role), those, since a profile would hide them.
+ */
+const config = () => {
+  const profile =
+    process.env.AWS_PROFILE ?? (process.env.AWS_ACCESS_KEY_ID ? undefined : 'shadow-home');
+  return { region: process.env.AWS_REGION ?? 'us-east-1', ...(profile ? { profile } : {}) };
+};
 
 let bedrock: BedrockRuntimeClient | undefined;
 let polly: PollyClient | undefined;

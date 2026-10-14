@@ -1,8 +1,10 @@
 import type { ConverseCommandInput, ConverseCommandOutput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
 import { demoSteps } from '../demo/steps.ts';
+import { fromOtherSite } from '../origin.ts';
 import { bedrockModel, conversation, type HomeBrief, systemPrompt, toolSpecs } from './bedrock.ts';
 import { visibleToModel } from './mcp.ts';
+import { runTurn } from './run.ts';
 import { devicesNamed } from './scripted.ts';
 import type { ModelInput, ToolCall } from './types.ts';
 
@@ -205,5 +207,94 @@ describe('the demo', () => {
       members: {},
     };
     expect(devicesNamed('thermostat', names)).toEqual(['thermostat_main']);
+  });
+});
+
+describe('fixes for a live session', () => {
+  test('a long history never starts on a tool result whose call was cut off', () => {
+    const call = (i: number) => ({
+      name: 'preview_plan',
+      arguments: { intent: `p${i}` },
+      structuredContent: { planId: `p${i}`, tier: 'T0' },
+    });
+    // 31 entries: the cut at 30 lands right after a heard, on a model call.
+    const history = [
+      { name: 'heard', arguments: { text: 'one' } },
+      ...Array.from({ length: 15 }, (_, i) => [
+        call(i),
+        { name: 'said', arguments: { text: 'ok' } },
+      ]).flat(),
+    ];
+    const messages = conversation(input({ history }));
+    expect(messages[0]?.role).toBe('user');
+    expect(messages[0]?.content?.some((b) => b.toolResult)).toBe(false);
+  });
+
+  test('a quieter call after the preview doesn’t replace the engine’s question', async () => {
+    const { converse } = fakeConverse(text('Want me to go ahead and fix things for you?'));
+    const model = bedrockModel({ converse, tools, home });
+    const quiet: ToolCall = {
+      name: 'get_home_state',
+      arguments: {},
+      result: { content: [{ type: 'text', text: 'state' }], structuredContent: { mode: 'home' } },
+    };
+    expect(await model.next(input({ thisTurn: [previewCall, quiet] }))).toEqual({
+      say: 'Safe: TV off.',
+    });
+  });
+
+  test('a turn that fails after a tool ran keeps the call, and says what it did', async () => {
+    let step = 0;
+    const model = {
+      async next() {
+        step += 1;
+        if (step === 1) return { call: { name: 'commit_plan', arguments: { planId: 'p1' } } };
+        throw new Error('ThrottlingException');
+      },
+    };
+    const tools = {
+      callTool: async () => ({
+        content: [{ type: 'text' as const, text: 'committed' }],
+        structuredContent: { status: 'committed', speech: { headline: 'Done: TV off.' } },
+      }),
+      resourceUriFor: () => undefined,
+    };
+    const turn = await runTurn(model, tools, { text: 'yes', history: [] });
+    expect(turn.calls.map((c) => c.name)).toEqual(['commit_plan']);
+    expect(turn.say).toBe('Done: TV off.');
+  });
+
+  test('requests from another site are refused; the device’s own and non-browser ones pass', () => {
+    const req = (origin?: string) =>
+      new Request('http://localhost:3001/api/demo', {
+        method: 'POST',
+        headers: { host: 'localhost:3001', ...(origin ? { origin } : {}) },
+      });
+    expect(fromOtherSite(req('http://localhost:3001'))).toBe(false);
+    expect(fromOtherSite(req())).toBe(false);
+    expect(fromOtherSite(req('https://example.test'))).toBe(true);
+    expect(fromOtherSite(req('http://192.168.1.20:3001'))).toBe(true);
+  });
+
+  test('"undo it" names no device; "the lights" is every light; words match whole', () => {
+    const names = {
+      devices: {
+        light_living: { name: 'Living room lights', room: 'Living room' },
+        light_kitchen: { name: 'Kitchen lights', room: 'Kitchen' },
+        light_porch: { name: 'Porch light', room: 'Living room' },
+        occupancy_kitchen: { name: 'Kitchen motion', room: 'Kitchen' },
+        garage_thermostat: { name: 'Garage heater thermostat', room: 'Garage' },
+        thermostat_main: { name: 'Main thermostat', room: 'Living room' },
+      },
+      routines: {},
+      members: {},
+    };
+    expect(devicesNamed('it', names)).toEqual([]);
+    expect(devicesNamed('the lights', names).sort()).toEqual([
+      'light_kitchen',
+      'light_living',
+      'light_porch',
+    ]);
+    expect(devicesNamed('the garage thermostat', names)).toEqual(['garage_thermostat']);
   });
 });

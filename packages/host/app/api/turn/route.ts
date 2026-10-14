@@ -1,11 +1,20 @@
 import { z } from 'zod';
+import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
-import { bedrockModel } from '@/turn/bedrock.ts';
+import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
 import { sceneTimeFor } from '@/turn/demo-clock.ts';
 import { connectTools } from '@/turn/mcp.ts';
 import { runTurn } from '@/turn/run.ts';
 import { scriptedModel } from '@/turn/scripted.ts';
 import type { Names, TurnRequest } from '@/turn/types.ts';
+
+function namesOf(home: HomeBrief): Names {
+  return {
+    devices: Object.fromEntries(home.devices.map((d) => [d.id, { name: d.name, room: d.room }])),
+    routines: Object.fromEntries(home.routines.map((r) => [r.id, r.name])),
+    members: {},
+  };
+}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +48,7 @@ export function GET(): Response {
  * DEMO_CLOCK=1, a demo line first moves home time to its scene.
  */
 export async function POST(request: Request): Promise<Response> {
+  if (fromOtherSite(request)) return OTHER_SITE();
   const parsed = turnRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad turn request' }, { status: 400 });
   const beats = await loadBeats();
@@ -46,6 +56,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const tools = await connectTools();
   try {
+    const home = await tools.homeBrief();
+    // Names come from the home itself, so what "the thermostat" means never depends on what the
+    // browser happened to see before (a reload, a log with no names).
+    const request: TurnRequest = { ...(parsed.data as TurnRequest), names: namesOf(home) };
     const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
     const model = scripted
       ? scriptedModel(beats)
@@ -54,10 +68,10 @@ export async function POST(request: Request): Promise<Response> {
           converse: (await import('@/turn/aws.ts')).bedrockConverse(),
           ...(process.env.BEDROCK_MODEL_ID ? { modelId: process.env.BEDROCK_MODEL_ID } : {}),
           tools: tools.modelTools,
-          home: await tools.homeBrief(),
+          home,
           ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),
         });
-    const turn = await runTurn(model, tools, parsed.data as TurnRequest);
+    const turn = await runTurn(model, tools, request);
     return Response.json(turn);
   } catch (e) {
     // The person still hears something; the reason goes to the server log.

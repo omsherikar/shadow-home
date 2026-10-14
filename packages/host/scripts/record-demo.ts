@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { bedrockConverse } from '../src/turn/aws.ts';
@@ -48,3 +49,9 @@ for (const beat of script.beats) {
   }
 }
 writeFileSync(path, `${JSON.stringify(script, null, 2)}\n`);
+// The repo's formatter, so the fixture reads (and lints) the way it did before.
+execFileSync(join(import.meta.dirname, '../../../node_modules/.bin/biome'), [
+  'format',
+  '--write',
+  path,
+]);
