@@ -42,6 +42,8 @@ export interface Row {
 
 /** One broken rule, as a chain: what caused it, when it breaks, whose rule, and the fix. */
 export interface Card {
+  /** The rule's ID, which the timeline marks too. */
+  id: string;
   cause: string;
   at: string;
   breaks?: string;
@@ -119,7 +121,8 @@ export function previewScreen(p: Preview, names?: Names): Screen {
   return {
     ...look,
     headline: p.speech.headline,
-    ...(p.speech.reason ? { reason: p.speech.reason } : {}),
+    // With broken rules on screen, the cards say why; the spoken reason repeats the first one.
+    ...(p.speech.reason && p.violations.length === 0 ? { reason: p.speech.reason } : {}),
     ...(p.speech.ask ? { ask: p.speech.ask } : {}),
     rowsTitle:
       p.kind === 'undo'
@@ -446,6 +449,7 @@ function card(v: Violation, p: Preview, fixes: RepairChange[], names?: Names): C
   const fix = fixes.find((f) => f.rule === v.rule);
   const fixText = fix ? fixLabel(fix, p, names) : undefined;
   return {
+    id: v.rule,
     cause: `${by}${what}`,
     at: when(c?.at ?? v.firstAt, p.horizon.start),
     ...(c && !sameMinute(c.at, v.firstAt) ? { breaks: `Breaks ${clock(v.firstAt)}` } : {}),
@@ -508,11 +512,17 @@ function timelineFor(p: Preview, names?: Names): { timeline?: Timeline } {
     lanes.push({ label: sourceName(source, names), marks: marks(byTime) });
   }
   if (p.violations.length > 0) {
+    // Rules that break in the same minute share one mark: "R1, R2 break".
+    const byMinute = new Map<number, string[]>();
+    for (const v of p.violations) {
+      const minute = Math.floor(Date.parse(v.firstAt) / 60_000) * 60_000;
+      byMinute.set(minute, [...(byMinute.get(minute) ?? []), v.rule]);
+    }
     lanes.push({
       label: 'House rules',
-      marks: p.violations.map((v) => ({
-        atMs: Date.parse(v.firstAt),
-        label: `${v.rule} breaks`,
+      marks: [...byMinute].map(([atMs, rules]) => ({
+        atMs,
+        label: `${rules.join(', ')} ${rules.length === 1 ? 'breaks' : 'break'}`,
         tone: 'blocked' as const,
       })),
     });

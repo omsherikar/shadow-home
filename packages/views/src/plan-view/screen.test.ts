@@ -163,6 +163,7 @@ describe('rows of changes', () => {
     });
     expect(s.cards).toEqual([
       {
+        id: 'R1',
         cause: 'Your plan: Garage freezer off',
         at: 'now',
         rule: 'Never turn off the garage freezer.',
