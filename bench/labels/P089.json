@@ -1,0 +1,10 @@
+{
+  "id": "P089",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "R5 only applies when nobody is home, and everyone is home while the back door is unlocked from 16:30 to 17:30; it locks again at 17:30 and at Good night.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

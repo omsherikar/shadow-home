@@ -1,0 +1,10 @@
+{
+  "id": "P088",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "R8 only applies when nobody is home, and everyone is home Saturday morning; the coffee maker runs from 06:45 until Coffee at 7 turns it off at 07:30.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

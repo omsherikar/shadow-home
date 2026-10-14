@@ -1,0 +1,10 @@
+{
+  "id": "P069",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The garage warms toward 15 C and is set back to 9 C at Sat 17:00. With its heater on all night it stays above about 8.5 C, even with 20% more heat loss and a night 2 C colder than forecast, well over R3's 4 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

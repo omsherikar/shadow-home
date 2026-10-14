@@ -1,0 +1,13 @@
+{
+  "id": "P031",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1",
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "At 23:30 all_plugs switches off the garage freezer (R1) and the aquarium heater (R2).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

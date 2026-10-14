@@ -1,0 +1,12 @@
+{
+  "id": "P010",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Turning off the garage freezer at Sat 11:00 breaks R1 at once. With no end given the home is followed only to Sat 23:00, and with the heater off the garage cools from 9 C to 6.7 C by then (4.8 C with heat loss +20% and the forecast 2 C colder), so R3 is never reached.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

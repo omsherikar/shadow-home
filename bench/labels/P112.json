@@ -1,0 +1,14 @@
+{
+  "id": "P112",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [
+    "garage_thermostat: silent 100000 min is over 10 min"
+  ],
+  "rationale": "At a 5 C setting the garage would bottom out near 4.5 C on the -6 C Sunday night, which would satisfy R3. But the garage thermostat has never reported (written as 100000 min of silence), so the garage temperature R3 depends on is unknown.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

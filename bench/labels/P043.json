@@ -1,0 +1,12 @@
+{
+  "id": "P043",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R5"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The back door starts unlocked and the plan only locks the front, so it stays unlocked through the 10:15-14:00 absence (R5).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

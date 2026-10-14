@@ -1,0 +1,12 @@
+{
+  "id": "P057",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R11"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The latch sensor is healthy (96%, 1 min) and reports the door open, so turning the dishwasher on at Sat 19:30 breaks R11.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

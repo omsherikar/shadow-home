@@ -1,0 +1,10 @@
+{
+  "id": "P100",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: light_living supports only onOff and brightness, so there is no color attribute to set.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

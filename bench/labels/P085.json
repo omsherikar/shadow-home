@@ -1,0 +1,10 @@
+{
+  "id": "P085",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Home is a valid mode and the house is already in it, and brightness 80 is in range for the living room lights; with everyone home, no rule applies.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

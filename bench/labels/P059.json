@@ -1,0 +1,12 @@
+{
+  "id": "P059",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Turning off the garage freezer at Sun 00:40 breaks R1, with no step to turn it back on. The garage heater still holds about 8.5 C through the -6 C night, so R3 holds.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

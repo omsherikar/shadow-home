@@ -1,0 +1,12 @@
+{
+  "id": "P039",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "With the furnace and the garage heater both off from Sat 09:00, the garage falls under 4 C at Sun 02:06 and down to about 0.4 C on Sunday morning (R3). Locks, lights and the coffee pause hold.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

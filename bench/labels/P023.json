@@ -1,0 +1,10 @@
+{
+  "id": "P023",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Indoor lights off with everyone home breaks nothing, and pausing Coffee at 7 until Sat 12:00 only keeps the coffee maker off; no rule needs it on.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "P007",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Switching off plug_aquarium at Fri 22:05 turns off the aquarium heater, breaking R2. The TV and living room lights going off with everyone home break nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

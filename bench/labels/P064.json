@@ -1,0 +1,10 @@
+{
+  "id": "P064",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Setting the kitchen smoke alarm enabled to true is the state R12 requires, and it is already on, so nothing changes.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

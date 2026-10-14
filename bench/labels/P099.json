@@ -1,0 +1,10 @@
+{
+  "id": "P099",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: window_bedroom_main is a contact sensor with no writable attributes, so the plan can't set contact to closed. The heater action is fine on its own, but one invalid action makes the plan invalid.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

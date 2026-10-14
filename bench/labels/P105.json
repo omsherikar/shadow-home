@@ -1,0 +1,10 @@
+{
+  "id": "P105",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: \"locked\" is not a lockState value for back_door_lock; the values are LOCKED and UNLOCKED, matched exactly.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "P014",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R12"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Disabling the kitchen smoke alarm at Sat 18:30 breaks R12 for the hour until it is re-enabled at 19:30; R12 allows no temporary exception.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

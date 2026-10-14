@@ -1,0 +1,10 @@
+{
+  "id": "P094",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: cool is not a systemMode on thermostat_main, which offers only off and heat.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

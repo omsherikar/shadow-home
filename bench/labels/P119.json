@@ -1,0 +1,14 @@
+{
+  "id": "P119",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R5"
+  ],
+  "expectedUnknowns": [
+    "back_door_lock: battery 10% is under 15%"
+  ],
+  "rationale": "Nobody is home Sun 12:00 to 14:00 and R5 needs the back door to read LOCKED; it does, but the lock's battery is 10%, under 15%, and the plan doesn't lock it. The front door locks on a trusted sensor and the indoor lights go off at 11:45.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

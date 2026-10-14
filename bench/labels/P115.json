@@ -1,0 +1,14 @@
+{
+  "id": "P115",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R4"
+  ],
+  "expectedUnknowns": [
+    "front_door_lock: silent 20 min is over 10 min"
+  ],
+  "rationale": "Nobody is home Sat 19:45 to midnight and R4 needs the front door to read LOCKED, but the front lock has been silent 20 min, over the 10 min limit. The back door locks and the indoor lights go off at 19:45, and no rule covers the porch light.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

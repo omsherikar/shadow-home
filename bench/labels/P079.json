@@ -1,0 +1,10 @@
+{
+  "id": "P079",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The porch light is outdoor, so R10 does not cover it and no other rule mentions it; pausing its routine until midnight affects nothing a rule watches, and everyone is home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

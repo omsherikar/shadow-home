@@ -1,0 +1,12 @@
+{
+  "id": "P047",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R8"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The coffee maker goes on at 06:45 and nothing turns it off until Coffee at 7's off step at 07:30, so it runs 07:00-07:30 with nobody home (R8).",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

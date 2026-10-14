@@ -1,0 +1,12 @@
+{
+  "id": "P055",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R12"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The sweep sets smoke_alarm_kitchen enabled to false at Fri 22:00, breaking R12. The dishwasher is switched off, so R11 holds whatever the 4% latch sensor says.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

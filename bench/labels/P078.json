@@ -1,0 +1,10 @@
+{
+  "id": "P078",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Good night already turns Sam's light off at 22:30, so the 23:30 command changes nothing, and with everyone home no rule involves that light.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

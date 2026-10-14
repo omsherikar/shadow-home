@@ -1,0 +1,10 @@
+{
+  "id": "P084",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Everyone is home, so locking up, switching all lights off and setting the house to 18 C at 22:30 alongside Good night breaks nothing; the repeated lock and lights-off commands change nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "P109",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R9"
+  ],
+  "expectedUnknowns": [
+    "window_bedroom_main: silent 11 min is over 10 min"
+  ],
+  "rationale": "The space heater runs Sun 07:30 to 07:50 and R9 needs the bedroom window reading, but the window sensor has been silent 11 min, one minute past the 10 min limit.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

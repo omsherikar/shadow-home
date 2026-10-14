@@ -1,0 +1,12 @@
+{
+  "id": "P054",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R12"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Setting smoke_alarm_kitchen enabled to false at Sat 03:10 breaks R12, and nothing in the plan turns it back on.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

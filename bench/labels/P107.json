@@ -1,0 +1,14 @@
+{
+  "id": "P107",
+  "expected": "UNPROVEN",
+  "expectedRules": [
+    "R11"
+  ],
+  "expectedUnknowns": [
+    "dishwasher_latch: battery 12% is under 15%"
+  ],
+  "rationale": "The dishwasher runs from Sun 11:30 and R11 needs the latch, whose battery is 12%, under 15%, even though it reported 2 min ago.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

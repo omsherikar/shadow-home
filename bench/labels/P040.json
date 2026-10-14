@@ -1,0 +1,12 @@
+{
+  "id": "P040",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R5"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The back door is unlocked from 12:00 to 12:30 while the household is away (10:00-17:00); the dog walker's phone isn't counted as presence, so R5 breaks.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

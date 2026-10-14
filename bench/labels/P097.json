@@ -1,0 +1,10 @@
+{
+  "id": "P097",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: OPEN is not a lockState on front_door_lock, which accepts only LOCKED and UNLOCKED.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

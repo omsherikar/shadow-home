@@ -1,0 +1,10 @@
+{
+  "id": "P081",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "At a 7 C setting the garage heater switches on below 6.5 C, and its 1.5 kW far exceeds the loss even on Sunday's -6 C night, so the garage stays at about 6.5 C or above through Sun 09:00, well over R3's 4 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

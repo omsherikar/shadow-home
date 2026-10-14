@@ -1,0 +1,12 @@
+{
+  "id": "P036",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The plan switches the garage freezer off from Sat 09:45 until 14:00, which R1 forbids at any time, whatever the reason.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

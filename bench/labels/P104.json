@@ -1,0 +1,10 @@
+{
+  "id": "P104",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: plug_bedroom_space_heater is an on/off plug with no heatingSetpointC.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

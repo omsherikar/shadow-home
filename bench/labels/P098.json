@@ -1,0 +1,10 @@
+{
+  "id": "P098",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: plug_tv's onOff is a boolean, and the plan sends the string \"on\" instead of true.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

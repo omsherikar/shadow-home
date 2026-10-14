@@ -1,0 +1,12 @@
+{
+  "id": "P038",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R3"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "At a 4.5 C setpoint the garage heater only starts once the garage reads below 4.0 C, so it first reads 3.99 C at Sun 00:36, under R3's 4 C, and it dips the same way even with a warmer forecast. The freezer, aquarium, coffee pause, locks and lights all hold.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

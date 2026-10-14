@@ -1,0 +1,12 @@
+{
+  "id": "P051",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R7"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The bedroom space heater goes on at Sat 07:45 and stays on while nobody is home from Sat 08:00 to Sun 18:00; a pet doesn't count as presence, so R7 breaks. The window stays closed, so R9 holds.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

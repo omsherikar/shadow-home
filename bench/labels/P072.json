@@ -1,0 +1,10 @@
+{
+  "id": "P072",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The TV plug is in no rule, and turning it off at Sat 00:00 affects nothing a rule watches.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

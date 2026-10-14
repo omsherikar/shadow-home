@@ -1,0 +1,10 @@
+{
+  "id": "P019",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "18 and 20.5 are within thermostat_main's 7-30 range and on its 0.5 step, and no rule covers the house temperature. The garage keeps its own heater at 9 C, and Coffee at 7 runs with everyone home.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

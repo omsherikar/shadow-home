@@ -1,0 +1,13 @@
+{
+  "id": "P044",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R4",
+    "R10"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "Away mode on its own locks nothing and switches nothing off: from 19:00 the front door is still unlocked (R4) and the living room, kitchen and Sam's lights are on (R10) until Good night at 22:30.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P102",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: no routine called good_morning; the home's morning routine is coffee_at_7.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

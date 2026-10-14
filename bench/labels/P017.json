@@ -1,0 +1,10 @@
+{
+  "id": "P017",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Raising the garage setpoint to 12 C at Sat 17:00 warms the garage from 9 C and holds it near 12 C through the -6 C night (the 1.5 kW heater easily covers the loss), so R3 holds with a wide margin.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

@@ -1,0 +1,10 @@
+{
+  "id": "P090",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "With the garage heater off from 09:30 to 10:30, the garage drifts from 9 C to about 8.4 C (about 8.1 C even with 20 percent more heat loss and 2 C colder air) before heat resumes, far above R3's 4 C.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

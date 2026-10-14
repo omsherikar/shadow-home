@@ -1,0 +1,13 @@
+{
+  "id": "P032",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R1",
+    "R2"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "all_plugs at 17:00 turns off the freezer (R1) and the aquarium heater (R2) for three hours before the 20:00 restore. The restore switching on the coffee maker and space heater breaks nothing, since everyone is home and the bedroom window is closed.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

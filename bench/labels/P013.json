@@ -1,0 +1,12 @@
+{
+  "id": "P013",
+  "expected": "UNSAFE",
+  "expectedRules": [
+    "R7"
+  ],
+  "expectedUnknowns": [],
+  "rationale": "The bedroom space heater turns on at Sat 16:00 while nobody is home until 18:00, breaking R7. The doors are locked, the indoor lights go off before everyone leaves, and the 21 C thermostat change breaks nothing.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

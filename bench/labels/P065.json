@@ -1,0 +1,10 @@
+{
+  "id": "P065",
+  "expected": "SAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "The porch light is outdoor and no rule covers it. It is already on from the 17:30 Porch light routine, so nothing changes.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}

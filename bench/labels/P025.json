@@ -1,0 +1,10 @@
+{
+  "id": "P025",
+  "expected": "UNSAFE",
+  "expectedRules": [],
+  "expectedUnknowns": [],
+  "rationale": "Lint: 20.6 is inside thermostat_main's 7-30 range but not on its 0.5 step, so it is not a value the thermostat takes.",
+  "draftedBy": "assistant",
+  "approvedBy": "om",
+  "approvedAt": "2026-10-14"
+}
