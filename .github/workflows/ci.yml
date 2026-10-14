@@ -42,6 +42,5 @@ jobs:
       - run: npm run synth -w @shadow-home/infra
       # So does the Cloud Run bundle.
       - run: node packages/infra/scripts/bundle.ts cloud-run
-      - run: npm run bench
-      # From Oct 20: fail the build if ShadowBench regresses.
-      # - run: node bench/runner/gate.js --min-catch-rate <from first report> --max-p99-ms 500
+      # ShadowBench: fails if any plan stops matching its approved label, or p99 reaches 500 ms.
+      - run: npm run bench -- --gate

@@ -6,6 +6,12 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "bench": "node -e \"const fs=require('node:fs');const n=fs.readdirSync('plans').filter(f=>f.endsWith('.json')).length;const a=fs.readdirSync('labels').filter(f=>f.endsWith('.json')).map(f=>JSON.parse(fs.readFileSync('labels/'+f,'utf8'))).filter(l=>l.approvedBy).length;console.log('ShadowBench: '+n+' plans, '+a+' approved labels. The runner arrives on Oct 20.')\""
+    "bench": "node --env-file-if-exists=../.env --env-file-if-exists=../.env.local runner/run.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.109.1",
+    "@shadow-home/engine": "0.1.0",
+    "@shadow-home/twin": "0.1.0"
   }
 }
