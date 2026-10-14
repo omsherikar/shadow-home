@@ -162,13 +162,23 @@ describe.each(['legacy', 'modern'] as const)('over the %s protocol', (era) => {
     });
 
     const repairId = preview.repair?.planId ?? '';
-    const committed = await api.call<CommitOutput>('commit_plan', { planId: repairId });
+    // The fixes aren't what was asked for, so they wait for the person's yes.
+    const asked = await api.call<CommitOutput>('commit_plan', { planId: repairId });
+    expect(asked).toMatchObject({ status: 'needs_confirmation', planId: repairId });
+    expect(asked.applied).toEqual([]);
+    const committed = await api.call<CommitOutput>('commit_plan', {
+      planId: repairId,
+      confirmed: true,
+    });
     expect(committed.status).toBe('committed');
     expect(committed.applied.map((c) => c.target)).toContain('thermostat_main');
     expect(committed.applied.map((c) => c.target)).not.toContain('plug_garage_freezer');
 
     // Idempotent: the same plan ID again returns the same result and changes nothing.
-    const again = await api.call<CommitOutput>('commit_plan', { planId: repairId });
+    const again = await api.call<CommitOutput>('commit_plan', {
+      planId: repairId,
+      confirmed: true,
+    });
     expect(again).toEqual(committed);
 
     const undo = await api.call<UndoOutput>('undo', {

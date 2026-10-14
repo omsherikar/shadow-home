@@ -85,14 +85,18 @@ describe('commit properties', { timeout: 60_000 }, () => {
         if (!p.safePart) return;
         safeParts++;
         expect(p.safePart.verdict).toBe('SAFE');
-        // A yes to a question that didn't offer the safe part doesn't count for it: a T2 safe
-        // part asks its own question first, and a yes to that commits it.
+        // A yes counts for the safe part only if the preview's question offered it. Otherwise
+        // the safe part asks its own question first, whatever its tier, and a yes to that commits it.
+        const offeredSafePart =
+          p.tier === 'T4' || (p.tier === 'T3' && p.repair?.verdict !== 'SAFE');
         let c = await s.commitPlan({ planId: p.planId, safePartOnly: true, confirmed: true });
         if (c.status === 'needs_confirmation') {
-          expect(p.safePart.tier).toBe('T2');
+          expect(offeredSafePart && p.safePart.tier !== 'T2').toBe(false);
           expect(c.planId).toBe(p.safePart.planId);
           expect(c.speech.ask).toBeTruthy();
           c = await s.commitPlan({ planId: p.safePart.planId, confirmed: true });
+        } else {
+          expect(offeredSafePart).toBe(true);
         }
         expect(c.status).toBe('committed');
         expect(c.planId).toBe(p.safePart.planId);

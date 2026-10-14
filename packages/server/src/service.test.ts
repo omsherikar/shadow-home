@@ -74,6 +74,29 @@ describe('a yes counts only for the question it answered', () => {
   });
 });
 
+describe('an alternative is not what was asked for', () => {
+  test('a SAFE repair still waits for a yes, then commits on it', async () => {
+    const { service } = setup('2027-01-15T21:30:00');
+    const p = await service.previewPlan({
+      intent: 'freezer and TV off',
+      requestedBy: 'om',
+      actions: [
+        { device: 'plug_garage_freezer', set: { onOff: false } },
+        { device: 'plug_tv', set: { onOff: false } },
+      ],
+    });
+    expect(p).toMatchObject({ verdict: 'UNSAFE', tier: 'T3', repair: { verdict: 'SAFE' } });
+    const repairId = p.repair?.planId ?? '';
+    const asked = await service.commitPlan({ planId: repairId });
+    expect(asked).toMatchObject({ status: 'needs_confirmation', planId: repairId });
+    expect(asked.speech.ask).toBeTruthy();
+    expect((await deviceState(service, 'plug_tv'))?.onOff).toBe(true);
+    expect((await service.commitPlan({ planId: repairId, confirmed: true })).status).toBe(
+      'committed',
+    );
+  });
+});
+
 describe('a yes to an offered alternative is not a yes to the plan', () => {
   const dishwasherAndTv = {
     intent: 'dishwasher at 2 and the TV off',
