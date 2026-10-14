@@ -1,0 +1,26 @@
+{
+  "name": "@shadow-home/infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK stack for Shadow Home: the MCP server on Lambda with a Function URL, DynamoDB, and the role the Echo Show host uses on Amplify Hosting.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "bundle": "node scripts/bundle.ts",
+    "synth": "node scripts/bundle.ts && cdk synth --quiet",
+    "bootstrap": "node scripts/bundle.ts && cdk bootstrap",
+    "deploy": "node scripts/bundle.ts && cdk deploy",
+    "destroy": "cdk destroy",
+    "serve-lambda": "node scripts/serve-lambda.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.273.0",
+    "constructs": "10.8.1"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "3.1151.0",
+    "aws-cdk": "2.1145.0",
+    "esbuild": "0.28.2"
+  }
+}
