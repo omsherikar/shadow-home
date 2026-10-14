@@ -1,0 +1,150 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { pick } from '../proxy.ts';
+import { VIEW_CSP, withPolicy } from '../screen/ScreenHost.ts';
+import { runTurn, type ToolRunner } from './run.ts';
+import { type Beat, bestBeat, normalise, scriptedModel, spokenFrom } from './scripted.ts';
+import type { Remembered } from './types.ts';
+
+const script = JSON.parse(
+  readFileSync(join(import.meta.dirname, '../../../../fixtures/demo-script.json'), 'utf8'),
+) as { beats: Beat[] };
+const model = scriptedModel(script.beats);
+
+/** The first step the scripted model takes for a line, given what was said before. */
+async function firstStep(text: string, history: Remembered[] = []) {
+  return model.next({ text, history, thisTurn: [] });
+}
+
+const preview = (sc: Record<string, unknown>): Remembered => ({
+  name: 'preview_plan',
+  arguments: {},
+  structuredContent: { planId: 'p1', kind: 'plan', repair: null, safePart: null, ...sc },
+});
+
+describe('the scripted stand-in for the model', () => {
+  test('a demo line drafts its scripted plan, with the context the line implies', async () => {
+    const step = await firstStep("I'm away for the weekend, set the house to away.");
+    expect(step).toMatchObject({
+      call: {
+        name: 'preview_plan',
+        arguments: {
+          requestedBy: 'om',
+          planEnd: '2027-01-17T18:00:00-06:00',
+          presenceSchedule: [{ presence: 'nobody' }],
+        },
+      },
+    });
+    if (!('call' in step)) throw new Error('expected a call');
+    expect(step.call.arguments.actions).toHaveLength(7);
+  });
+
+  test('a line close to a demo line still finds it; an unrelated one does not', () => {
+    expect(bestBeat(normalise('run the dishwasher at 2am, power is cheap'), script.beats)?.id).toBe(
+      'dishwasher_2am',
+    );
+    expect(bestBeat(normalise('play some jazz'), script.beats)).toBeUndefined();
+  });
+
+  test('a yes commits what the last question offered', async () => {
+    const repair = { planId: 'r1', verdict: 'SAFE', tier: 'T1' };
+    const yesTo = async (h: Remembered) => {
+      const step = await firstStep('yes', [h]);
+      return 'call' in step ? step.call.arguments : step;
+    };
+    expect(await yesTo(preview({ tier: 'T3', verdict: 'UNSAFE', repair }))).toEqual({
+      planId: 'r1',
+      confirmed: true,
+    });
+    expect(
+      await yesTo(preview({ tier: 'T4', verdict: 'UNPROVEN', safePart: { planId: 's1' } })),
+    ).toEqual({ planId: 'p1', safePartOnly: true, confirmed: true });
+    expect(await yesTo(preview({ tier: 'T2', verdict: 'SAFE' }))).toEqual({
+      planId: 'p1',
+      confirmed: true,
+    });
+    expect(await yesTo(preview({ tier: 'T5', verdict: 'UNSAFE' }))).toEqual({ say: 'Okay.' });
+    expect(
+      await yesTo({
+        name: 'commit_plan',
+        arguments: {},
+        structuredContent: { status: 'needs_confirmation', planId: 's1' },
+      }),
+    ).toEqual({ planId: 's1', confirmed: true });
+  });
+
+  test('"undo the thermostat" names the thermostats', async () => {
+    const names = {
+      devices: {
+        thermostat_main: { name: 'Main thermostat', room: 'Living room' },
+        plug_tv: { name: 'TV', room: 'Living room' },
+      },
+      routines: {},
+      members: {},
+    };
+    const step = await model.next({
+      text: 'Undo the thermostat.',
+      history: [],
+      names,
+      thisTurn: [],
+    });
+    expect(step).toEqual({
+      call: { name: 'undo', arguments: { token: 'last', devices: ['thermostat_main'] } },
+    });
+  });
+
+  test('it speaks only from the server’s speech fields', () => {
+    expect(
+      spokenFrom({ speech: { headline: 'Blocked.', reason: 'A rule.', ask: 'Fix it?' } }, []),
+    ).toBe('Blocked. A rule. Fix it?');
+    expect(spokenFrom(undefined, [{ type: 'text', text: '3 entries in 2 groups.' }])).toBe(
+      '3 entries in 2 groups.',
+    );
+  });
+
+  test('a turn calls tools until the model has something to say', async () => {
+    const calls: string[] = [];
+    const tools: ToolRunner = {
+      async callTool(name) {
+        calls.push(name);
+        return {
+          content: [{ type: 'text', text: 'SAFE (T0)' }],
+          structuredContent: { speech: { headline: 'Safe: TV off.' } },
+        };
+      },
+      resourceUriFor: (name) =>
+        name === 'preview_plan' ? 'ui://shadow-home/plan-view.html' : undefined,
+    };
+    const turn = await runTurn(model, tools, {
+      text: "I'm away for the weekend, set the house to away.",
+      history: [],
+    });
+    expect(calls).toEqual(['preview_plan']);
+    expect(turn.say).toBe('Safe: TV off.');
+    expect(turn.calls[0]?.resourceUri).toBe('ui://shadow-home/plan-view.html');
+  });
+});
+
+describe('putting a view on screen', () => {
+  test('the content policy comes first in the head, before any of the view’s script', () => {
+    const html = withPolicy('<!doctype html><html><head><title>x</title><script>1</script>');
+    expect(html.indexOf(VIEW_CSP)).toBeGreaterThan(0);
+    expect(html.indexOf(VIEW_CSP)).toBeLessThan(html.indexOf('<title>'));
+    expect(VIEW_CSP).toContain("default-src 'none'");
+    expect(withPolicy('<p>no head</p>').startsWith('<meta')).toBe(true);
+  });
+
+  test('the MCP proxy passes on protocol headers and drops the browser’s own', () => {
+    const forwarded = pick(
+      new Headers({
+        'content-type': 'application/json',
+        'mcp-protocol-version': '2025-11-25',
+        cookie: 'session=1',
+        origin: 'http://localhost:3001',
+      }),
+      ['content-type', 'mcp-protocol-version'],
+    );
+    expect([...forwarded.keys()].sort()).toEqual(['content-type', 'mcp-protocol-version']);
+  });
+});

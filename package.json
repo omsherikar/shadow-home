@@ -13,7 +13,7 @@
     "bench"
   ],
   "scripts": {
-    "dev": "npm run dev --workspaces --if-present",
+    "dev": "node scripts/dev.ts",
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run --passWithNoTests",
     "lint": "biome check .",
@@ -22,10 +22,12 @@
     "bench": "npm run bench --workspace bench --if-present",
     "inspect": "npx @modelcontextprotocol/inspector@2.10.1",
     "bedrock:ping": "scripts/bedrock-ping.sh",
-    "latency": "node scripts/latency.ts"
+    "latency": "node scripts/latency.ts",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.64.0",
     "@types/node": "22.20.5",
     "fast-check": "4.10.2",
     "typescript": "7.0.2",

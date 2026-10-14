@@ -1,0 +1,261 @@
+/* A 10-inch smart display on a shelf: 16:10 screen in a dark bezel, read from across a room. */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% 15%, #3b3129 0%, #1d1814 55%, #120f0c 100%);
+  color: #f1f5f9;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.room {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px 40px;
+}
+
+.device {
+  position: relative;
+  width: min(94vw, 1180px, calc((100vh - 200px) * 1.6));
+  aspect-ratio: 16 / 10;
+  padding: 18px 18px 26px;
+  border-radius: 26px;
+  background: #0a0a0a;
+  box-shadow:
+    0 30px 80px rgb(0 0 0 / 55%),
+    inset 0 0 0 2px #1f1f1f;
+}
+
+.camera {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #262626;
+  transform: translateX(-50%);
+}
+
+.screen {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #0b1020;
+}
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 16px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.content {
+  position: relative;
+  min-height: 0;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+}
+
+.view[hidden] {
+  display: none;
+}
+
+.view iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.card-message {
+  margin: 0;
+  padding: 12% 10%;
+  color: #cbd5e1;
+  font-size: clamp(16px, 2vw, 26px);
+  text-align: center;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  padding: 5% 7%;
+  font-size: clamp(15px, 1.9vw, 26px);
+}
+
+.home-card p {
+  margin: 0;
+}
+
+.home-card .mode {
+  font-size: 2.2em;
+  font-weight: 700;
+}
+
+.home-card .people {
+  color: #cbd5e1;
+  font-size: 1.2em;
+}
+
+.home-card .zones {
+  display: flex;
+  gap: 2em;
+  margin: 0.8em 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-card .zones li {
+  display: flex;
+  flex-direction: column;
+  color: #94a3b8;
+}
+
+.home-card .zones strong {
+  color: #f1f5f9;
+  font-size: 1.6em;
+}
+
+.home-card .hint {
+  margin-top: auto;
+  color: #64748b;
+}
+
+.log-card {
+  padding: 3% 5%;
+  font-size: clamp(14px, 1.6vw, 22px);
+}
+
+.log-card h2 {
+  margin: 0 0 0.5em;
+  color: #94a3b8;
+  font-size: 0.8em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.log-card h3 {
+  margin: 0.6em 0 0.2em;
+}
+
+.log-card ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.log-card .who,
+.log-card .undoable {
+  color: #94a3b8;
+}
+
+.caption {
+  min-height: 3.2em;
+  padding: 6px 18px 12px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 35%));
+  font-size: clamp(13px, 1.35vw, 19px);
+}
+
+.caption p {
+  margin: 0;
+}
+
+.caption .heard {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.caption .said {
+  margin-top: 2px;
+  color: #e0f2fe;
+}
+
+.lightbar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #0ea5e9, #67e8f9, #0ea5e9);
+  background-size: 200% 100%;
+  opacity: 0.25;
+  transition: opacity 0.3s;
+}
+
+.lightbar.on {
+  opacity: 1;
+  animation: listen 1.2s linear infinite;
+}
+
+@keyframes listen {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.voice {
+  display: flex;
+  gap: 8px;
+  width: min(94vw, 1180px);
+}
+
+.voice input {
+  flex: 1;
+  padding: 12px 18px;
+  border: 1px solid #3f3a35;
+  border-radius: 999px;
+  background: #1c1916;
+  color: #f5f5f4;
+  font: inherit;
+  font-size: 16px;
+}
+
+.voice button {
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #0ea5e9;
+  color: #04111d;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(94vw, 1180px);
+}
+
+.suggestions button {
+  padding: 8px 14px;
+  border: 1px solid #3f3a35;
+  border-radius: 999px;
+  background: #26211d;
+  color: #e7e5e4;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

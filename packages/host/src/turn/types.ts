@@ -1,0 +1,52 @@
+import type { CallToolResult } from '@modelcontextprotocol/client';
+
+/** Display names the server sends with plan-view results, keyed by ID. */
+export interface Names {
+  devices: Record<string, { name: string; room: string }>;
+  routines: Record<string, string>;
+  members: Record<string, string>;
+}
+
+/** One tool call the assistant made this turn, with what came back. */
+export interface ToolCall {
+  name: string;
+  arguments: Record<string, unknown>;
+  result: CallToolResult;
+  /** The MCP App view the tool declares, if any. */
+  resourceUri?: string;
+}
+
+/** What the browser keeps of earlier calls and sends back each turn: no view metadata. */
+export interface Remembered {
+  name: string;
+  arguments: Record<string, unknown>;
+  structuredContent?: Record<string, unknown>;
+}
+
+export interface TurnRequest {
+  text: string;
+  history: Remembered[];
+  names?: Names;
+  /** What a view on screen last told the assistant (a tap), for its next turn. */
+  screen?: string;
+}
+
+export interface TurnResponse {
+  /** What the assistant says, built from the server's speech fields. */
+  say: string;
+  calls: ToolCall[];
+}
+
+export type ModelStep =
+  | { call: { name: string; arguments: Record<string, unknown> } }
+  | { say: string };
+
+export interface ModelInput extends TurnRequest {
+  /** Calls already made this turn, in order. */
+  thisTurn: ToolCall[];
+}
+
+/** Whatever decides the next step of a turn: a scripted stand-in today, Bedrock next. */
+export interface Model {
+  next(input: ModelInput): Promise<ModelStep>;
+}

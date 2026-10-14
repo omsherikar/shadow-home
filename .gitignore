@@ -20,3 +20,7 @@ CLAUDE.local.md
 # ShadowBench run output (keep the folder)
 bench/reports/*
 !bench/reports/.gitkeep
+test-results/
+playwright-report/
+*.tsbuildinfo
+next-env.d.ts
