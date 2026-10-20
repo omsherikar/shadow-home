@@ -551,4 +551,17 @@ describe('leaving, with nothing to change', () => {
     });
     expectSpeechWithinLimits(a.speech);
   });
+
+  test('a check with no actions where nobody leaves keeps the usual words', () => {
+    // An undo that only cancels a scheduled write has no actions and no presence schedule.
+    expect(assess(home, plan([])).speech).toEqual({ headline: 'Safe: nothing needed changing.' });
+    const arriving: Plan = {
+      context: {
+        now: NOW,
+        presenceSchedule: [{ from: NOW, to: '2027-01-15T21:45:00-06:00', presence: 'everyone' }],
+      },
+      actions: [],
+    };
+    expect(assess(home, arriving).speech).toEqual({ headline: 'Safe: nothing needed changing.' });
+  });
 });
