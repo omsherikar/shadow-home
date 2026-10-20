@@ -21,3 +21,58 @@ export interface LiveHome {
   zones: { id: string; name: string; tempC: number }[];
   devices: LiveDevice[];
 }
+
+export interface Look {
+  /** Light the device gives off: 0 is dark, 1 full. */
+  glow: number;
+  /** Its status light: fine, worth a look, alarming, off, or a reading the twin can't trust. */
+  status: 'ok' | 'warn' | 'alarm' | 'off' | 'unknown';
+  /** A door unlocked or a window open. */
+  open: boolean;
+}
+
+const DARK: Look = { glow: 0, status: 'off', open: false };
+
+/** How a device looks in a given state. A device the home doesn't report is drawn dark. */
+export function lookOf(device: LiveDevice | undefined): Look {
+  if (!device) return DARK;
+  const s = device.state;
+  const look = ((): Look => {
+    switch (device.kind) {
+      case 'light': {
+        if (s.onOff !== true) return DARK;
+        const level = typeof s.brightness === 'number' ? s.brightness / 100 : 1;
+        return { glow: Math.min(1, Math.max(0.15, level)), status: 'ok', open: false };
+      }
+      case 'plug':
+      case 'appliance':
+        return s.onOff === true ? { glow: 1, status: 'ok', open: false } : DARK;
+      case 'lock':
+        if (s.lockState === 'LOCKED') return { glow: 0, status: 'ok', open: false };
+        if (s.lockState === 'UNLOCKED') return { glow: 0, status: 'warn', open: true };
+        return { glow: 0, status: 'alarm', open: false };
+      case 'contact_sensor':
+        return s.contact === 'open'
+          ? { glow: 0, status: 'warn', open: true }
+          : { glow: 0, status: 'ok', open: false };
+      case 'occupancy_sensor':
+        return { glow: s.occupied === true ? 1 : 0, status: 'ok', open: false };
+      case 'smoke_alarm':
+        if (s.enabled === false) return DARK;
+        if (s.smokeState === 'critical') return { glow: 1, status: 'alarm', open: false };
+        if (s.smokeState === 'warning') return { glow: 0.6, status: 'warn', open: false };
+        return { glow: 0, status: 'ok', open: false };
+      case 'thermostat': {
+        if (s.systemMode !== 'heat') return DARK;
+        const t = s.localTemperatureC;
+        const set = s.heatingSetpointC;
+        const heating = typeof t === 'number' && typeof set === 'number' && t < set;
+        return { glow: heating ? 1 : 0.35, status: 'ok', open: false };
+      }
+      default:
+        return DARK;
+    }
+  })();
+  // A low battery or a silent sensor: whatever it says can't be relied on.
+  return device.sensor?.trusted === false ? { ...look, status: 'unknown' } : look;
+}
