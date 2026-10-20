@@ -383,3 +383,20 @@ h2 {
 .temps .band.unsure {
   fill: color-mix(in srgb, var(--rule) 28%, transparent);
 }
+
+.temps .curve {
+  fill: none;
+  stroke: var(--soft);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.temps .curve.held {
+  stroke: var(--safe);
+}
+
+.temps .curve.blocked,
+.temps .curve.unsure {
+  stroke: var(--rule);
+}
