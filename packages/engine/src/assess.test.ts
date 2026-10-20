@@ -540,6 +540,23 @@ describe('leaving, with nothing to change', () => {
     expect(a.speech).toEqual({ headline: "You're all set: nothing needs changing before you go." });
   });
 
+  test('a refuse rule the house already breaks gets a fix, not a refusal: nothing was asked for', () => {
+    const a = assess(
+      home,
+      leaving({ ...ready, smoke_alarm_kitchen: { state: { enabled: false } } }),
+    );
+    expect(a.check.verdict).toBe('UNSAFE');
+    expect(a.tier.tier).toBe('T3');
+    expect(a.offered).toBe('repair');
+    expect(a.repaired?.detail.repairs).toMatchObject([{ rule: 'R12', kind: 'add_action' }]);
+    expect(a.repaired?.check.verdict).toBe('SAFE');
+    expect(a.speech).toEqual({
+      headline: 'Before you go: Kitchen smoke alarm disabled.',
+      reason: "Smoke alarms can never be turned off. That's Om's rule.",
+      ask: 'Shall I fix it?',
+    });
+  });
+
   test("can't confirm a lock whose battery is low, and asks nothing: there is nothing to run", () => {
     const lowLock = { state: { lockState: 'LOCKED' }, sensor: { batteryPercent: 9 } };
     const a = assess(home, leaving({ ...ready, front_door_lock: lowLock }));
