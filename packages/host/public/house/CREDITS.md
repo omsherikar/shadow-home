@@ -57,3 +57,11 @@ The 1k HDR file, unchanged, used only to light the scene; the sky itself is draw
 | File | Asset | Authors | Size |
 | --- | --- | --- | --- |
 | `belfast_sunset_puresky_1k.hdr` | [Belfast Sunset (Pure Sky)](https://polyhaven.com/a/belfast_sunset_puresky) | Dimitrios Savva, Greg Zaal, Jarod Guest | 1162 KB |
+
+## Built in code
+
+No CC0 model fitted these, so they are drawn from simple shapes in matching materials: the walls,
+the kitchen counters, both beds, the rugs, the garage's wall heater, the people, and every smart
+device (thermostats, lights, plugs and what they power, locks, sensors, the smoke alarm, the
+dishwasher, the coffee maker, the TV, the aquarium and the chest freezer), since devices light up
+and change as the plan plays.
