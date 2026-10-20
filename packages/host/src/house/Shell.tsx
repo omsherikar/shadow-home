@@ -4,7 +4,7 @@ import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
 import { groundBounds, houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
-import type { HouseLayout, Opening, Room } from './layout.ts';
+import type { Built, HouseLayout, Opening, Room } from './layout.ts';
 import { type LiveHome, lookOf } from './looks.ts';
 import { palette } from './palette.ts';
 
@@ -27,6 +27,9 @@ export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | 
           wallHeight={wallHeightAt(layout, o)}
           open={lookOf(device(o.device)).open}
         />
+      ))}
+      {layout.built.map((b) => (
+        <BuiltPiece key={`${b.shape},${b.x},${b.z}`} piece={b} />
       ))}
     </>
   );
@@ -248,6 +251,30 @@ function Frame({ width, height }: { width: number; height: number }) {
           <meshStandardMaterial color={palette.ivory} roughness={0.5} />
         </mesh>
       ))}
+    </>
+  );
+}
+
+/** Counters, beds, rugs and the garage heater, from simple shapes in matching materials. */
+function BuiltPiece({ piece: b }: { piece: Built }) {
+  return (
+    <group position={[b.x, b.y, b.z]} rotation-y={deg(b.facing)}>
+      {b.shape === 'counter' ? <Counter b={b} /> : null}
+    </group>
+  );
+}
+
+function Counter({ b }: { b: Built }) {
+  return (
+    <>
+      <mesh position={[0, (b.height - 0.04) / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[b.width, b.height - 0.04, b.depth]} />
+        <meshStandardMaterial color={palette.counterFront} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, b.height - 0.02, 0.01]} castShadow receiveShadow>
+        <boxGeometry args={[b.width + 0.02, 0.04, b.depth + 0.02]} />
+        <meshStandardMaterial color={palette.counterTop} roughness={0.35} />
+      </mesh>
     </>
   );
 }
