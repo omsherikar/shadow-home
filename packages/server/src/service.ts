@@ -685,6 +685,23 @@ export class ShadowHomeService {
   }
 
   /**
+   * The twin's temperatures over time for every preview in a tool result (a preview, an undo's,
+   * or a fresh one after a stale plan ID), by plan ID: the plan's own and its repair's.
+   */
+  temperatures(result: unknown): Record<string, TemperatureTrace> {
+    const found: Record<string, TemperatureTrace> = {};
+    const visit = (value: unknown): void => {
+      if (Array.isArray(value)) for (const v of value) visit(v);
+      else if (value && typeof value === 'object') {
+        Object.assign(found, this.traces.get(value));
+        for (const v of Object.values(value)) visit(v);
+      }
+    };
+    visit(result);
+    return found;
+  }
+
+  /**
    * A tap on screen, standing in for a spoken yes. Only the plan view has the plan's approval
    * token, so a model that can see this tool (a host that ignores `visibility`) can't use it.
    */
