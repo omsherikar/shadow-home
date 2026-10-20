@@ -159,6 +159,15 @@ describe('checking the house as someone leaves', () => {
     expect(c.applied).toHaveLength(4);
     expect(c.held).toEqual([]);
   });
+
+  test('a yes after the minute turns over is done too, not refused as stale', async () => {
+    const { clock, service } = setup('2027-01-15T17:45:00');
+    const p = await headingOut(service);
+    clock.advance(60_000);
+    const c = await service.commitPlan({ planId: p.repair?.planId ?? '', confirmed: true });
+    expect(c).toMatchObject({ status: 'committed', speech: { headline: 'Done: 4 changes.' } });
+    expect(c.applied).toHaveLength(4);
+  });
 });
 
 describe('undo', () => {
