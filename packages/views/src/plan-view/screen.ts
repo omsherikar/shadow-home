@@ -314,12 +314,12 @@ export function commitScreen(
   };
 }
 
-export function undoScreen(u: Undo, names?: Names): Screen {
+export function undoScreen(u: Undo, names?: Names, temps: Temperatures = NO_TEMPERATURES): Screen {
   const cannot = u.cannotUndo.map(
     (c) => `${deviceName(c.target, names)} can't be put back: ${c.why}.`,
   );
   if (u.status === 'preview' && u.preview) {
-    const s = previewScreen(u.preview, names);
+    const s = previewScreen(u.preview, names, temps);
     return {
       ...s,
       headline: u.speech.headline,
