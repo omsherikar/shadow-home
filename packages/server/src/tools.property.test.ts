@@ -467,3 +467,159 @@ describe('every tool answers whatever arguments it is sent', { timeout: 60_000 }
     expectEveryEra(answered);
   });
 });
+
+// ---- Calls in sequence, passing along what the server hands out ----
+
+type Step =
+  | { tool: 'preview_plan'; args: unknown }
+  | { tool: 'commit_plan'; plan: number; confirmed: unknown; safePartOnly: unknown }
+  | { tool: 'approve_plan'; plan: number; token: 'own' | number }
+  | { tool: 'undo'; token: 'last' | number; devices: unknown }
+  | { tool: 'get_activity_log' | 'get_home_state' | 'add_house_rule'; args: unknown }
+  | { minutes: number };
+
+/** Left out, `arb`, or now and then junk. */
+const optional = <T>(arb: fc.Arbitrary<T>) =>
+  fc.option(fc.oneof({ weight: 8, arbitrary: arb }, { weight: 1, arbitrary: junk }), {
+    nil: undefined,
+  });
+const step: fc.Arbitrary<Step> = fc.oneof(
+  {
+    weight: 3,
+    arbitrary: fc.record({
+      tool: fc.constant('preview_plan' as const),
+      args: fc.oneof(fc.constantFrom(...PREVIEWS), plan),
+    }),
+  },
+  {
+    weight: 3,
+    arbitrary: fc.record({
+      tool: fc.constant('commit_plan' as const),
+      plan: fc.nat(),
+      confirmed: optional(fc.boolean()),
+      safePartOnly: optional(fc.boolean()),
+    }),
+  },
+  fc.record({
+    tool: fc.constant('approve_plan' as const),
+    plan: fc.nat(),
+    token: fc.oneof(fc.constant('own' as const), fc.nat()),
+  }),
+  fc.record({
+    tool: fc.constant('undo' as const),
+    token: fc.oneof(fc.constant('last' as const), fc.nat()),
+    devices: optional(fc.array(name, { maxLength: 3 })),
+  }),
+  ...(['get_activity_log', 'get_home_state', 'add_house_rule'] as const).map((tool) =>
+    fc.record({
+      tool: fc.constant(tool),
+      args: fc.oneof(
+        fc.constantFrom(...examples(tool, { planIds: [], tokens: {}, undoTokens: [] })),
+        editedFrom(examples(tool, { planIds: [], tokens: {}, undoTokens: [] }), 2),
+      ),
+    }),
+  ),
+  // A few minutes, inside a plan ID's five; or up to half a day, which routines fire in.
+  fc.record({
+    minutes: fc.oneof(fc.integer({ min: 1, max: 4 }), fc.integer({ min: 5, max: 12 * 60 })),
+  }),
+);
+
+/** The `i`th of `list`, wrapping round; undefined when there are none. */
+const nth = <T>(list: T[], i: number): T | undefined => list[i % Math.max(1, list.length)];
+
+/** A step's tool and arguments, using what the server has handed out so far. */
+function call(s: Exclude<Step, { minutes: number }>, known: Known): [Tool, unknown] {
+  switch (s.tool) {
+    case 'commit_plan':
+      return [
+        s.tool,
+        {
+          planId: nth(known.planIds, s.plan) ?? 'sh1.none.none',
+          confirmed: s.confirmed,
+          safePartOnly: s.safePartOnly,
+        },
+      ];
+    case 'approve_plan': {
+      const planId = nth(known.planIds, s.plan) ?? 'sh1.none.none';
+      const tokens = Object.values(known.tokens);
+      const token = s.token === 'own' ? known.tokens[planId] : nth(tokens, s.token);
+      return [s.tool, { planId, approvalToken: token ?? 'none' }];
+    }
+    case 'undo': {
+      const token = s.token === 'last' ? 'last' : (nth(known.undoTokens, s.token) ?? 'last');
+      return [s.tool, { token, devices: s.devices }];
+    }
+    default:
+      return [s.tool, s.args];
+  }
+}
+
+describe('calls in sequence', { timeout: 60_000 }, () => {
+  test('passing plan IDs, approval tokens and undo tokens along, as time moves, every call is answered', async () => {
+    const seen = { committed: 0, undone: 0 };
+    const answered = byEra();
+    await fc.assert(
+      fc.asyncProperty(
+        fc.constantFrom(...ERAS),
+        fc.array(step, { minLength: 1, maxLength: 8 }),
+        async (era, steps) => {
+          const { app, clock } = fresh();
+          const known: Known = { planIds: [], tokens: {}, undoTokens: [] };
+          for (const s of steps) {
+            if ('minutes' in s) {
+              clock.advance(s.minutes * 60_000);
+              continue;
+            }
+            const [tool, args] = call(s, known);
+            const reply = await send(app, era, tool, args);
+            if (expectAnswered(tool, reply) === 'answered') answered[era]++;
+            harvest(known, reply);
+            const out = reply.result?.structuredContent as { status?: string } | undefined;
+            if (tool === 'commit_plan' && out?.status === 'committed') seen.committed++;
+            if (tool === 'undo' && out?.status === 'preview') seen.undone++;
+          }
+        },
+      ),
+      {
+        numRuns: 15,
+        // Preview, commit, undo and commit the undo, so those paths never depend on luck; run
+        // past the end of the forecast, where a long-running local server ends up; and commit a
+        // safe part. One on each protocol version.
+        examples: [
+          [
+            '2025-03-26',
+            [
+              { tool: 'preview_plan', args: PREVIEWS[0] },
+              { tool: 'commit_plan', plan: 0, confirmed: undefined, safePartOnly: undefined },
+              { tool: 'undo', token: 'last', devices: undefined },
+              { tool: 'approve_plan', plan: 1, token: 'own' },
+              { tool: 'commit_plan', plan: 1, confirmed: true, safePartOnly: undefined },
+              { minutes: 90 },
+              { tool: 'get_activity_log', args: {} },
+            ],
+          ],
+          [
+            '2026-07-28',
+            [
+              ...Array.from({ length: 7 }, () => ({ minutes: 12 * 60 })),
+              { tool: 'preview_plan', args: PREVIEWS[4] },
+              { tool: 'get_home_state', args: {} },
+            ],
+          ],
+          [
+            '2025-11-25',
+            [
+              { tool: 'preview_plan', args: PREVIEWS[3] },
+              { tool: 'commit_plan', plan: 0, confirmed: true, safePartOnly: true },
+              { tool: 'get_home_state', args: { room: 'garage' } },
+            ],
+          ],
+        ],
+      },
+    );
+    expect(seen.committed).toBeGreaterThan(0);
+    expect(seen.undone).toBeGreaterThan(0);
+    expectEveryEra(answered);
+  });
+});
