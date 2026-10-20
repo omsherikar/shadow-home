@@ -399,6 +399,14 @@ describe('checking the house as someone leaves', () => {
     await api.client.close();
     await env.close();
   });
+  const leaving = {
+    intent: "I'm heading out.",
+    requestedBy: 'om',
+    actions: [],
+    presenceSchedule: [
+      { from: '2027-01-15T17:45:00-06:00', to: '2027-01-15T21:45:00-06:00', presence: 'nobody' },
+    ],
+  };
 
   test('no actions and no presence schedule is refused at the tool boundary', async () => {
     const r = await api.client.callTool({
@@ -407,6 +415,39 @@ describe('checking the house as someone leaves', () => {
     });
     expect(r.isError).toBe(true);
     expect(JSON.stringify(r.content)).toContain('presenceSchedule');
+  });
+
+  test('what the house still needs is fixed by the steps the repair adds, on a yes', async () => {
+    const p = await api.call<PreviewOutput>('preview_plan', leaving);
+    expect(previewOutput.parse(p)).toBeTruthy();
+    expect(p).toMatchObject({ verdict: 'UNSAFE', tier: 'T3', diff: [], safePart: null });
+    expect(p.speech).toEqual({
+      headline: 'Before you go: Front door lock unlocked, Living room lights on and 2 more.',
+      reason: "Front door locked when nobody's home. That's Om's rule.",
+      ask: 'Shall I fix all 4?',
+    });
+    expect(p.repair).toMatchObject({ verdict: 'SAFE', tier: 'T0' });
+    expect(p.repair?.changes.map((c) => `${c.kind} ${c.target}`)).toEqual([
+      'add_action front_door_lock',
+      'add_action light_living',
+      'add_action light_kitchen',
+      'add_action light_bedroom_sam',
+    ]);
+
+    const c = await api.call<CommitOutput>('commit_plan', {
+      planId: p.repair?.planId,
+      confirmed: true,
+    });
+    expect(commitOutput.parse(c)).toBeTruthy();
+    expect(c.status).toBe('committed');
+    expect(c.applied.map((x) => `${x.target} ${String(x.to)}`)).toEqual([
+      'front_door_lock LOCKED',
+      'light_living false',
+      'light_kitchen false',
+      'light_bedroom_sam false',
+    ]);
+    const log = await api.call<LogOutput>('get_activity_log', { groupBy: 'none' });
+    expect(log.entries.at(-1)).toMatchObject({ id: c.logEntryId, what: "I'm heading out." });
   });
 });
 
