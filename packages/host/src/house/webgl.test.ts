@@ -11,4 +11,9 @@ describe('whether the browser can draw the house', () => {
     expect(webglAvailable(() => canvas)).toBe(true);
     expect(loseContext).toHaveBeenCalledOnce();
   });
+
+  test('yes with WebGL 1 alone', () => {
+    const canvas = { getContext: (kind: string) => (kind === 'webgl' ? {} : null) };
+    expect(webglAvailable(() => canvas)).toBe(true);
+  });
 });
