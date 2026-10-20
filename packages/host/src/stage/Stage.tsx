@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import {
+  Component,
   type CSSProperties,
   type ReactNode,
   useCallback,
@@ -75,12 +76,14 @@ export function Stage(props: StageProps) {
       {withHouse ? (
         <section className="house-panel" aria-label="The house">
           {house === 'on' ? (
-            <House
-              home={props.home}
-              onFail={fail}
-              onLabels={setLabels}
-              shift={houseOnly ? 0.08 : 0}
-            />
+            <Contained onError={fail}>
+              <House
+                home={props.home}
+                onFail={fail}
+                onLabels={setLabels}
+                shift={houseOnly ? 0.08 : 0}
+              />
+            </Contained>
           ) : null}
           <div className="room-labels" aria-hidden="true">
             {labels.map((l) => (
@@ -122,6 +125,27 @@ export function Stage(props: StageProps) {
       </section>
     </div>
   );
+}
+
+/**
+ * Keeps whatever goes wrong with the house to the house: its code failing to download (a flaky
+ * network, or a new deploy between loading the page and fetching the chunk), an error as it loads,
+ * a model or texture that won't load, or the scene throwing. The page then becomes the device alone.
+ */
+class Contained extends Component<{ onError(): void; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch() {
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
 }
 
 /** How far to scale the device down to fit its panel. */
