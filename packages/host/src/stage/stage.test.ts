@@ -50,4 +50,12 @@ describe('the verdict chip', () => {
     expect(chipFor('undo', { status: 'preview', preview: { verdict: 'SAFE' } })).toBe('SAFE');
     expect(chipFor('undo', { status: 'nothing_to_undo' })).toBeUndefined();
   });
+
+  test('a commit shows done, or the verdict of the fresh preview it was refused with', () => {
+    expect(chipFor('commit_plan', { status: 'committed' })).toBe('DONE');
+    expect(
+      chipFor('commit_plan', { status: 'refused', freshPreview: { verdict: 'UNPROVEN' } }),
+    ).toBe('UNPROVEN');
+    expect(chipFor('commit_plan', { status: 'needs_confirmation' })).toBeUndefined();
+  });
 });
