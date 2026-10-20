@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fits, MAX_HISTORY, MAX_TEXT } from './bounds.ts';
+import { fits, MAX_ARGUMENTS, MAX_HISTORY, MAX_TEXT } from './bounds.ts';
 import type { Names } from './types.ts';
 
 /** What the browser sends for one turn, within the bounds in bounds.ts. */
@@ -9,7 +9,7 @@ export const turnRequest = z.object({
     .array(
       z.object({
         name: z.string(),
-        arguments: z.record(z.string(), z.unknown()),
+        arguments: z.record(z.string(), z.unknown()).refine(fits(MAX_ARGUMENTS)),
         structuredContent: z.record(z.string(), z.unknown()).optional(),
         by: z.literal('screen').optional(),
       }),
