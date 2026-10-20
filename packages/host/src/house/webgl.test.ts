@@ -20,4 +20,12 @@ describe('whether the browser can draw the house', () => {
   test('no when the browser gives no context', () => {
     expect(webglAvailable(() => ({ getContext: () => null }))).toBe(false);
   });
+
+  test('no when asking throws', () => {
+    expect(
+      webglAvailable(() => {
+        throw new Error('blocked');
+      }),
+    ).toBe(false);
+  });
 });
