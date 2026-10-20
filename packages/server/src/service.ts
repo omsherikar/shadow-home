@@ -62,7 +62,7 @@ import type {
   UndoInfo,
 } from './store.ts';
 import { plainText } from './text.ts';
-import { isoAt } from './time.ts';
+import { floorToMinute, isoAt } from './time.ts';
 
 export interface ServiceOptions {
   store: Store;
@@ -202,6 +202,13 @@ export class ShadowHomeService {
       // Every time in the context must carry an offset: without one, Date.parse would read it in
       // the server's own time zone and the verdict would depend on where the server runs.
       planContextSchema.parse(plan.context);
+      if (plan.context.presenceSchedule) {
+        plan.context.presenceSchedule = startingNow(
+          plan.context.presenceSchedule,
+          nowMs,
+          state.home.home.utcOffset,
+        );
+      }
       return this.preview(state, nowMs, plan, {
         kind: 'plan',
         intent: plainText(input.intent),
@@ -1122,6 +1129,23 @@ function temperatureRules(home: Home): Record<string, TemperatureRule> {
     };
   }
   return out;
+}
+
+/**
+ * A presence window that starts within the current minute starts at that minute. The simulation
+ * steps a minute at a time from the start of this one, so "from now" written with seconds, as
+ * get_home_state gives the time, would leave everyone home for the first step and put each fix a
+ * minute later: held rather than done, and stale once the minute turns.
+ */
+function startingNow(
+  schedule: NonNullable<Plan['context']['presenceSchedule']>,
+  nowMs: number,
+  utcOffset: string,
+): NonNullable<Plan['context']['presenceSchedule']> {
+  const minute = floorToMinute(nowMs);
+  return schedule.map((w) =>
+    floorToMinute(Date.parse(w.from)) === minute ? { ...w, from: isoAt(minute, utcOffset) } : w,
+  );
 }
 
 function retime(plan: Plan, now: string): Plan {
