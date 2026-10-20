@@ -40,4 +40,13 @@ describe('an hourly budget', () => {
     expect(spend(101)).toBe(false);
     expect(spend(100)).toBe(true);
   });
+
+  test('fits says whether an amount would be spent, and spends nothing', () => {
+    const spend = hourlyBudget(10, () => 0);
+    expect(spend.fits(10)).toBe(true);
+    expect(spend.fits(10)).toBe(true);
+    expect(spend(6)).toBe(true);
+    expect([spend.fits(4), spend.fits(5), spend.fits()]).toEqual([true, false, true]);
+    expect(spend(4)).toBe(true);
+  });
 });
