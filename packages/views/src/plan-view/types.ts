@@ -141,3 +141,16 @@ export interface TemperatureTrace {
  * what the model reads.
  */
 export const TEMPERATURES_META_KEY = 'shadow-home/temperatures';
+
+/**
+ * A house rule that keeps a zone's temperature within bounds at all times, as the check read it.
+ * The screen draws a plan's temperatures against it. `heatedBy` names the devices that warm the
+ * zone: its thermostat, and appliances that give off heat there.
+ */
+export interface TemperatureRule {
+  zone: string;
+  zoneName: string;
+  minC: number | null;
+  maxC: number | null;
+  heatedBy: string[];
+}
