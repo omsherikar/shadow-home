@@ -18,6 +18,7 @@ import { createApp } from './app.ts';
 import { compilerFromEnv } from './compiler.ts';
 import { deployedHome } from './deployed.ts';
 import { dynamoStore } from './dynamo-store.ts';
+import { log } from './log.ts';
 import { ShadowHomeService } from './service.ts';
 
 type Handler = ReturnType<typeof handle>;
@@ -74,7 +75,7 @@ export async function handler(event: LambdaEvent, context: LambdaContext) {
     app = handle(
       createApp(await service, {
         allowedHosts: [...(domain ? [domain] : []), ...extra],
-        onError: (e) => console.error('mcp:', e.message),
+        onError: (e) => log('ERROR', 'mcp error', { error: e.name, reason: e.message }),
       }),
     );
     apps.set(domain, app);
