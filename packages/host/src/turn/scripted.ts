@@ -36,13 +36,18 @@ export interface Beat {
 /** A whole reply that means yes: "yes", "okay, do it", "yes please". Not "okay, what changed?". */
 const YES = /^(yes|yeah|yep|sure|ok|okay|go ahead|do it)( (please|do it|go ahead|thanks))*$/;
 const NO = /^(no|nope|cancel|never ?mind|stop|keep it)\b/;
+/** Someone going out with nothing else to change: "I'm heading out", "we're leaving now". */
+const LEAVING = /^(im|i am|were|we are) (heading out|leaving|going out|off)( now)?$/;
+/** How long the house is checked empty when someone leaves without saying when they'll be back. */
+const LEAVING_HOURS = 4;
 
 /**
  * A stand-in for the model that knows the demo lines. It drafts the scripted plan for a demo
- * request, answers yes and no to the last question asked, undoes, and reads the log. It speaks
- * only from the server's speech fields, which is what the real model is told to do too.
+ * request, checks the house when someone leaves, answers yes and no to the last question asked,
+ * undoes, and reads the log. It speaks only from the server's speech fields, which is what the
+ * real model is told to do too. `home.now` is the home's time, as the real model is told it.
  */
-export function scriptedModel(beats: Beat[]): Model {
+export function scriptedModel(beats: Beat[], home?: { now: string }): Model {
   return {
     async next(input: ModelInput): Promise<ModelStep> {
       const last = input.thisTurn.at(-1);
@@ -50,12 +55,12 @@ export function scriptedModel(beats: Beat[]): Model {
         const structured = last.result.structuredContent as Record<string, unknown> | undefined;
         return { say: spokenFrom(structured, last.result.content) };
       }
-      return firstStep(normalise(input.text), input, beats);
+      return firstStep(normalise(input.text), input, beats, home?.now);
     },
   };
 }
 
-function firstStep(text: string, input: ModelInput, beats: Beat[]): ModelStep {
+function firstStep(text: string, input: ModelInput, beats: Beat[], now?: string): ModelStep {
   if (YES.test(text))
     return answerYes(input.history) ?? { say: "There's nothing waiting for a yes." };
   if (NO.test(text)) return { say: 'Okay, nothing changed.' };
@@ -86,6 +91,16 @@ function firstStep(text: string, input: ModelInput, beats: Beat[]): ModelStep {
     });
   }
   if (beat?.recordedPlan) return call('preview_plan', { intent: input.text, ...beat.recordedPlan });
+  if (now && LEAVING.test(text)) {
+    // From the start of this minute, so whatever is wrong is put right now, not a minute on.
+    const from = `${now.slice(0, 16)}:00${zoneOf(now)}`;
+    return call('preview_plan', {
+      intent: input.text,
+      requestedBy: 'om',
+      actions: [],
+      presenceSchedule: [{ from, to: hoursLater(from, LEAVING_HOURS), presence: 'nobody' }],
+    });
+  }
   if (beat?.draftPlanExample) {
     const context = beat.context ?? {};
     return call('preview_plan', {
@@ -240,6 +255,20 @@ export function normalise(s: string): string {
     .replace(/[^a-z0-9 ]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/** The UTC offset an ISO time ends with: "-06:00", or "Z". */
+function zoneOf(iso: string): string {
+  return /(Z|[+-]\d{2}:\d{2})$/.exec(iso)?.[0] ?? 'Z';
+}
+
+/** An ISO time some hours later, written in the same offset: "2027-01-18T11:15:00-06:00". */
+function hoursLater(iso: string, hours: number): string {
+  const zone = zoneOf(iso);
+  const sign = zone.startsWith('-') ? -1 : 1;
+  const [h = 0, m = 0] = zone === 'Z' ? [] : zone.slice(1).split(':').map(Number);
+  const local = new Date(Date.parse(iso) + hours * 3_600_000 + sign * (h * 60 + m) * 60_000);
+  return `${local.toISOString().slice(0, 19)}${zone}`;
 }
 
 function call(name: string, args: Record<string, unknown>): ModelStep {
