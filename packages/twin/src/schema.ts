@@ -316,7 +316,7 @@ export type PlanAction = z.infer<typeof planActionSchema>;
 
 export const presenceSpecSchema = z.union([
   z.enum(['nobody', 'everyone']),
-  z.strictObject({ home: z.array(id) }),
+  z.strictObject({ home: z.array(planName).max(20) }),
 ]);
 export type PresenceSpec = z.infer<typeof presenceSpecSchema>;
 
