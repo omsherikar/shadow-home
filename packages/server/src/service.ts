@@ -9,6 +9,7 @@ import {
   ruleAtoms,
   type Speech,
   speech,
+  type TemperatureTrace,
   type TierResult,
   untrustedSensors,
 } from '@shadow-home/engine';
@@ -93,6 +94,12 @@ export class ShadowHomeService {
   private readonly ttlMs: number;
   private readonly compileRule: ServiceOptions['compileRule'];
   private queue: Promise<unknown> = Promise.resolve();
+  /**
+   * Each preview this service built, with the temperature traces of its plan and repair by plan
+   * ID. Kept beside the result rather than in it, since only the screen draws them; a preview
+   * dropped after its call takes its traces with it.
+   */
+  private readonly traces = new WeakMap<object, Record<string, TemperatureTrace>>();
 
   constructor(options: ServiceOptions) {
     this.store = options.store;
@@ -793,7 +800,7 @@ export class ShadowHomeService {
       a.offered ? speech(home, plan, a.check, a.tier, a.diff).ask : undefined,
     );
 
-    return {
+    const out: PreviewOutput = {
       planId,
       expiresAt: new Date(expires).toISOString(),
       stateVersion: state.version,
@@ -855,6 +862,12 @@ export class ShadowHomeService {
             }
           : null,
     };
+    const repairTrace = a.repaired?.check.temperatures;
+    this.traces.set(out, {
+      ...(a.check.temperatures ? { [planId]: a.check.temperatures } : {}),
+      ...(repairId && repairTrace ? { [repairId]: repairTrace } : {}),
+    });
+    return out;
   }
 
   /**
