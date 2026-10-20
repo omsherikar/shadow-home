@@ -51,6 +51,8 @@ function Shape(props: {
       return <ContactSensor look={look} />;
     case 'door_lock':
       return <DoorLock look={look} />;
+    case 'motion_sensor':
+      return <MotionSensor look={look} />;
   }
 }
 
@@ -230,6 +232,23 @@ function DoorLock({ look }: { look: Look }) {
         <meshStandardMaterial color={palette.steel} roughness={0.3} metalness={0.7} />
       </mesh>
       <Led look={look} position={[0, -0.055, 0.026]} />
+    </group>
+  );
+}
+
+function MotionSensor({ look }: { look: Look }) {
+  return (
+    <group>
+      <mesh rotation-x={Math.PI / 2} position={[0, 0, 0.005]}>
+        <sphereGeometry args={[0.05, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial
+          color={palette.ivory}
+          emissive={palette.screen}
+          emissiveIntensity={look.glow * 1.2}
+          roughness={0.3}
+        />
+      </mesh>
+      <Led look={look} position={[0, -0.06, 0.012]} />
     </group>
   );
 }
