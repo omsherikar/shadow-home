@@ -1,0 +1,17 @@
+import { describe, expect, test } from 'vitest';
+import { type LiveDevice, lookOf } from './looks.ts';
+
+const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
+  id: 'd',
+  kind,
+  state,
+  ...(trusted === undefined ? {} : { sensor: { trusted } }),
+});
+
+describe('how a device looks', () => {
+  test('a light glows by its brightness, and not at all when off', () => {
+    expect(lookOf(device('light', { onOff: true, brightness: 70 })).glow).toBe(0.7);
+    expect(lookOf(device('light', { onOff: true })).glow).toBe(1);
+    expect(lookOf(device('light', { onOff: false, brightness: 70 })).glow).toBe(0);
+  });
+});
