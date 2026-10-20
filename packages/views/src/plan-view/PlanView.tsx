@@ -3,6 +3,7 @@ import { useApp } from '@modelcontextprotocol/ext-apps/react';
 import { useCallback, useRef, useState } from 'react';
 import { type Control, type Screen, screenFor, type Timeline } from './screen.ts';
 import { TemperatureView } from './TemperatureView.tsx';
+import { temperaturesFrom } from './temperature.ts';
 import { APPROVAL_META_KEY, type Commit, NAMES_META_KEY, type Names } from './types.ts';
 
 interface ToolResult {
@@ -41,7 +42,8 @@ export function PlanView() {
       setShown({ kind: 'message', text: textOf(r) || 'That didn’t work.' });
       return;
     }
-    const screen = screenFor(r.structuredContent, names.current);
+    // A result's temperatures are for the previews it carries, so they aren't kept for the next.
+    const screen = screenFor(r.structuredContent, names.current, temperaturesFrom(r._meta));
     setShown(screen ? { kind: 'screen', screen } : { kind: 'message', text: textOf(r) });
   }, []);
 
