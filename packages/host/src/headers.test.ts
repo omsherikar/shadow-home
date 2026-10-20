@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { contentSecurityPolicy } from './headers.ts';
+import { VIEW_CSP } from './screen/ScreenHost.ts';
 
 /** A policy as directive name -> its sources. */
 function parse(policy: string): Map<string, string[]> {
@@ -35,5 +36,16 @@ describe('the content security policy', () => {
     expect(sourcesFor(policy, 'base-uri')).toEqual(["'self'"]);
     expect(sourcesFor(policy, 'form-action')).toEqual(["'self'"]);
     expect(sourcesFor(policy, 'default-src')).toEqual(["'self'"]);
+  });
+
+  test("everything the plan view's own policy allows, the page's allows too", () => {
+    // The view's srcdoc frame takes the page's policy on top of its own, so a source missing
+    // here would stop the view's scripts, styles, images or fonts.
+    const page = contentSecurityPolicy(false);
+    for (const [directive, sources] of parse(VIEW_CSP)) {
+      for (const source of sources.filter((s) => s !== "'none'")) {
+        expect(sourcesFor(page, directive), `${directive} ${source}`).toContain(source);
+      }
+    }
   });
 });
