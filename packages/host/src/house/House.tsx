@@ -1,11 +1,12 @@
 'use client';
 
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useLoader, useThree } from '@react-three/fiber';
 import { Suspense, useLayoutEffect } from 'react';
-import { type PerspectiveCamera, Vector3 } from 'three';
+import { EquirectangularReflectionMapping, type PerspectiveCamera, Vector3 } from 'three';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { frame, groundBounds } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
-import type { LiveHome } from './looks.ts';
+import { daylight, type LiveHome } from './looks.ts';
 import { Shell } from './Shell.tsx';
 
 /** A room's name where it shows on screen, in CSS pixels from the canvas's top left. */
@@ -59,12 +60,33 @@ export default function House(props: HouseProps) {
 }
 
 function Scene({ home, onLabels, shift = 0 }: HouseProps) {
+  const light = daylight(home?.now ?? '');
   return (
     <>
+      <Environment intensity={light.sky} />
       <CameraRig onLabels={onLabels} shift={shift} />
       <Shell layout={layout} home={home} />
     </>
   );
+}
+
+/** The dusk sky's light on everything, from a local HDR file (nothing is fetched elsewhere). */
+function Environment({ intensity }: { intensity: number }) {
+  const hdr = useLoader(HDRLoader, layout.environment);
+  const scene = useThree((s) => s.scene);
+  const invalidate = useThree((s) => s.invalidate);
+  useLayoutEffect(() => {
+    hdr.mapping = EquirectangularReflectionMapping;
+    scene.environment = hdr;
+    return () => {
+      scene.environment = null;
+    };
+  }, [hdr, scene]);
+  useLayoutEffect(() => {
+    scene.environmentIntensity = intensity;
+    invalidate();
+  }, [scene, intensity, invalidate]);
+  return null;
 }
 
 /** Frames the house for the canvas's size, and reports where each room's name falls. */
