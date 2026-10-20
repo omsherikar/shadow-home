@@ -164,6 +164,7 @@ describe('other starter plans', () => {
     expect(r.verdict).toBe('UNSAFE');
     expect(r.reasons.every((x) => x.kind === 'invalid')).toBe(true);
     expect(r.runs).toBeUndefined();
+    expect(r.temperatures).toBeUndefined();
   });
 });
 
