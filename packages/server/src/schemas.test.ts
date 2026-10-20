@@ -4,6 +4,7 @@ import {
   addRuleInput,
   approveInput,
   commitInput,
+  homeStateInput,
   logInput,
   previewInput,
   undoInput,
@@ -61,5 +62,13 @@ describe('what a caller sends is bounded', () => {
     expect(ok(approveInput, { planId: 'p'.repeat(201), approvalToken: 'x' })).toBe(false);
     expect(ok(undoInput, { token })).toBe(true);
     expect(ok(undoInput, { token: `${token}t` })).toBe(false);
+  });
+
+  test('device and room names are bounded too', () => {
+    const devices = (n: number) => Array(n).fill('thermostat_main');
+    expect(ok(undoInput, { token: 'last', devices: devices(50) })).toBe(true);
+    expect(ok(undoInput, { token: 'last', devices: devices(51) })).toBe(false);
+    expect(ok(undoInput, { token: 'last', devices: ['d'.repeat(101)] })).toBe(false);
+    expect(ok(homeStateInput, { room: 'r'.repeat(101) })).toBe(false);
   });
 });
