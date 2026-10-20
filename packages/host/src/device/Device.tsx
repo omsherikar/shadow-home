@@ -1,5 +1,7 @@
 'use client';
 
+// First, before any module that builds a zod schema.
+import './no-eval.ts';
 import {
   type CallToolResult,
   Client,
