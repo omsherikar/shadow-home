@@ -2,6 +2,7 @@ import type { App } from '@modelcontextprotocol/ext-apps';
 import { useApp } from '@modelcontextprotocol/ext-apps/react';
 import { useCallback, useRef, useState } from 'react';
 import { type Control, type Screen, screenFor, type Timeline } from './screen.ts';
+import { TemperatureView } from './TemperatureView.tsx';
 import { APPROVAL_META_KEY, type Commit, NAMES_META_KEY, type Names } from './types.ts';
 
 interface ToolResult {
@@ -229,6 +230,7 @@ function ScreenView({
         ) : null}
       </section>
 
+      {s.temperature ? <TemperatureView c={s.temperature} /> : null}
       {s.timeline ? <TimelineView t={s.timeline} /> : null}
 
       <footer className="controls">
