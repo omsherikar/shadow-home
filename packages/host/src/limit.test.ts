@@ -113,4 +113,12 @@ describe('a cap for everyone and one for each visitor, together', () => {
     t = 2 * HOUR;
     expect(turn('b')).toBe('ok');
   });
+
+  test("what a visitor's own cap refuses doesn't count against everyone's", () => {
+    const turn = hourlyCaps(2, 1, { now: () => 0 });
+    expect(turn('a')).toBe('ok');
+    expect([turn('a'), turn('a'), turn('a')]).toEqual(['visitor', 'visitor', 'visitor']);
+    expect(turn('b')).toBe('ok');
+    expect(turn('c')).toBe('instance');
+  });
 });
