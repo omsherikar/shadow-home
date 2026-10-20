@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { contentSecurityPolicy } from './headers.ts';
+import { contentSecurityPolicy, securityHeaders } from './headers.ts';
 import { VIEW_CSP } from './screen/ScreenHost.ts';
 
 /** A policy as directive name -> its sources. */
@@ -55,4 +55,13 @@ describe('the content security policy', () => {
     expect(sourcesFor(policy, 'img-src')).toEqual(["'self'", 'data:', 'blob:']);
     expect(parse(policy).has('worker-src')).toBe(false);
   });
+});
+
+test('every response says no framing, no sniffing, a short referrer, and the microphone only', () => {
+  const headers = new Map(securityHeaders(false).map((h) => [h.key, h.value]));
+  expect(headers.get('Content-Security-Policy')).toBe(contentSecurityPolicy(false));
+  expect(headers.get('X-Content-Type-Options')).toBe('nosniff');
+  expect(headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+  expect(headers.get('X-Frame-Options')).toBe('DENY');
+  expect(headers.get('Permissions-Policy')).toBe('microphone=(self), camera=(), geolocation=()');
 });
