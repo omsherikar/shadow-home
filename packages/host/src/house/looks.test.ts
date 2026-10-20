@@ -84,6 +84,14 @@ describe('the light outside', () => {
     expect(dusk.day).toBeLessThan(0.5);
   });
 
+  test('the key light always shines from above', () => {
+    for (const hhmm of ['02:00', '07:00', '12:30', '17:45', '22:30']) {
+      const [x, y, z] = at(hhmm).direction;
+      expect(y, hhmm).toBeGreaterThan(0.2);
+      expect(Math.hypot(x, y, z)).toBeCloseTo(1, 6);
+    }
+  });
+
   test('colours mix part way, end to end', () => {
     expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
