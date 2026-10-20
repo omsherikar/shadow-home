@@ -400,3 +400,19 @@ h2 {
 .temps .curve.unsure {
   stroke: var(--rule);
 }
+
+.temps .tag {
+  fill: color-mix(in srgb, var(--rule) 25%, transparent);
+}
+
+.temps .tag-text {
+  fill: var(--rule);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.temps .bound-label {
+  fill: var(--soft);
+  font-size: 19px;
+  font-weight: 650;
+}
