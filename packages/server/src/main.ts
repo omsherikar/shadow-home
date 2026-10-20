@@ -6,6 +6,7 @@ import { createApp } from './app.ts';
 import { demoClock, systemClock } from './clock.ts';
 import { compilerFromEnv } from './compiler.ts';
 import { initialState } from './live-home.ts';
+import { log } from './log.ts';
 import { ShadowHomeService } from './service.ts';
 import { memoryStore } from './store.ts';
 
@@ -29,11 +30,12 @@ const service = new ShadowHomeService({
 });
 
 const app = createApp(service, {
-  onError: (e) => console.error('mcp:', e.message),
+  onError: (e) => log('ERROR', 'mcp error', { error: e.name, reason: e.message }),
   ...(demo ? { demo: { clock: demo, home } } : {}),
 });
 serve({ fetch: app.fetch, port, hostname: '127.0.0.1' }, (info) => {
-  console.log(
+  log(
+    'INFO',
     `Shadow Home MCP server on http://localhost:${info.port}/mcp (home time ${home.clock.now})${demo ? ', demo controls on /demo' : ''}`,
   );
 });
