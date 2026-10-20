@@ -6,6 +6,7 @@ export {
   APPROVAL_META_KEY,
   NAMES_META_KEY,
   type Names,
+  TEMPERATURES_META_KEY,
   type TemperatureTrace,
 } from './plan-view/types.ts';
 
