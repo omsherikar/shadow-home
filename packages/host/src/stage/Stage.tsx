@@ -1,7 +1,14 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import {
+  type CSSProperties,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { ScreenLabel } from '../house/House.tsx';
 import type { LiveHome } from '../house/looks.ts';
 import { webglAvailable } from '../house/webgl.ts';
@@ -9,6 +16,11 @@ import { browserStorage, type Layout, readLayout, writeLayout } from './stage.ts
 
 // three.js and the scene load in the browser only, and only on this page.
 const House = dynamic(() => import('../house/House.tsx'), { ssr: false });
+
+// The device lays out at its full size beside the house and is zoomed out to fit, as a real screen
+// looks smaller from further away rather than rearranging itself.
+const DEVICE_WIDTH = 1180;
+const DEVICE_HEIGHT = DEVICE_WIDTH / 1.6;
 
 export interface StageProps {
   home: LiveHome | null;
@@ -28,6 +40,8 @@ export function Stage(props: StageProps) {
   const [layout, setLayout] = useState<Layout>('split');
   const [drawer, setDrawer] = useState(false);
   const [labels, setLabels] = useState<ScreenLabel[]>([]);
+  const panel = useRef<HTMLElement>(null);
+  const scale = useFit(panel);
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
   useEffect(() => {
@@ -85,10 +99,33 @@ export function Stage(props: StageProps) {
           </div>
         </section>
       ) : null}
-      <section className="device-panel" aria-label="The device">
-        <div className="device-scaled">{props.device}</div>
+      <section ref={panel} className="device-panel" aria-label="The device">
+        <div className="device-scaled" style={{ '--device-scale': scale } as CSSProperties}>
+          {props.device}
+        </div>
         {withHouse ? null : props.controls}
       </section>
     </div>
   );
+}
+
+/** How far to scale the device down to fit its panel. */
+function useFit(panel: { current: HTMLElement | null }): number {
+  const [scale, setScale] = useState(0.55);
+  useEffect(() => {
+    const el = panel.current;
+    if (!el) return;
+    const fit = () => {
+      const style = getComputedStyle(el);
+      const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const height =
+        el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      setScale(Math.max(0.2, Math.min(1, width / DEVICE_WIDTH, height / DEVICE_HEIGHT)));
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [panel]);
+  return scale;
 }
