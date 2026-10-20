@@ -10,9 +10,10 @@ import {
   useState,
 } from 'react';
 import type { ScreenLabel } from '../house/House.tsx';
+import { houseLayout } from '../house/layout.ts';
 import type { LiveHome } from '../house/looks.ts';
 import { webglAvailable } from '../house/webgl.ts';
-import { browserStorage, type Layout, readLayout, writeLayout } from './stage.ts';
+import { browserStorage, dayAndTime, type Layout, readLayout, writeLayout } from './stage.ts';
 
 // three.js and the scene load in the browser only, and only on this page.
 const House = dynamic(() => import('../house/House.tsx'), { ssr: false });
@@ -76,6 +77,7 @@ export function Stage(props: StageProps) {
               </span>
             ))}
           </div>
+          <HouseCard home={props.home} />
           <button
             type="button"
             className="layout-toggle glass"
@@ -128,4 +130,24 @@ function useFit(panel: { current: HTMLElement | null }): number {
     return () => observer.disconnect();
   }, [panel]);
   return scale;
+}
+
+/** The home's name, its time and the two heating zones, on frosted glass. */
+function HouseCard({ home }: { home: LiveHome | null }) {
+  return (
+    <div className="house-card glass">
+      <h1 className="house-name">{houseLayout.name}</h1>
+      <p className="house-time">{home ? dayAndTime(home.now) : ' '}</p>
+      {home ? (
+        <dl className="house-zones">
+          {home.zones.map((z) => (
+            <div key={z.id}>
+              <dt>{z.name}</dt>
+              <dd>{z.tempC.toFixed(1)} °C</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </div>
+  );
 }
