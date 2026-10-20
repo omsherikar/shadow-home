@@ -38,6 +38,8 @@ function Shape(props: {
   switch (props.shape) {
     case 'thermostat':
       return <Thermostat look={look} />;
+    case 'aquarium':
+      return <Aquarium look={look} />;
   }
 }
 
@@ -57,6 +59,33 @@ function Thermostat({ look }: { look: Look }) {
           emissiveIntensity={look.glow >= 1 ? 4 : look.glow * 2}
         />
       </mesh>
+    </group>
+  );
+}
+
+function Aquarium({ look }: { look: Look }) {
+  const on = look.glow > 0;
+  return (
+    <group position={[0, 0.17, 0]}>
+      <mesh>
+        <boxGeometry args={[0.6, 0.34, 0.3]} />
+        <meshStandardMaterial color={palette.glass} transparent opacity={0.25} roughness={0.05} />
+      </mesh>
+      <mesh position={[0, -0.02, 0]}>
+        <boxGeometry args={[0.57, 0.27, 0.27]} />
+        <meshStandardMaterial
+          color={palette.water}
+          transparent
+          opacity={0.7}
+          emissive={palette.water}
+          emissiveIntensity={on ? 2 : 0.05}
+        />
+      </mesh>
+      <mesh position={[0, 0.18, 0]} castShadow>
+        <boxGeometry args={[0.62, 0.025, 0.32]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.5} />
+      </mesh>
+      {on ? <pointLight color={palette.water} intensity={2} distance={2.2} /> : null}
     </group>
   );
 }
