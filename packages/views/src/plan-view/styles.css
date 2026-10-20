@@ -336,3 +336,11 @@ h2 {
   max-height: 30vh;
   flex-shrink: 0;
 }
+
+.temps.blocked {
+  --rule: var(--blocked);
+}
+
+.temps.unsure {
+  --rule: var(--unsure);
+}
