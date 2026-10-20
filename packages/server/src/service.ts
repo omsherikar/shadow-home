@@ -286,6 +286,19 @@ export class ShadowHomeService {
           "That can't be undone, so it has to be proven safe first.",
         );
       }
+      // A check with nothing to apply ("I'm heading out") changes nothing, so it needs no yes:
+      // no log entry and nothing to undo, so "undo" still reaches the last real change.
+      if (plan.actions.length === 0 && !record.undo) {
+        const result: CommitOutput = {
+          status: 'committed',
+          planId,
+          speech: { headline: committedHeadline(record.summary, 0, 0) },
+          applied: [],
+          held: [],
+        };
+        await this.store.putCommit(planId, result);
+        return result;
+      }
       // A repair or safe part isn't what the person asked for, so it needs their yes whatever
       // its tier, like any T2 or T4 plan.
       const alternative = record.kind === 'repair' || record.kind === 'safe_part';
