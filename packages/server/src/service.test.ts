@@ -262,3 +262,17 @@ describe('the live home and the engine agree about now', () => {
     expect(state.now).toBe('2027-01-25T08:00:01-06:00');
   });
 });
+
+describe('words people typed', () => {
+  test('a request is stored without control characters, its runs of spaces made one', async () => {
+    const { service } = setup('2027-01-15T17:45:00');
+    const p = await service.previewPlan({
+      intent: 'TV\u0000 off,\r\n\tplease\u001b[2J\u009b  now\u007f',
+      requestedBy: 'om',
+      actions: [{ device: 'plug_tv', set: { onOff: false } }],
+    });
+    expect((await service.commitPlan({ planId: p.planId })).status).toBe('committed');
+    const log = await service.getActivityLog({ groupBy: 'none' });
+    expect(log.entries.find((e) => e.source === 'plan')?.what).toBe('TV off, please[2J now');
+  });
+});
