@@ -344,3 +344,13 @@ h2 {
 .temps.unsure {
   --rule: var(--unsure);
 }
+
+.temps .tick {
+  fill: var(--muted);
+  font-size: 16px;
+}
+
+.temps .day {
+  stroke: var(--line);
+  stroke-width: 1;
+}
