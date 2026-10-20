@@ -123,6 +123,7 @@ Deploying (Google Cloud Run and Firestore, or AWS Lambda and DynamoDB): [docs/de
 | Anthropic API (Claude Haiku, Sonnet and Opus 5.5) | The voice loop; the three rule compilers; the LLM judge | `packages/host/src/turn/anthropic.ts`, `packages/rules/src/strands.ts`, `bench/adapters/llm-judge.ts` |
 | Strands Agents SDK | The rule compilers' structured output | `packages/rules/src/strands.ts` |
 | ElevenLabs | The device's voice | `packages/host/src/turn/elevenlabs.ts` |
+| three.js, React Three Fiber, postprocessing | The 3D house beside the device; models, textures and light from Poly Haven (CC0, see `CREDITS.md`) | `packages/host/src/house`, `packages/host/public/house` |
 | Google Cloud Run, Firestore, Secret Manager, Cloud Build | The deployed server and host | `scripts/gcp/deploy.ts`, `packages/server/src/cloud-run.ts`, `packages/server/src/firestore-store.ts` |
 | AWS Lambda, DynamoDB, Secrets Manager, CDK, Bedrock, Polly | The same, on AWS: tested on DynamoDB Local, not deployed (the account never activated) | `packages/infra`, `packages/server/src/lambda.ts`, `packages/server/src/dynamo-store.ts`, `packages/host/src/turn/aws.ts` |
 
