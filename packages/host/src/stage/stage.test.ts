@@ -10,6 +10,15 @@ function memory() {
   };
 }
 
+const refusing = {
+  getItem: () => {
+    throw new Error('denied');
+  },
+  setItem: () => {
+    throw new Error('denied');
+  },
+};
+
 describe('the layout choice', () => {
   test('starts split, and comes back as it was left', () => {
     const storage = memory();
@@ -19,5 +28,14 @@ describe('the layout choice', () => {
     expect(readLayout(storage)).toBe('house');
     writeLayout(storage, 'split');
     expect(readLayout(storage)).toBe('split');
+  });
+
+  test('anything else stored, no storage, or storage that refuses, reads as split', () => {
+    const storage = memory();
+    storage.setItem(LAYOUT_KEY, 'sideways');
+    expect(readLayout(storage)).toBe('split');
+    expect(readLayout(null)).toBe('split');
+    expect(readLayout(refusing)).toBe('split');
+    expect(() => writeLayout(refusing, 'house')).not.toThrow();
   });
 });
