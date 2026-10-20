@@ -1,12 +1,12 @@
 'use client';
 
 import { Canvas, useLoader, useThree } from '@react-three/fiber';
-import { Suspense, useLayoutEffect } from 'react';
-import { EquirectangularReflectionMapping, type PerspectiveCamera, Vector3 } from 'three';
+import { Suspense, useLayoutEffect, useMemo } from 'react';
+import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
-import { frame, groundBounds } from './geometry.ts';
+import { frame, groundBounds, houseBounds } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
-import { daylight, type LiveHome } from './looks.ts';
+import { type Daylight, daylight, type LiveHome } from './looks.ts';
 import { Shell } from './Shell.tsx';
 
 /** A room's name where it shows on screen, in CSS pixels from the canvas's top left. */
@@ -64,6 +64,7 @@ function Scene({ home, onLabels, shift = 0 }: HouseProps) {
   return (
     <>
       <Environment intensity={light.sky} />
+      <KeyLight light={light} />
       <CameraRig onLabels={onLabels} shift={shift} />
       <Shell layout={layout} home={home} />
     </>
@@ -87,6 +88,46 @@ function Environment({ intensity }: { intensity: number }) {
     invalidate();
   }, [scene, intensity, invalidate]);
   return null;
+}
+
+// The middle of the house, which the key light aims at.
+const CENTRE = (() => {
+  const { min, max } = houseBounds(layout);
+  return min.clone().add(max).multiplyScalar(0.5);
+})();
+
+/** The sun by day, the moon by night: the one light that casts shadows. */
+function KeyLight({ light }: { light: Daylight }) {
+  const centre = CENTRE;
+  const target = useMemo(() => {
+    const o = new Object3D();
+    o.position.copy(CENTRE);
+    return o;
+  }, []);
+  const [dx, dy, dz] = light.direction;
+  return (
+    <>
+      <primitive object={target} />
+      <directionalLight
+        target={target}
+        position={[centre.x + dx * 40, centre.y + dy * 40, centre.z + dz * 40]}
+        color={light.keyColor}
+        intensity={light.key}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-13}
+        shadow-camera-right={13}
+        shadow-camera-top={13}
+        shadow-camera-bottom={-13}
+        shadow-camera-near={5}
+        shadow-camera-far={90}
+        shadow-bias={-0.0005}
+        shadow-normalBias={0.03}
+        shadow-radius={3}
+      />
+      <hemisphereLight args={['#cdd6ff', '#3b2c22', 0.4 * light.sky]} />
+    </>
+  );
 }
 
 /** Frames the house for the canvas's size, and reports where each room's name falls. */
