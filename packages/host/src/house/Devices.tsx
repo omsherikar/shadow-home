@@ -60,6 +60,8 @@ function Shape(props: {
       return <FloorLamp look={look} />;
     case 'pendant_light':
       return <Pendant look={look} drop={props.wallHeight - props.placement.y} />;
+    case 'bedside_lamp':
+      return <BedsideLamp look={look} />;
   }
 }
 
@@ -339,6 +341,18 @@ function Pendant({ look, drop }: { look: Look; drop: number }) {
         <meshStandardMaterial color={palette.graphite} />
       </mesh>
       <Shade look={look} radius={[0.05, 0.24]} height={0.2} y={0} power={16} />
+    </group>
+  );
+}
+
+function BedsideLamp({ look }: { look: Look }) {
+  return (
+    <group>
+      <mesh position={[0, 0.11, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.07, 0.22, 20]} />
+        <meshStandardMaterial color={palette.ivory} roughness={0.3} />
+      </mesh>
+      <Shade look={look} radius={[0.1, 0.14]} height={0.17} y={0.3} power={8} />
     </group>
   );
 }
