@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import type { HouseLayout } from './layout.ts';
 
 /** One straight run of wall, from `bottom` to `top`, centred on the line from a to b. */
@@ -132,4 +132,66 @@ export function groundBounds(layout: HouseLayout): { min: Vector3; max: Vector3 
     min: new Vector3(min.x - 1.2, -0.36, min.z - 1.0),
     max: new Vector3(max.x + 1.2, max.y, max.z + 2.6),
   };
+}
+
+export interface Framing {
+  /** Where the camera stands, looking at `target`. */
+  position: Vector3;
+  target: Vector3;
+}
+
+/**
+ * Stand the camera along `direction` from the middle of `bounds`, as close as it can be while
+ * every corner stays inside the picture, `margin` (a fraction of the half-width or half-height)
+ * from each edge. `shiftY` moves the house up (positive) or down in the picture, as a fraction of
+ * its half-height, to leave room for what overlays it.
+ */
+export function frame(
+  bounds: { min: Vector3; max: Vector3 },
+  direction: Vector3,
+  fovDeg: number,
+  aspect: number,
+  margin = 0.08,
+  shiftY = 0,
+): Framing {
+  const target = bounds.min.clone().add(bounds.max).multiplyScalar(0.5);
+  const dir = direction.clone().normalize();
+  const camera = new PerspectiveCamera(fovDeg, aspect, 0.1, 1000);
+  const corners = [0, 1, 2, 3, 4, 5, 6, 7].map(
+    (i) =>
+      new Vector3(
+        i & 1 ? bounds.max.x : bounds.min.x,
+        i & 2 ? bounds.max.y : bounds.min.y,
+        i & 4 ? bounds.max.z : bounds.min.z,
+      ),
+  );
+  const fits = (distance: number) => {
+    camera.position.copy(target).addScaledVector(dir, distance);
+    camera.lookAt(target);
+    camera.updateMatrixWorld();
+    return corners.every((c) => {
+      const p = c.clone().project(camera);
+      return (
+        Math.abs(p.x) <= 1 - margin && Math.abs(p.y) <= 1 - margin - Math.abs(shiftY) && p.z < 1
+      );
+    });
+  };
+  let near = 1;
+  let far = 400;
+  for (let i = 0; i < 40; i++) {
+    const mid = (near + far) / 2;
+    if (fits(mid)) far = mid;
+    else near = mid;
+  }
+  // To move the house up the picture, slide the camera and its aim down by that share of the view.
+  camera.position.copy(target).addScaledVector(dir, far);
+  camera.lookAt(target);
+  camera.updateMatrixWorld();
+  const shifted = target.clone();
+  if (shiftY !== 0) {
+    const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+    const halfHeight = Math.tan(((fovDeg / 2) * Math.PI) / 180) * far;
+    shifted.addScaledVector(up, -shiftY * halfHeight);
+  }
+  return { position: shifted.clone().addScaledVector(dir, far), target: shifted };
 }
