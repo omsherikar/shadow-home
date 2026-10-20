@@ -27,4 +27,13 @@ describe('the content security policy', () => {
     expect(sourcesFor(policy, 'script-src')).toContain("'unsafe-eval'");
     expect(sourcesFor(policy, 'connect-src')).toContain('ws:');
   });
+
+  test.each([false, true])('the page is never framed and runs no plugins (dev: %s)', (dev) => {
+    const policy = contentSecurityPolicy(dev);
+    expect(sourcesFor(policy, 'frame-ancestors')).toEqual(["'none'"]);
+    expect(sourcesFor(policy, 'object-src')).toEqual(["'none'"]);
+    expect(sourcesFor(policy, 'base-uri')).toEqual(["'self'"]);
+    expect(sourcesFor(policy, 'form-action')).toEqual(["'self'"]);
+    expect(sourcesFor(policy, 'default-src')).toEqual(["'self'"]);
+  });
 });
