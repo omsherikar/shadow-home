@@ -48,4 +48,11 @@ describe('the content security policy', () => {
       }
     }
   });
+
+  test('the voice plays blob: audio, and the house reads blob: textures; workers stay possible', () => {
+    const policy = contentSecurityPolicy(false);
+    expect(sourcesFor(policy, 'media-src')).toEqual(["'self'", 'blob:']);
+    expect(sourcesFor(policy, 'img-src')).toEqual(["'self'", 'data:', 'blob:']);
+    expect(parse(policy).has('worker-src')).toBe(false);
+  });
 });
