@@ -38,6 +38,49 @@ export function hourlyLimit(max: number, now: () => number = Date.now): () => bo
   return () => spend();
 }
 
+/**
+ * An hourly budget for each visitor (any key, such as an address), so one visitor can't spend
+ * the hour for everyone. Made-up keys can't grow memory without bound: a visitor idle for an hour
+ * is forgotten (their budget is whole again by then), and past `maxVisitors` the longest idle goes
+ * first. `fits` says whether a visitor's amount would be spent, without spending it; `visitors`
+ * says how many are kept.
+ */
+export function perVisitor(
+  max: number,
+  options: { maxVisitors?: number; now?: () => number } = {},
+): ((visitor: string, amount?: number) => boolean) & {
+  fits(visitor: string, amount?: number): boolean;
+  readonly visitors: number;
+} {
+  const now = options.now ?? Date.now;
+  const maxVisitors = options.maxVisitors ?? 10_000;
+  // A Map keeps insertion order; each visitor is put back at the end when they ask, so the
+  // longest idle is always first.
+  const kept = new Map<string, { spend: ReturnType<typeof hourlyBudget>; lastAt: number }>();
+  const spend = (visitor: string, amount = 1) => {
+    const t = now();
+    for (const [key, v] of kept) {
+      if (v.lastAt > t - HOUR_MS) break;
+      kept.delete(key);
+    }
+    let v = kept.get(visitor);
+    if (v) kept.delete(visitor);
+    else {
+      if (kept.size >= maxVisitors) kept.delete(kept.keys().next().value as string);
+      v = { spend: hourlyBudget(max, now), lastAt: t };
+    }
+    v.lastAt = t;
+    kept.set(visitor, v);
+    return v.spend(amount);
+  };
+  // Someone not kept has a whole budget.
+  const fits = (visitor: string, amount = 1) =>
+    kept.get(visitor)?.spend.fits(amount) ?? (amount > 0 && amount <= max);
+  return Object.defineProperty(Object.assign(spend, { fits }), 'visitors', {
+    get: () => kept.size,
+  }) as typeof spend & { fits: typeof fits; readonly visitors: number };
+}
+
 /** A whole number from the environment, or the default when it's unset or not one. */
 export function perHour(name: string, fallback: number): number {
   const n = Number(process.env[name]);
