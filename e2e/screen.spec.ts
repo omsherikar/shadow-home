@@ -13,7 +13,9 @@ async function say(page: Page, text: string) {
 
 test.describe.configure({ mode: 'serial' });
 
-test('a preview_plan call shows the diff and timeline on the screen', async ({ page }) => {
+test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
+  page,
+}) => {
   await page.goto('/');
   await expect(page.getByText('Home mode')).toBeVisible();
   await page.getByRole('button', { name: WEEKEND }).click();
@@ -30,7 +32,12 @@ test('a preview_plan call shows the diff and timeline on the screen', async ({ p
   await expect(v.getByText('Freezer stays on', { exact: true })).toBeVisible();
   await expect(v.locator('.card')).toHaveCount(4);
   await expect(v.getByText('Breaks Sat 10:37 PM')).toBeVisible();
-  await expect(v.getByRole('img', { name: 'Timeline' })).toBeVisible();
+  // The garage's temperature, where R3 matters: it crosses 4 °C then, and the fixes hold it.
+  const garage = v.getByRole('img', { name: 'Garage temperature' });
+  await expect(garage).toBeVisible();
+  await expect(garage.getByText('Sat 10:37 PM', { exact: true })).toBeVisible();
+  await expect(garage.getByText('With 4 fixes', { exact: true })).toBeVisible();
+  await expect(garage.getByText('Your plan', { exact: true })).toBeVisible();
   await expect(v.getByRole('button', { name: /Do it with 4 fixes\s*Say “yes”/ })).toBeVisible();
   await expect(said(page)).toHaveText(
     "Blocked: that breaks 4 house rules. No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?",
