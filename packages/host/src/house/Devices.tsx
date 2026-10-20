@@ -1,5 +1,6 @@
 'use client';
 
+import { DoubleSide } from 'three';
 import type { DevicePlacement, DeviceShape, HouseLayout } from './layout.ts';
 import { type LiveHome, type Look, lookOf } from './looks.ts';
 import { palette, statusColor } from './palette.ts';
@@ -55,6 +56,8 @@ function Shape(props: {
       return <MotionSensor look={look} />;
     case 'smoke_alarm':
       return <SmokeAlarm look={look} />;
+    case 'floor_lamp':
+      return <FloorLamp look={look} />;
   }
 }
 
@@ -272,6 +275,56 @@ function SmokeAlarm({ look }: { look: Look }) {
       {alarm ? (
         <pointLight position={[0, 0, 0.4]} color={palette.alarm} intensity={4} distance={4} />
       ) : null}
+    </group>
+  );
+}
+
+/** A warm shade that lights by the lamp's brightness, and the light it throws. */
+function Shade(props: {
+  look: Look;
+  radius: [number, number];
+  height: number;
+  y: number;
+  power: number;
+}) {
+  const { look } = props;
+  return (
+    <group position={[0, props.y, 0]}>
+      <mesh castShadow>
+        <cylinderGeometry args={[props.radius[0], props.radius[1], props.height, 28, 1, true]} />
+        <meshStandardMaterial
+          color={palette.linen}
+          emissive={palette.lamp}
+          emissiveIntensity={look.glow * 3.4}
+          side={DoubleSide}
+          roughness={0.9}
+        />
+      </mesh>
+      {look.glow > 0 ? (
+        <pointLight
+          position={[0, -props.height * 0.25, 0]}
+          color={palette.lamp}
+          intensity={props.power * look.glow}
+          distance={7}
+          decay={2}
+        />
+      ) : null}
+    </group>
+  );
+}
+
+function FloorLamp({ look }: { look: Look }) {
+  return (
+    <group>
+      <mesh position={[0, 0.015, 0]} castShadow>
+        <cylinderGeometry args={[0.16, 0.16, 0.03, 24]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.4} metalness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.74, 0]} castShadow>
+        <cylinderGeometry args={[0.012, 0.012, 1.45, 8]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.4} metalness={0.4} />
+      </mesh>
+      <Shade look={look} radius={[0.15, 0.21]} height={0.3} y={1.52} power={18} />
     </group>
   );
 }
