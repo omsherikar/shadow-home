@@ -21,11 +21,14 @@ Optional overrides: `ANTHROPIC_MODEL_ID` (the voice loop's model), `RULE_COMPILE
 model IDs, comma-separated), `ELEVENLABS_VOICE_ID`.
 
 Both services are public, so anyone with the URLs spends from these keys. Each instance caps
-what it spends in any rolling hour:
+what it spends in any rolling hour, and the host also caps each visitor (the client's address), so
+one script can't use the hour up for everyone:
 
-- `LIVE_TURNS_PER_HOUR` (host, default 60): live-model turns; past it the device says to try
-  later. Scripted and demo turns don't count.
-- `SPEECH_PER_HOUR` (host, default 120): ElevenLabs replies; past it the browser speaks.
+- `LIVE_TURNS_PER_HOUR` (host, default 60) and `LIVE_TURNS_PER_VISITOR_HOUR` (default 20):
+  live-model turns; past either the device says to try later. Scripted and demo turns don't count.
+- `SPEECH_CHARS_PER_HOUR` (host, default 30,000) and `SPEECH_CHARS_PER_VISITOR_HOUR` (default
+  5,000): characters of ElevenLabs speech, which is how it bills. Past a visitor's budget the
+  browser speaks that line; past the instance's, it speaks for the rest of the session.
 - `RULE_COMPILES_PER_HOUR` (server, default 10): plain-words rules, three model calls each; past
   it the rule isn't compiled ("I couldn't work out that rule just now").
 
