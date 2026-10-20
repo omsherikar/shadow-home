@@ -198,7 +198,7 @@ export const commitOutput = z.object({
 export type CommitOutput = z.infer<typeof commitOutput>;
 
 export const undoInput = z.object({
-  token: z.string().min(1).describe('An undo token from commit_plan, or "last"'),
+  token: z.string().min(1).max(100).describe('An undo token from commit_plan, or "last"'),
   devices: z.array(z.string()).optional().describe('Only put these back ("undo the thermostat")'),
 });
 
