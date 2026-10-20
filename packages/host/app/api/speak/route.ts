@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { hourlyCaps, perHour } from '@/limit.ts';
 import { log } from '@/log.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
-import { synthesize } from '@/turn/providers.ts';
+import { speaker } from '@/speech.ts';
+import { synthesize, voiceName } from '@/turn/providers.ts';
 import { visitorOf } from '@/visitor.ts';
 
 export const runtime = 'nodejs';
@@ -22,6 +23,8 @@ const chars = hourlyCaps(
   perHour('SPEECH_CHARS_PER_HOUR', 30_000),
   perHour('SPEECH_CHARS_PER_VISITOR_HOUR', 5_000),
 );
+// A line said before in the same voice comes from memory and spends neither budget.
+const speak = speaker({ synthesize, voice: voiceName, caps: chars });
 
 /**
  * Text to speech as one MP3: ElevenLabs, or Amazon Polly with SPEECH=polly. 503 when the voice
@@ -33,18 +36,20 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = speakRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad speak request' }, { status: 400 });
   const { text } = parsed.data;
-  const refused = chars(visitorOf(request), text.length);
-  if (refused === 'visitor') {
-    return Response.json({ error: 'You have heard a lot this hour' }, { status: 429 });
-  }
-  if (refused === 'instance') {
-    return Response.json({ error: 'The voice is resting' }, { status: 503 });
-  }
   const started = Date.now();
   try {
-    const audio = await synthesize(text);
-    log('INFO', 'spoke', { chars: text.length, ms: Date.now() - started }, request.headers);
-    return new Response(Buffer.from(audio), { headers: { 'content-type': 'audio/mpeg' } });
+    const out = await speak(visitorOf(request), text);
+    if ('refused' in out && out.refused === 'visitor') {
+      return Response.json({ error: 'You have heard a lot this hour' }, { status: 429 });
+    }
+    if ('refused' in out) return Response.json({ error: 'The voice is resting' }, { status: 503 });
+    log(
+      'INFO',
+      'spoke',
+      { chars: text.length, cached: out.cached, ms: Date.now() - started },
+      request.headers,
+    );
+    return new Response(Buffer.from(out.audio), { headers: { 'content-type': 'audio/mpeg' } });
   } catch (e) {
     // The voice's own reasons (no key, a refusal, no audio, too slow); never the words.
     const error = e instanceof Error ? { error: e.name, reason: e.message } : { error: 'Error' };
