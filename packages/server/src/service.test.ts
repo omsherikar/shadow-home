@@ -288,3 +288,50 @@ describe('words people typed', () => {
     expect(log.entries.find((e) => e.source === 'plan')?.who).toBe('om');
   });
 });
+
+describe('what the screen draws temperatures against', () => {
+  test('the rules that hold at all times, from the home the preview was checked on', async () => {
+    const r3 = fixture.rules.find((r) => r.id === 'R3');
+    if (r3?.template !== 'keep_between') throw new Error('R3 keeps the garage above 4 °C');
+    const home: Home = {
+      ...fixture,
+      rules: [
+        ...fixture.rules,
+        {
+          ...r3,
+          id: 'R13',
+          params: {
+            ...r3.params,
+            quantity: { zone: 'house', attr: 'temperatureC' },
+            min: null,
+            max: 26,
+          },
+        },
+        { ...r3, id: 'R14', params: { ...r3.params, min: 8, when: { presence: 'nobody' } } },
+      ],
+    };
+    const { service } = setup('2027-01-15T21:30:00', home);
+    const p = await service.previewPlan({
+      intent: 'TV off',
+      actions: [{ device: 'plug_tv', set: { onOff: false } }],
+    });
+    // R14 holds only while nobody's home, and the trace doesn't say when that is.
+    expect(service.temperatureRules(p)).toEqual({
+      R3: {
+        zone: 'garage',
+        zoneName: 'Garage',
+        minC: 4,
+        maxC: null,
+        heatedBy: ['garage_thermostat', 'plug_garage_freezer'],
+      },
+      R13: {
+        zone: 'house',
+        zoneName: 'House',
+        minC: null,
+        maxC: 26,
+        heatedBy: ['thermostat_main', 'plug_bedroom_space_heater', 'plug_coffee_maker'],
+      },
+    });
+    expect(service.temperatureRules({ nothing: 'here' })).toEqual({});
+  });
+});
