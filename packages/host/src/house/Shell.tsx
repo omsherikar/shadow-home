@@ -261,6 +261,15 @@ function BuiltPiece({ piece: b }: { piece: Built }) {
     <group position={[b.x, b.y, b.z]} rotation-y={deg(b.facing)}>
       {b.shape === 'counter' ? <Counter b={b} /> : null}
       {b.shape === 'bed' ? <Bed b={b} /> : null}
+      {b.shape === 'rug' ? (
+        <mesh position={[0, b.height / 2, 0]} receiveShadow>
+          <boxGeometry args={[b.width, b.height, b.depth]} />
+          <meshStandardMaterial
+            color={b.room === 'living_room' ? palette.rugLiving : palette.rugBedroom}
+            roughness={1}
+          />
+        </mesh>
+      ) : null}
     </group>
   );
 }
