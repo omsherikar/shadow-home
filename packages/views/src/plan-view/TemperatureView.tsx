@@ -6,6 +6,8 @@ const H = 130;
 const LEFT = 132;
 const TOP = 28;
 const BOTTOM = H - 8;
+/** About how wide "Sat 10:37 PM" is at the break label's size. */
+const TIME_WIDTH = 130;
 
 /**
  * A zone's temperature over the plan, against a house rule's line. Each curve is the nominal run,
@@ -21,6 +23,8 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
   const maxY = c.maxC === null ? TOP : y(c.maxC);
   const tone = c.breaks?.tone ?? 'blocked';
   const bounds = [c.minC, c.maxC].filter((b): b is number => b !== null);
+  const mark = c.breaks ? { x: x(c.breaks.atMs), y: y(c.breaks.atC) } : undefined;
+  const markLabel = mark && breakLabel(mark.x, mark.y, c.breaks?.atC === c.minC);
 
   return (
     <svg
@@ -88,6 +92,27 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
           </text>
         </g>
       ))}
+
+      {c.breaks && mark && markLabel ? (
+        <g className="break">
+          <rect
+            x={mark.x - 8}
+            y={mark.y - 8}
+            width={16}
+            height={16}
+            transform={`rotate(45 ${mark.x} ${mark.y})`}
+            className="mark"
+          />
+          <text
+            x={markLabel.x}
+            y={markLabel.y}
+            textAnchor={markLabel.anchor}
+            className="break-label"
+          >
+            {c.breaks.label}
+          </text>
+        </g>
+      ) : null}
     </svg>
   );
 }
@@ -103,6 +128,18 @@ function titleY(boundYs: number[]): number {
     (best, spot) => (room(spot) > room(best) ? spot : best),
     top,
   );
+}
+
+/**
+ * The break's time beside its mark: earlier in time, on the side the rule broke towards (below a
+ * lowest, above a highest), unless that runs off the chart.
+ */
+function breakLabel(markX: number, markY: number, below: boolean) {
+  const under = markY + 28;
+  const over = markY - 16;
+  const y = below ? (under <= H - 4 ? under : over) : over >= TOP + 8 ? over : under;
+  const before = markX - 16 - TIME_WIDTH >= LEFT;
+  return { x: before ? markX - 16 : markX + 16, y, anchor: before ? 'end' : 'start' } as const;
 }
 
 function Band({ curve, x, y, tone }: { curve: Curve; x: Scale; y: Scale; tone: string }) {
