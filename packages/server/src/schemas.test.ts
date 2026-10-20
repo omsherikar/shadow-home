@@ -18,6 +18,11 @@ describe('what a caller sends is bounded', () => {
     expect(ok(addRuleInput, { ...rule, text: 'a'.repeat(301) })).toBe(false);
   });
 
+  test('words that are only spaces and control characters are refused', () => {
+    expect(ok(previewInput, { ...tvOff, intent: ' \u0000\n\u001b ' })).toBe(false);
+    expect(ok(addRuleInput, { text: '\t\u0007', author: 'om' })).toBe(false);
+  });
+
   test('a household member ID up to 40 characters, wherever one is sent', () => {
     const long = 'm'.repeat(41);
     expect(ok(previewInput, { ...tvOff, requestedBy: 'm'.repeat(40) })).toBe(true);
