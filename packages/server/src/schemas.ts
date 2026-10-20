@@ -289,7 +289,7 @@ export const logOutput = z.object({
 export type LogOutput = z.infer<typeof logOutput>;
 
 export const addRuleInput = z.object({
-  text: z.string().min(1).describe('The rule in the person’s words'),
+  text: words(300, 'The rule in the person’s words'),
   author: member,
   rule: compiledRuleSchema
     .optional()
