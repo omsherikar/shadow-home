@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { addRuleInput, logInput, previewInput } from './schemas.ts';
+import { newNonce, signPlanId } from './plan-id.ts';
+import {
+  addRuleInput,
+  approveInput,
+  commitInput,
+  logInput,
+  previewInput,
+  undoInput,
+} from './schemas.ts';
 
 const tvOff = {
   intent: 'TV off',
@@ -39,5 +47,19 @@ describe('what a caller sends is bounded', () => {
   test('a presence schedule of at most 20 entries', () => {
     expect(ok(previewInput, { ...tvOff, presenceSchedule: Array(20).fill(away) })).toBe(true);
     expect(ok(previewInput, { ...tvOff, presenceSchedule: Array(21).fill(away) })).toBe(false);
+  });
+
+  test('plan IDs and tokens up to well past the longest the server issues', () => {
+    // A plan ID with a state version far past any real home's still fits.
+    const issued = signPlanId('k', { n: newNonce(), v: 999_999_999, x: Date.parse('2099-01-01') });
+    expect(issued.length).toBeLessThan(150);
+    expect(ok(commitInput, { planId: issued })).toBe(true);
+    expect(ok(commitInput, { planId: 'p'.repeat(201) })).toBe(false);
+    const token = 't'.repeat(100);
+    expect(ok(approveInput, { planId: issued, approvalToken: token })).toBe(true);
+    expect(ok(approveInput, { planId: issued, approvalToken: `${token}t` })).toBe(false);
+    expect(ok(approveInput, { planId: 'p'.repeat(201), approvalToken: 'x' })).toBe(false);
+    expect(ok(undoInput, { token })).toBe(true);
+    expect(ok(undoInput, { token: `${token}t` })).toBe(false);
   });
 });
