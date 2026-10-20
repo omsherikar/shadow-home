@@ -194,3 +194,32 @@
 .float-caption.thinking .said {
   opacity: 0.6;
 }
+
+.verdict-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 25%);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.verdict-chip.safe {
+  color: var(--safe);
+}
+
+.verdict-chip.blocked {
+  color: var(--blocked);
+}
+
+.verdict-chip.unsure {
+  color: var(--unsure);
+}
+
+.verdict-chip.done {
+  color: var(--done);
+}
