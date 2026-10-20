@@ -124,6 +124,14 @@ describe('the repaired weekend plan', () => {
     expect(r.unknowns).toEqual([]);
   });
 
+  test('its garage trace stays at 4 °C or above in every run', () => {
+    const r = check(home, repaired(5));
+    for (const run of RUN_NAMES) {
+      const garage = r.temperatures?.zonesC[run].garage ?? [Number.NaN];
+      expect(Math.min(...garage), run).toBeGreaterThanOrEqual(4);
+    }
+  });
+
   test('is UNSAFE at 4.5 °C: the heater only starts below 4.0 °C, so the garage dips under it', () => {
     const r = check(home, repaired(4.5));
     expect(r.verdict).toBe('UNSAFE');
