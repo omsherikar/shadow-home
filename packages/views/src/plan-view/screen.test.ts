@@ -9,7 +9,7 @@ import {
   screenFor,
   undoScreen,
 } from './screen.ts';
-import { type Temperatures, temperaturesFrom } from './temperature.ts';
+import { NO_TEMPERATURES, type Temperatures, temperaturesFrom } from './temperature.ts';
 import {
   type DiffRow,
   type Names,
@@ -520,6 +520,28 @@ describe('a zone’s temperature against a house rule', () => {
     });
     expect(s.temperature?.breaks).toBeUndefined();
     expect(s.temperature?.curves.map((c) => c.holds)).toEqual([true]);
+  });
+
+  test('without a trace, or with no temperature rule involved, the timeline stays', () => {
+    const lightsOff = preview('SAFE', 'T1', {
+      horizon: { start: NOW, end: MIDNIGHT },
+      timeline: [
+        { at: NOW, source: 'plan', device: 'light_living', attr: 'onOff', from: true, to: false },
+      ],
+    });
+    const fallback = (p: Preview, temps: Temperatures) => {
+      const s = previewScreen(p, names, temps);
+      return { chart: s.temperature !== undefined, timeline: s.timeline !== undefined };
+    };
+    const timelineOnly = { chart: false, timeline: true };
+    expect(fallback(lightsOff, { traces: { 'plan-1': holds }, rules })).toEqual(timelineOnly);
+    const withLanes = { ...blocked, timeline: lightsOff.timeline };
+    expect(fallback(withLanes, NO_TEMPERATURES)).toEqual(timelineOnly);
+    expect(fallback(withLanes, { traces: { 'fixed-1': holds }, rules })).toEqual(timelineOnly);
+    expect(fallback(withLanes, { traces: { 'plan-1': freezes }, rules: {} })).toEqual(timelineOnly);
+    // Runs that don't line up can't be drawn.
+    const ragged = { ...freezes, zonesC: { ...freezes.zonesC, optimistic: { garage: [6, 5] } } };
+    expect(fallback(withLanes, { traces: { 'plan-1': ragged }, rules })).toEqual(timelineOnly);
   });
 
   test('the temperatures come from the result’s _meta, and anything malformed is left out', () => {
