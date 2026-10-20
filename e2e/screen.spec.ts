@@ -110,6 +110,11 @@ test('the whole demo script plays in demo mode, with no manual steps', async ({ 
   expect(alexa[5]).toMatch(/^Here's what changed: I'm away for the weekend/);
   expect(alexa[6]).toMatch(/^Safe: Main thermostat to 20 °C\./);
   expect(alexa[7]).toBe('Done: Main thermostat to 20 °C.');
-  await expect(page.getByText(/^Sun \d+:\d\d PM$/)).toBeVisible();
+  // Monday morning, heading out: Coffee at 7 has the coffee maker on, and a yes switches it off.
+  expect(alexa[8]).toBe(
+    "Before you go: Coffee maker on. No coffee maker running when nobody's home. That's Om's rule. Shall I fix it?",
+  );
+  expect(alexa[9]).toBe('Done: Coffee maker off.');
+  await expect(page.getByText(/^Mon \d+:\d\d AM$/)).toBeVisible();
   await page.screenshot({ path: 'test-results/demo-finished.png' });
 });
