@@ -1,10 +1,14 @@
 import { z } from 'zod';
+import { count, midnights } from './format.ts';
 import {
+  type Preview,
   TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type TemperatureRule,
   type TemperatureTrace,
 } from './types.ts';
+
+const RUNS = ['nominal', 'pessimistic', 'optimistic'] as const;
 
 const zones = z.record(z.string(), z.array(z.number()));
 const traceSchema = z.object({
@@ -65,4 +69,80 @@ export interface TemperatureChart {
   toC: number;
   /** The plan first; then, if the screen offers one, the repaired plan. */
   curves: Curve[];
+}
+
+/**
+ * The chart of a zone's temperature for a preview, when a temperature rule is involved: the plan
+ * breaks it, or the plan (or the fix on offer) changes what heats the zone it watches. Undefined
+ * otherwise, or without a usable trace, and the screen shows the timeline instead.
+ */
+export function temperatureChart(
+  p: Preview,
+  offered: 'repair' | 'safe_part' | null,
+  temps: Temperatures,
+): TemperatureChart | undefined {
+  const own = temps.traces[p.planId];
+  if (!own) return undefined;
+  const repair = offered === 'repair' ? p.repair : null;
+  const broken = p.violations
+    .filter((v) => temps.rules[v.rule])
+    .sort((a, b) => Date.parse(a.firstAt) - Date.parse(b.firstAt))[0];
+  const touched = new Set([...p.diff, ...(repair?.diff ?? [])].map((r) => r.target));
+  const ruleId =
+    broken?.rule ??
+    Object.keys(temps.rules).find((id) => temps.rules[id]?.heatedBy.some((d) => touched.has(d)));
+  const rule = ruleId ? temps.rules[ruleId] : undefined;
+  if (!ruleId || !rule) return undefined;
+
+  const plan = curveOf(own, rule.zone, !broken);
+  if (!plan) return undefined;
+  const fixedTrace = repair ? temps.traces[repair.planId] : undefined;
+  // A fix is offered only when its check is SAFE, so its curve holds.
+  const fixed = fixedTrace ? curveOf(fixedTrace, rule.zone, true) : undefined;
+  const curves = fixed
+    ? [
+        { ...plan, label: p.kind === 'undo' ? 'The undo' : 'Your plan' },
+        { ...fixed, label: `With ${count(repair?.changes.length ?? 0, 'fix', 'fixes')}` },
+      ]
+    : [plan];
+
+  const all = curves.flatMap((c) => [...c.lowC, ...c.highC]);
+  const bounds = [rule.minC, rule.maxC].filter((b): b is number => b !== null);
+  const lowest = Math.min(...all, ...bounds);
+  const highest = Math.max(...all, ...bounds);
+  const margin = Math.max(0.5, (highest - lowest) * 0.06);
+  const startMs = plan.atMs[0] ?? 0;
+  const endMs = plan.atMs.at(-1) ?? 0;
+  return {
+    zone: rule.zoneName,
+    rule: ruleId,
+    minC: rule.minC,
+    maxC: rule.maxC,
+    startMs,
+    endMs,
+    days: midnights(own.start, own.end),
+    fromC: lowest - margin,
+    toC: highest + margin,
+    curves,
+  };
+}
+
+function curveOf(t: TemperatureTrace, zone: string, holds: boolean): Curve | undefined {
+  const runs = RUNS.map((run) => t.zonesC[run][zone]);
+  const [nominal] = runs;
+  const n = nominal?.length ?? 0;
+  if (!nominal || n < 2 || runs.some((r) => r?.length !== n)) return undefined;
+  const startMs = Date.parse(t.start);
+  const endMs = Date.parse(t.end);
+  if (!(endMs > startMs)) return undefined;
+  const at = (i: number) => runs.map((r) => r?.[i] ?? Number.NaN);
+  return {
+    holds,
+    atMs: nominal.map((_, i) =>
+      i === n - 1 ? endMs : Math.min(endMs, startMs + i * t.stepMinutes * 60_000),
+    ),
+    nominalC: nominal,
+    lowC: nominal.map((_, i) => Math.min(...at(i))),
+    highC: nominal.map((_, i) => Math.max(...at(i))),
+  };
 }
