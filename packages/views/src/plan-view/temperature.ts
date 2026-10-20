@@ -36,3 +36,16 @@ export function temperaturesFrom(meta: Record<string, unknown> | undefined): Tem
   const rules = z.record(z.string(), ruleSchema).safeParse(meta?.[TEMPERATURE_RULES_META_KEY]);
   return { traces: traces.success ? traces.data : {}, rules: rules.success ? rules.data : {} };
 }
+
+/** One plan's temperatures in the chart's zone, sample by sample. */
+export interface Curve {
+  /** "Your plan" or "With 2 fixes", when two curves share the chart. */
+  label?: string;
+  /** Within the rule's bounds in every run, by the check's own minute-by-minute reading. */
+  holds: boolean;
+  atMs: number[];
+  /** The nominal run, and the lowest and highest of the three runs: the spread. */
+  nominalC: number[];
+  lowC: number[];
+  highC: number[];
+}
