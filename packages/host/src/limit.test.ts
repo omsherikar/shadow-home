@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test } from 'vitest';
-import { hourlyLimit } from './limit.ts';
+import { describe, expect, test } from 'vitest';
+import { hourlyBudget, hourlyLimit } from './limit.ts';
+
+const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
 
 test('live turns and speech: at most the limit in any rolling hour, then room as uses age out', () => {
   let t = 0;
@@ -15,4 +18,20 @@ test("the server's copy is the same file", () => {
   const copy = (pkg: string) =>
     readFileSync(join(import.meta.dirname, `../../${pkg}/src/limit.ts`), 'utf8');
   expect(copy('host')).toBe(copy('server'));
+});
+
+describe('an hourly budget', () => {
+  test('spends amounts up to the budget in any rolling hour; a refused amount costs nothing', () => {
+    let t = 0;
+    const spend = hourlyBudget(100, () => t);
+    expect(spend(60)).toBe(true);
+    t = 10 * MINUTE;
+    expect(spend(50)).toBe(false);
+    expect(spend(40)).toBe(true);
+    expect(spend()).toBe(false);
+    // The 60 has left the window; the 40 hasn't.
+    t = HOUR;
+    expect(spend(60)).toBe(true);
+    expect(spend(1)).toBe(false);
+  });
 });
