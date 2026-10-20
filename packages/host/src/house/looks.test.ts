@@ -92,6 +92,10 @@ describe('the light outside', () => {
     }
   });
 
+  test('the same time gives the same light', () => {
+    expect(at('17:45')).toEqual(at('17:45'));
+  });
+
   test('colours mix part way, end to end', () => {
     expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
