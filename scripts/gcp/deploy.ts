@@ -236,7 +236,8 @@ watch([
   // it. Two at once kept p99 under about 400 ms in scripts/load.ts; past that, another instance
   // takes the request (docs/decisions.md, 101).
   '--concurrency=2',
-  `--set-env-vars=RULE_COMPILER=${model ? 'anthropic' : 'off'}`,
+  // The project, so log lines carry their request's trace.
+  `--set-env-vars=RULE_COMPILER=${model ? 'anthropic' : 'off'},GOOGLE_CLOUD_PROJECT=${project}`,
   `--set-secrets=SHADOW_HOME_SECRET=${SECRET.plan}:latest${
     model ? `,ANTHROPIC_API_KEY=${SECRET.anthropic}:latest` : ''
   }`,
@@ -262,7 +263,7 @@ watch([
   '--min-instances=0',
   '--max-instances=2',
   // Without a model key the host still runs, on the scripted model.
-  `--set-env-vars=MCP_SERVER_URL=${serverUrl}/mcp${model ? '' : ',MOCK_MODEL=1'}`,
+  `--set-env-vars=MCP_SERVER_URL=${serverUrl}/mcp,GOOGLE_CLOUD_PROJECT=${project}${model ? '' : ',MOCK_MODEL=1'}`,
   ...(hostSecrets.length > 0 ? [`--set-secrets=${hostSecrets.join(',')}`] : []),
 ]);
 const hostUrl = gcloud(['run', 'services', 'describe', HOST, at, p, '--format=value(status.url)']);
