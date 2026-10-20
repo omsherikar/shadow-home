@@ -1,4 +1,10 @@
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+  PHASE_PRODUCTION_SERVER,
+} from 'next/constants';
 import { describe, expect, test } from 'vitest';
+import config from '../next.config.ts';
 import { contentSecurityPolicy, securityHeaders } from './headers.ts';
 import { VIEW_CSP } from './screen/ScreenHost.ts';
 
@@ -65,3 +71,16 @@ test('every response says no framing, no sniffing, a short referrer, and the mic
   expect(headers.get('X-Frame-Options')).toBe('DENY');
   expect(headers.get('Permissions-Policy')).toBe('microphone=(self), camera=(), geolocation=()');
 });
+
+test.each([
+  [PHASE_DEVELOPMENT_SERVER, true],
+  [PHASE_PRODUCTION_BUILD, false],
+  [PHASE_PRODUCTION_SERVER, false],
+])(
+  'next.config sends the headers on every route, with the dev policy only under next dev (%s)',
+  async (phase, dev) => {
+    const next = config(phase);
+    expect(next.poweredByHeader).toBe(false);
+    expect(await next.headers?.()).toEqual([{ source: '/:path*', headers: securityHeaders(dev) }]);
+  },
+);
