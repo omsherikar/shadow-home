@@ -6,6 +6,7 @@ export {
   APPROVAL_META_KEY,
   NAMES_META_KEY,
   type Names,
+  TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type TemperatureRule,
   type TemperatureTrace,
