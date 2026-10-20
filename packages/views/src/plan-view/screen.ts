@@ -234,14 +234,18 @@ function previewControls(p: Preview, offered: 'repair' | 'safe_part' | null): Co
   }
 }
 
-export function commitScreen(c: Commit, names?: Names): Screen {
+export function commitScreen(
+  c: Commit,
+  names?: Names,
+  temps: Temperatures = NO_TEMPERATURES,
+): Screen {
   const speech = {
     headline: c.speech.headline,
     ...(c.speech.reason ? { reason: c.speech.reason } : {}),
     ...(c.speech.ask ? { ask: c.speech.ask } : {}),
   };
   if (c.status === 'refused' && c.freshPreview) {
-    const fresh = previewScreen(c.freshPreview, names);
+    const fresh = previewScreen(c.freshPreview, names, temps);
     return { ...fresh, notes: ['The home changed since that check, so I checked again.'] };
   }
   if (c.status === 'committed') {
