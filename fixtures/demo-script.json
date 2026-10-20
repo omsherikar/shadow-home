@@ -151,6 +151,30 @@
         }
       },
       "recordedPlan": null
+    },
+    {
+      "id": "heading_out",
+      "say": "I'm heading out.",
+      "context": {
+        "now": "2027-01-18T07:15:00-06:00",
+        "presenceSchedule": [
+          {
+            "from": "2027-01-18T07:15:00-06:00",
+            "to": "2027-01-18T11:15:00-06:00",
+            "presence": "nobody"
+          }
+        ],
+        "planEnd": null
+      },
+      "draftPlanExample": [],
+      "expected": {
+        "verdict": "UNSAFE",
+        "rules": ["R8"],
+        "repairs": ["turn plug_coffee_maker off"],
+        "repairedVerdict": "SAFE",
+        "tier": "T3"
+      },
+      "recordedPlan": null
     }
   ]
 }
