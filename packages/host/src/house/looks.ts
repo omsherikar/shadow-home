@@ -76,3 +76,11 @@ export function lookOf(device: LiveDevice | undefined): Look {
   // A low battery or a silent sensor: whatever it says can't be relied on.
   return device.sensor?.trusted === false ? { ...look, status: 'unknown' } : look;
 }
+
+/** A colour part way from `a` to `b`, both "#rrggbb". */
+export function mix(a: string, b: string, t: number): string {
+  const k = Math.min(1, Math.max(0, t));
+  const ch = (c: string, i: number) => Number.parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16);
+  const out = [0, 1, 2].map((i) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * k));
+  return `#${out.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
