@@ -34,6 +34,6 @@ test('the screen and the plan view in its frame break nothing in the content pol
   await page.getByRole('button', { name: 'Say it' }).click();
   const view = page.frameLocator('.view iframe');
   await expect(view.getByText('UNSAFE', { exact: true })).toBeVisible();
-  await expect(view.getByRole('img', { name: 'Timeline' })).toBeVisible();
+  await expect(view.getByRole('img', { name: 'Garage temperature' })).toBeVisible();
   expect(violations).toEqual([]);
 });
