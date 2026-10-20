@@ -226,6 +226,10 @@ watch([
   ...service(SERVER, serverImage),
   `--min-instances=${process.env.MIN_INSTANCES ?? 0}`,
   '--max-instances=4',
+  // Calls to the home take turns, so each request at once on an instance waits for those ahead of
+  // it. Two at once kept p99 under about 400 ms in scripts/load.ts; past that, another instance
+  // takes the request (docs/decisions.md, 101).
+  '--concurrency=2',
   `--set-env-vars=RULE_COMPILER=${model ? 'anthropic' : 'off'}`,
   `--set-secrets=SHADOW_HOME_SECRET=${SECRET.plan}:latest${
     model ? `,ANTHROPIC_API_KEY=${SECRET.anthropic}:latest` : ''
