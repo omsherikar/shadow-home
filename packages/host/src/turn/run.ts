@@ -10,8 +10,9 @@ export interface ToolRunner {
 
 const MAX_STEPS = 6;
 /**
- * How long a turn waits on the model, in all. Each model call gives up after 20 s with one retry
- * (anthropic.ts), and a turn may take six steps, so without this a person could wait minutes.
+ * How long a turn waits, from when it starts: setting up (connecting, the home) and the model's
+ * steps together. Each model call gives up after 20 s with one retry (anthropic.ts), and a turn
+ * may take six steps, so without this a person could wait minutes.
  */
 export const TURN_DEADLINE_MS = 30_000;
 

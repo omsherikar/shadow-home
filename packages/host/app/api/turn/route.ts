@@ -2,23 +2,16 @@ import { hourlyCaps, perHour } from '@/limit.ts';
 import { log } from '@/log.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
-import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
+import { bedrockModel } from '@/turn/bedrock.ts';
 import { sceneTimeFor } from '@/turn/demo-clock.ts';
 import { connectTools } from '@/turn/mcp.ts';
 import { liveModel } from '@/turn/providers.ts';
 import { turnRequest } from '@/turn/request.ts';
-import { runTurn } from '@/turn/run.ts';
+import { TURN_DEADLINE_MS } from '@/turn/run.ts';
 import { scriptedModel } from '@/turn/scripted.ts';
-import type { Names, TurnRequest } from '@/turn/types.ts';
+import { takeTurn } from '@/turn/turn.ts';
+import type { TurnRequest } from '@/turn/types.ts';
 import { visitorOf } from '@/visitor.ts';
-
-function namesOf(home: HomeBrief): Names {
-  return {
-    devices: Object.fromEntries(home.devices.map((d) => [d.id, { name: d.name, room: d.room }])),
-    routines: Object.fromEntries(home.routines.map((r) => [r.id, r.name])),
-    members: {},
-  };
-}
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -59,44 +52,38 @@ export async function POST(request: Request): Promise<Response> {
   const beats = await loadBeats();
   if (process.env.DEMO_CLOCK === '1') await sceneTimeFor(parsed.data.text, beats);
 
-  const tools = await connectTools();
-  try {
-    const home = await tools.homeBrief();
-    // Names come from the home itself, so what "the thermostat" means never depends on what the
-    // browser happened to see before (a reload, a log with no names).
-    const request: TurnRequest = { ...(parsed.data as TurnRequest), names: namesOf(home) };
-    const model = scripted
-      ? scriptedModel(beats)
-      : bedrockModel({
-          ...(await liveModel()),
-          tools: tools.modelTools,
-          home,
-          ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),
-        });
-    const turn = await runTurn(model, tools, request);
-    log('INFO', 'turn', { scripted, calls: turn.calls.length, ms: Date.now() - started }, headers);
-    return Response.json(turn);
-  } catch (e) {
+  const { turn, failure } = await takeTurn(parsed.data as TurnRequest, {
+    connect: (deadline) => connectTools({ deadline }),
+    model: async (tools, home) =>
+      scripted
+        ? scriptedModel(beats)
+        : bedrockModel({
+            ...(await liveModel()),
+            tools: tools.modelTools,
+            home,
+            ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),
+          }),
+    // Setting up and the model's steps share one deadline from when the turn started.
+    deadline: started + TURN_DEADLINE_MS,
+  });
+  const ms = Date.now() - started;
+  if (failure === undefined) {
+    log('INFO', 'turn', { scripted, calls: turn.calls.length, ms }, headers);
+  } else {
     // The person still hears something. The log gets the error's name, code and status, not its
     // message, which can carry parts of the conversation.
-    const { code, status } = (e ?? {}) as { code?: unknown; status?: unknown };
+    const { code, status } = (failure ?? {}) as { code?: unknown; status?: unknown };
     log(
       'ERROR',
       'turn failed',
       {
-        error: e instanceof Error ? e.name : 'Error',
+        error: failure instanceof Error ? failure.name : 'Error',
         code: typeof code === 'string' ? code : undefined,
         status: typeof status === 'number' ? status : undefined,
-        ms: Date.now() - started,
+        ms,
       },
       headers,
     );
-    return Response.json({
-      say: "Sorry, I can't reach my assistant model right now.",
-      calls: [],
-      error: e instanceof Error ? e.name : 'Error',
-    });
-  } finally {
-    await tools.close();
   }
+  return Response.json(turn);
 }
