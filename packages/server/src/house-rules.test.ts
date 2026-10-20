@@ -152,6 +152,29 @@ describe('a house rule in plain words', () => {
     expect(added?.refuse).toBeUndefined();
   });
 
+  test('the words and author are compiled and kept without control characters, runs of spaces made one', async () => {
+    const heard: { text: string; author: string }[] = [];
+    const store = memoryStore(initialState(home));
+    const agree: Compile = async () => ({ rule: porch, unsupported: null });
+    const service = new ShadowHomeService({
+      store,
+      clock: manualClock(Date.parse('2027-01-15T17:45:00-06:00')),
+      secret: 'unit',
+      compileRule: (input) => {
+        heard.push({ text: input.text, author: input.author });
+        return compileRule(input, [agree, agree, agree]);
+      },
+    });
+    const r = await service.addHouseRule({
+      text: 'Keep the porch light\u0000 off\n\n  after midnight.\u001b',
+      author: 'maya\u0000\n',
+    });
+    expect(r.status).toBe('added');
+    expect(heard).toEqual([says]);
+    const added = (await store.loadState()).home.rules.find((x) => x.id === r.ruleId);
+    expect(added).toMatchObject(says);
+  });
+
   test('without a compiler, words alone wait for one', async () => {
     const service = new ShadowHomeService({
       store: memoryStore(initialState(home)),
