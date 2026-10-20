@@ -1,3 +1,4 @@
+import { Vector3 } from 'three';
 import type { HouseLayout } from './layout.ts';
 
 /** One straight run of wall, from `bottom` to `top`, centred on the line from a to b. */
@@ -112,4 +113,14 @@ function merge(spans: [number, number][]): [number, number][] {
     else out.push([from, to]);
   }
   return out;
+}
+
+/** The house's extent: its floor plan from the ground to the top of the walls. */
+export function houseBounds(layout: HouseLayout): { min: Vector3; max: Vector3 } {
+  const xs = layout.rooms.flatMap((r) => [r.x, r.x + r.width]);
+  const zs = layout.rooms.flatMap((r) => [r.z, r.z + r.depth]);
+  return {
+    min: new Vector3(Math.min(...xs), 0, Math.min(...zs)),
+    max: new Vector3(Math.max(...xs), layout.wallHeight, Math.max(...zs)),
+  };
 }
