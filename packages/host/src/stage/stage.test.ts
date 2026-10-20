@@ -45,4 +45,9 @@ describe('the verdict chip', () => {
     expect(chipFor('preview_plan', { verdict: 'UNSAFE' })).toBe('UNSAFE');
     expect(chipFor('preview_plan', { verdict: 'SAFE' })).toBe('SAFE');
   });
+
+  test('an undo shows its preview’s verdict', () => {
+    expect(chipFor('undo', { status: 'preview', preview: { verdict: 'SAFE' } })).toBe('SAFE');
+    expect(chipFor('undo', { status: 'nothing_to_undo' })).toBeUndefined();
+  });
 });
