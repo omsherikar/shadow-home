@@ -327,3 +327,12 @@ h2 {
   margin: 0;
   color: var(--blocked);
 }
+
+/* A zone's temperature against a house rule: green where it holds, the verdict's colour where it breaks. */
+.temps {
+  --rule: var(--muted);
+  width: 100%;
+  height: auto;
+  max-height: 30vh;
+  flex-shrink: 0;
+}
