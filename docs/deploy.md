@@ -108,6 +108,21 @@ The same container runs on a laptop against the Firestore emulator:
 - `docker run --rm -p 127.0.0.1:3300:8080 -e FIRESTORE_EMULATOR_HOST=host.docker.internal:8080 -e GOOGLE_CLOUD_PROJECT=demo-shadow-home -e METADATA_SERVER_DETECTION=none -e SHADOW_HOME_SECRET=local-only shadow-home-server`
   serves it at http://localhost:3300/mcp
 
+### If a deploy goes wrong
+
+Each deploy is a new revision, and the earlier ones stay. Find the last good one and send all
+traffic back to it:
+
+- `gcloud run revisions list --service=shadow-home-mcp --region=us-central1`
+- `gcloud run services update-traffic shadow-home-mcp --to-revisions=REVISION=100 --region=us-central1`
+
+and the same for `shadow-home-host`. Later deploys keep that split, so once a fix is deployed,
+send traffic to the newest revision again with
+`gcloud run services update-traffic shadow-home-mcp --to-latest --region=us-central1`.
+On Cloud Run each log line is JSON with a `severity`, so
+`gcloud logging read 'resource.labels.service_name="shadow-home-host" AND severity>=WARNING'`
+shows what went wrong; lines written while answering a request are filed under it.
+
 ### Remove it
 
 In the console, or:
