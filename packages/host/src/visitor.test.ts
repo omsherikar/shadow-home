@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 import { visitorOf } from './visitor.ts';
 
 const request = (forwardedFor?: string) =>
@@ -8,6 +8,10 @@ const request = (forwardedFor?: string) =>
   });
 
 describe('who a visitor is', () => {
+  afterEach(() => {
+    delete process.env.CLIENT_IP_HOPS;
+  });
+
   test("directly on Cloud Run: the rightmost entry, the address Google's front end saw", () => {
     expect(visitorOf(request('203.0.113.7'), 0)).toBe('203.0.113.7');
   });
@@ -36,5 +40,16 @@ describe('who a visitor is', () => {
     expect(v6('2001:db8:1:2::1')).toBe(v6('2001:0db8:0001:0002::9'));
     expect(v6('2001:db8:1:2::1')).not.toBe(v6('2001:db8:1:3::1'));
     expect(v6('::ffff:203.0.113.7')).toBe('203.0.113.7');
+  });
+
+  test('the hops come from CLIENT_IP_HOPS: a whole number, else 0', () => {
+    const header = request('198.51.100.1, 203.0.113.7, 34.120.0.1');
+    expect(visitorOf(header)).toBe('34.120.0.1');
+    process.env.CLIENT_IP_HOPS = '1';
+    expect(visitorOf(header)).toBe('203.0.113.7');
+    for (const raw of ['', '-1', '1.5', 'one']) {
+      process.env.CLIENT_IP_HOPS = raw;
+      expect(visitorOf(header)).toBe('34.120.0.1');
+    }
   });
 });
