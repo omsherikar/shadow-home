@@ -1,3 +1,5 @@
+import type { Remembered } from './types.ts';
+
 /** What the person said, at most: what the server takes as a request or a rule's words. */
 export const MAX_TEXT = 300;
 
@@ -39,4 +41,30 @@ export function fits(max: number) {
       return false;
     }
   };
+}
+
+const LEFT_OUT = 'Too large to send back.';
+
+/**
+ * The history as the browser sends it, inside the caps the turn route checks: arguments or a
+ * result past its cap goes as a note that it was left out, and while the whole is still past its
+ * cap the oldest entries go first.
+ */
+export function fitHistory(history: Remembered[]): Remembered[] {
+  const kept = history.map((h) => {
+    const big = h.structuredContent !== undefined && !fits(MAX_RESULT)(h.structuredContent);
+    return {
+      ...h,
+      ...(fits(MAX_ARGUMENTS)(h.arguments) ? {} : { arguments: { leftOut: LEFT_OUT } }),
+      ...(big ? { structuredContent: { leftOut: LEFT_OUT } } : {}),
+    };
+  });
+  // As JSON, an array is its entries, a comma between each two, and the brackets.
+  const sizes = kept.map((h) => JSON.stringify(h).length);
+  let total = sizes.reduce((sum, s) => sum + s + 1, 1);
+  while (kept.length > 0 && total > MAX_HISTORY) {
+    total -= (sizes.shift() as number) + 1;
+    kept.shift();
+  }
+  return kept;
 }
