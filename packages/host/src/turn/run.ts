@@ -39,6 +39,9 @@ export async function runTurn(
   const calls: ToolCall[] = [];
   try {
     for (let i = 0; i < MAX_STEPS; i++) {
+      // A tool call may end past the deadline (a rule compile can take 40 s): then no new model
+      // step starts, since its answer would be thrown away and it costs a model call.
+      if (now() >= deadline) throw new TurnDeadlineError('The turn ran out of time');
       const step = await within(model.next({ ...request, thisTurn: calls }), deadline - now());
       if ('say' in step) return { say: step.say, calls };
       const result = await tools.callTool(step.call.name, step.call.arguments);
