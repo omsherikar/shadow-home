@@ -83,6 +83,11 @@ const DAY_MS = 24 * 60 * 60_000;
 /** Most log entries one catch-up step writes, well inside a DynamoDB transaction's 100 items. */
 const CATCH_UP_LIMIT = 40;
 
+/** What the screen draws a preview with, beside the result the tool returns. */
+interface Drawing {
+  traces: Record<string, TemperatureTrace>;
+}
+
 /**
  * The seven tools' logic, independent of MCP. Calls run one at a time: each first brings the
  * twin up to the current home time, then reads or changes it.
@@ -99,7 +104,7 @@ export class ShadowHomeService {
    * ID. Kept beside the result rather than in it, since only the screen draws them; a preview
    * dropped after its call takes its traces with it.
    */
-  private readonly traces = new WeakMap<object, Record<string, TemperatureTrace>>();
+  private readonly drawing = new WeakMap<object, Drawing>();
 
   constructor(options: ServiceOptions) {
     this.store = options.store;
@@ -689,11 +694,16 @@ export class ShadowHomeService {
    * or a fresh one after a stale plan ID), by plan ID: the plan's own and its repair's.
    */
   temperatures(result: unknown): Record<string, TemperatureTrace> {
-    const found: Record<string, TemperatureTrace> = {};
+    return this.gather(result, (d) => d.traces);
+  }
+
+  private gather<T>(result: unknown, pick: (d: Drawing) => Record<string, T>): Record<string, T> {
+    const found: Record<string, T> = {};
     const visit = (value: unknown): void => {
       if (Array.isArray(value)) for (const v of value) visit(v);
       else if (value && typeof value === 'object') {
-        Object.assign(found, this.traces.get(value));
+        const drawn = this.drawing.get(value);
+        if (drawn) Object.assign(found, pick(drawn));
         for (const v of Object.values(value)) visit(v);
       }
     };
@@ -880,9 +890,11 @@ export class ShadowHomeService {
           : null,
     };
     const repairTrace = a.repaired?.check.temperatures;
-    this.traces.set(out, {
-      ...(a.check.temperatures ? { [planId]: a.check.temperatures } : {}),
-      ...(repairId && repairTrace ? { [repairId]: repairTrace } : {}),
+    this.drawing.set(out, {
+      traces: {
+        ...(a.check.temperatures ? { [planId]: a.check.temperatures } : {}),
+        ...(repairId && repairTrace ? { [repairId]: repairTrace } : {}),
+      },
     });
     return out;
   }
