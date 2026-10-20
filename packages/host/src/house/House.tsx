@@ -1,6 +1,8 @@
 'use client';
 
 import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
+import { ToneMappingMode } from 'postprocessing';
 import { Suspense, useLayoutEffect, useMemo } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
@@ -72,7 +74,22 @@ function Scene({ home, onLabels, shift = 0 }: HouseProps) {
       <Furniture layout={layout} />
       <Devices layout={layout} home={home} />
       <People layout={layout} presence={home?.presence} />
+      <Finish />
     </>
+  );
+}
+
+/**
+ * The finish: ambient occlusion where things meet, a glow on whatever is lit, and filmic tone
+ * mapping. Nothing here needs a worker or WebAssembly.
+ */
+function Finish() {
+  return (
+    <EffectComposer multisampling={4}>
+      <N8AO halfRes aoRadius={0.6} distanceFalloff={0.8} intensity={3} color="#1b130d" />
+      <Bloom mipmapBlur luminanceThreshold={1.6} luminanceSmoothing={0.2} intensity={0.9} />
+      <ToneMapping mode={ToneMappingMode.AGX} />
+    </EffectComposer>
   );
 }
 
