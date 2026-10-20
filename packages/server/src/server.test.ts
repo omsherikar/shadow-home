@@ -640,5 +640,27 @@ describe.each(['legacy', 'modern'] as const)(
       expect(Object.keys(traces)).toEqual([undo.preview?.planId]);
       expect(traces[undo.preview?.planId ?? '']?.zonesC.nominal.house?.length).toBeGreaterThan(1);
     });
+
+    test('a fresh preview, after a stale plan ID, comes with its own temperatures', async () => {
+      const stale = await api.call<PreviewOutput>('preview_plan', weekend);
+      const other = await api.call<PreviewOutput>('preview_plan', {
+        intent: 'TV off',
+        requestedBy: 'om',
+        actions: [{ device: 'plug_tv', set: { onOff: false } }],
+      });
+      const done = await api.call<CommitOutput>('commit_plan', { planId: other.planId });
+      expect(done.status).toBe('committed');
+      const r = await api.client.callTool({
+        name: 'commit_plan',
+        arguments: { planId: stale.planId },
+      });
+      const commit = r.structuredContent as CommitOutput;
+      expect(commit).toMatchObject({ status: 'refused', reason: 'state_changed' });
+      const fresh = commit.freshPreview;
+      const traces = r._meta?.[TEMPERATURES_META_KEY] as Record<string, TemperatureTrace>;
+      expect(Object.keys(traces).sort()).toEqual([fresh?.planId, fresh?.repair?.planId].sort());
+      expect(traces[fresh?.planId ?? '']).toMatchObject({ ...fresh?.horizon, stepMinutes: 15 });
+      expect(traces).not.toHaveProperty(stale.planId);
+    });
   },
 );
