@@ -124,3 +124,12 @@ export function houseBounds(layout: HouseLayout): { min: Vector3; max: Vector3 }
     max: new Vector3(Math.max(...xs), layout.wallHeight, Math.max(...zs)),
   };
 }
+
+/** The diorama's base around the house: lawn at the sides, a drive and a path at the front. */
+export function groundBounds(layout: HouseLayout): { min: Vector3; max: Vector3 } {
+  const { min, max } = houseBounds(layout);
+  return {
+    min: new Vector3(min.x - 1.2, -0.36, min.z - 1.0),
+    max: new Vector3(max.x + 1.2, max.y, max.z + 2.6),
+  };
+}
