@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<Response> {
     connect: (deadline) => connectTools({ deadline }),
     model: async (tools, home) =>
       scripted
-        ? scriptedModel(beats)
+        ? scriptedModel(beats, home)
         : bedrockModel({
             ...(await liveModel()),
             tools: tools.modelTools,
