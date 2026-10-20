@@ -94,3 +94,23 @@
   font-size: 14px;
   cursor: pointer;
 }
+
+.room-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.room-label {
+  position: absolute;
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: rgb(30 24 19 / 50%);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
