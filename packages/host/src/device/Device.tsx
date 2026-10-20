@@ -11,6 +11,7 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import type { DemoStep } from '../demo/steps.ts';
 import type { LiveHome } from '../house/looks.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
+import { Stage } from '../stage/Stage.tsx';
 import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
@@ -265,87 +266,97 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
 
   const ready = client !== null && demoState !== 'playing';
   return (
-    <div className="room">
-      <div className="device">
-        <div className="camera" aria-hidden="true" />
-        <div className="screen">
-          <div className="status">
-            <span>Shadow Home</span>
-            <span>{home ? homeClock(home.now) : ''}</span>
+    <Stage
+      home={home}
+      heard={heard}
+      said={said}
+      busy={busy}
+      chip={null}
+      device={
+        <div className="device">
+          <div className="camera" aria-hidden="true" />
+          <div className="screen">
+            <div className="status">
+              <span>Shadow Home</span>
+              <span>{home ? homeClock(home.now) : ''}</span>
+            </div>
+            <div className="content">
+              <div ref={viewBox} className="view" hidden={screen.kind !== 'view'} />
+              {screen.kind === 'home' ? <HomeCard home={home} problem={problem} /> : null}
+              {screen.kind === 'log' ? <LogCard log={screen.log} names={names.current} /> : null}
+              {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
+            </div>
+            <div className={busy ? 'caption thinking' : 'caption'}>
+              {heard ? <p className="heard">“{heard}”</p> : null}
+              {said ? <p className="said">{said}</p> : null}
+            </div>
+            <div className={busy || listening ? 'lightbar on' : 'lightbar'} aria-hidden="true" />
           </div>
-          <div className="content">
-            <div ref={viewBox} className="view" hidden={screen.kind !== 'view'} />
-            {screen.kind === 'home' ? <HomeCard home={home} problem={problem} /> : null}
-            {screen.kind === 'log' ? <LogCard log={screen.log} names={names.current} /> : null}
-            {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
-          </div>
-          <div className={busy ? 'caption thinking' : 'caption'}>
-            {heard ? <p className="heard">“{heard}”</p> : null}
-            {said ? <p className="said">{said}</p> : null}
-          </div>
-          <div className={busy || listening ? 'lightbar on' : 'lightbar'} aria-hidden="true" />
         </div>
-      </div>
-
-      <form className="voice" onSubmit={submit}>
-        {micAvailable ? (
-          <button
-            type="button"
-            className={listening ? 'mic on' : 'mic'}
-            aria-pressed={listening}
-            disabled={!ready || busy}
-            onClick={() => void toggleMic()}
-          >
-            {listening ? 'Listening…' : 'Talk'}
-          </button>
-        ) : null}
-        <input
-          aria-label="Say something"
-          placeholder="Type what you'd say to Alexa"
-          maxLength={MAX_TEXT}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          disabled={!ready}
-        />
-        <button type="submit" disabled={!ready || busy || !draft.trim()}>
-          Say it
-        </button>
-      </form>
-      <div className="suggestions">
-        {demo ? (
-          <button
-            type="button"
-            className="play"
-            disabled={!client || busy || demoState === 'playing'}
-            onClick={() => void playDemo()}
-          >
-            {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
-          </button>
-        ) : null}
-        {suggestions.map((s) => (
-          <button key={s} type="button" disabled={!ready || busy} onClick={() => void say(s)}>
-            {s}
-          </button>
-        ))}
-        {screen.kind !== 'home' ? (
-          <button type="button" onClick={() => setScreen({ kind: 'home' })}>
-            Home screen
-          </button>
-        ) : null}
-      </div>
-      {demoState === 'finished' ? <p className="demo-done">Demo finished.</p> : null}
-      {transcript.length > 0 ? (
-        <ol className="transcript" aria-label="Conversation">
-          {transcript.map((l, i) => (
-            // Lines are only ever appended, so the position is a stable key.
-            // biome-ignore lint/suspicious/noArrayIndexKey: append-only list
-            <li key={i} className={`line ${l.who}`}>
-              <span className="who">{l.who === 'you' ? 'You' : 'Alexa'}</span> {l.text}
-            </li>
-          ))}
-        </ol>
-      ) : null}
-    </div>
+      }
+      controls={
+        <>
+          <form className="voice" onSubmit={submit}>
+            {micAvailable ? (
+              <button
+                type="button"
+                className={listening ? 'mic on' : 'mic'}
+                aria-pressed={listening}
+                disabled={!ready || busy}
+                onClick={() => void toggleMic()}
+              >
+                {listening ? 'Listening…' : 'Talk'}
+              </button>
+            ) : null}
+            <input
+              aria-label="Say something"
+              placeholder="Type what you'd say to Alexa"
+              maxLength={MAX_TEXT}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              disabled={!ready}
+            />
+            <button type="submit" disabled={!ready || busy || !draft.trim()}>
+              Say it
+            </button>
+          </form>
+          <div className="suggestions">
+            {demo ? (
+              <button
+                type="button"
+                className="play"
+                disabled={!client || busy || demoState === 'playing'}
+                onClick={() => void playDemo()}
+              >
+                {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
+              </button>
+            ) : null}
+            {suggestions.map((s) => (
+              <button key={s} type="button" disabled={!ready || busy} onClick={() => void say(s)}>
+                {s}
+              </button>
+            ))}
+            {screen.kind !== 'home' ? (
+              <button type="button" onClick={() => setScreen({ kind: 'home' })}>
+                Home screen
+              </button>
+            ) : null}
+          </div>
+          {demoState === 'finished' ? <p className="demo-done">Demo finished.</p> : null}
+          {transcript.length > 0 ? (
+            <ol className="transcript" aria-label="Conversation">
+              {transcript.map((l, i) => (
+                // Lines are only ever appended, so the position is a stable key.
+                // biome-ignore lint/suspicious/noArrayIndexKey: append-only list
+                <li key={i} className={`line ${l.who}`}>
+                  <span className="who">{l.who === 'you' ? 'You' : 'Alexa'}</span> {l.text}
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </>
+      }
+    />
   );
 }
 
