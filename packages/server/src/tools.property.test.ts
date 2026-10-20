@@ -8,7 +8,7 @@ import { SPEECH_LIMITS, wordCount } from '@shadow-home/engine';
 import { loadHome } from '@shadow-home/twin/node';
 import fc from 'fast-check';
 import type { Hono } from 'hono';
-import { expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import type { z } from 'zod';
 import { createApp } from './app.ts';
 import { type ManualClock, manualClock } from './clock.ts';
@@ -42,6 +42,7 @@ const OUTPUTS = {
   approve_plan: approveOutput,
 } satisfies Record<string, z.ZodType>;
 type Tool = keyof typeof OUTPUTS;
+const TOOLS = Object.keys(OUTPUTS) as Tool[];
 
 // Alexa+ speaks 2025-03-26; 2025-11-25 and 2026-07-28 are the other clients the server serves.
 const ERAS = ['2025-03-26', '2025-11-25', '2026-07-28'] as const;
@@ -431,3 +432,23 @@ function argsFor(tool: Tool, known: Known): fc.Arbitrary<unknown> {
       )
     : fc.oneof({ weight: 1, arbitrary: anything }, { weight: 3, arbitrary: near });
 }
+
+describe('every tool answers whatever arguments it is sent', { timeout: 60_000 }, () => {
+  test.each(TOOLS)('%s', async (tool) => {
+    const { app } = fresh();
+    const known = await seed(app);
+    const seen = { refused: 0, answered: 0 };
+    await fc.assert(
+      fc.asyncProperty(fc.constantFrom(...ERAS), argsFor(tool, known), async (era, args) => {
+        seen[expectAnswered(tool, await send(app, era, tool, args))]++;
+      }),
+      {
+        numRuns: 40,
+        examples: examples(tool, known).map((args, i) => [ERAS[i % ERAS.length] as Era, args]),
+      },
+    );
+    // Some arguments got past the input schema, so the tools' own code was reached.
+    expect(seen.answered).toBeGreaterThan(0);
+    expect(seen.refused).toBeGreaterThan(0);
+  });
+});
