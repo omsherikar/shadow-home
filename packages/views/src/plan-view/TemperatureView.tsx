@@ -68,6 +68,9 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
       ))}
 
       {c.curves.map((curve, i) => (
+        <Band key={`band-${curve.label ?? i}`} curve={curve} x={x} y={y} tone={tone} />
+      ))}
+      {c.curves.map((curve, i) => (
         <Line key={`line-${curve.label ?? i}`} curve={curve} x={x} y={y} tone={tone} />
       ))}
     </svg>
@@ -75,6 +78,19 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
 }
 
 type Scale = (v: number) => number;
+
+function Band({ curve, x, y, tone }: { curve: Curve; x: Scale; y: Scale; tone: string }) {
+  const top = curve.atMs.map((ms, i) => pt(x(ms), y(curve.highC[i] ?? 0)));
+  const bottom = curve.atMs.map((ms, i) => pt(x(ms), y(curve.lowC[i] ?? 0))).reverse();
+  const d = `M${[...top, ...bottom].join('L')}Z`;
+  if (curve.holds) return <path d={d} className="band held" />;
+  return (
+    <>
+      <path d={d} className="band" clipPath="url(#temps-inside)" />
+      <path d={d} className={`band ${tone}`} clipPath="url(#temps-outside)" />
+    </>
+  );
+}
 
 function Line({ curve, x, y, tone }: { curve: Curve; x: Scale; y: Scale; tone: string }) {
   const d = `M${curve.atMs.map((ms, i) => pt(x(ms), y(curve.nominalC[i] ?? 0))).join('L')}`;
