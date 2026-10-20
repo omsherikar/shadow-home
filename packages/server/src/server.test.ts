@@ -460,6 +460,34 @@ describe('checking the house as someone leaves', () => {
     const log = await api.call<LogOutput>('get_activity_log', { groupBy: 'none' });
     expect(log.entries.at(-1)).toMatchObject({ id: c.logEntryId, what: "I'm heading out." });
   });
+
+  test('a SAFE check with nothing to change commits as nothing: no log entry, nothing to undo', async () => {
+    const p = await api.call<PreviewOutput>('preview_plan', leaving);
+    expect(p).toMatchObject({ verdict: 'SAFE', tier: 'T0', repair: null, safePart: null });
+    expect(p.speech).toEqual({
+      headline: "You're all set: nothing needs changing before you go.",
+    });
+    const before = await api.call<HomeStateOutput>('get_home_state', {});
+    const entries = (await api.call<LogOutput>('get_activity_log', {})).entries;
+
+    const c = await api.call<CommitOutput>('commit_plan', { planId: p.planId });
+    expect(c).toEqual({
+      status: 'committed',
+      planId: p.planId,
+      speech: { headline: 'Done. Nothing needed changing.' },
+      applied: [],
+      held: [],
+    });
+    // The same plan ID gives the same answer, and still changes nothing.
+    expect(await api.call<CommitOutput>('commit_plan', { planId: p.planId })).toEqual(c);
+    expect((await api.call<HomeStateOutput>('get_home_state', {})).stateVersion).toBe(
+      before.stateVersion,
+    );
+    expect((await api.call<LogOutput>('get_activity_log', {})).entries).toEqual(entries);
+    // "Undo" still reaches the last real change: the fix from the check before.
+    const u = await api.call<UndoOutput>('undo', { token: 'last' });
+    expect(u).toMatchObject({ status: 'preview', undoOf: entries.at(-1)?.id });
+  });
 });
 
 describe('house rules', () => {
