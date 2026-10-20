@@ -268,6 +268,25 @@ watch([
 ]);
 const hostUrl = gcloud(['run', 'services', 'describe', HOST, at, p, '--format=value(status.url)']);
 
+// The new server against the MCP contract an Alexa+ add-on relies on. It previews and commits
+// small plans on the deployed home, which starts over every day.
+step('Checking the deployed server');
+try {
+  execFileSync(process.execPath, ['scripts/check-mcp.ts', `${serverUrl}/mcp`], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+} catch {
+  const back = (name: string) => `  gcloud run revisions list --service=${name} ${at} ${p}
+  gcloud run services update-traffic ${name} --to-revisions=REVISION=100 ${at} ${p}`;
+  console.error(`
+The deployed server failed the check. To send traffic back to an earlier REVISION:
+${back(SERVER)}
+${back(HOST)}
+Later deploys keep that split; --to-latest instead of --to-revisions undoes it.`);
+  process.exit(1);
+}
+
 console.log(`
 MCP server  ${serverUrl}/mcp
 Echo Show   ${hostUrl}
