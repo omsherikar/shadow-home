@@ -51,8 +51,15 @@ export async function connectTools(
       : { timeout: Math.max(1, Math.min(timeout.timeout, deadline - Date.now())) };
   const client = new Client({ name: 'shadow-home-host', version: '0.1.0' });
   const transport = new StreamableHTTPClientTransport(new URL(options.url ?? MCP_SERVER_URL));
-  await client.connect(transport, setup());
-  const { tools } = await client.listTools(undefined, setup());
+  let tools: Awaited<ReturnType<Client['listTools']>>['tools'];
+  try {
+    await client.connect(transport, setup());
+    ({ tools } = await client.listTools(undefined, setup()));
+  } catch (e) {
+    // Don't leave the connection open until the server gives up on it.
+    await client.close().catch(() => undefined);
+    throw e;
+  }
   const views = new Map<string, string>();
   for (const t of tools) {
     const uri = (t._meta?.ui as { resourceUri?: unknown } | undefined)?.resourceUri;
