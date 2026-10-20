@@ -56,8 +56,12 @@ export async function runTurn(
   return { say: lastSpoken(calls) ?? "Sorry, I couldn't finish that.", calls };
 }
 
-/** The promise, or a TurnDeadlineError after `ms`; the promise itself runs on. */
+/**
+ * The promise, or a TurnDeadlineError after `ms`. The promise itself runs on; if it fails after
+ * being left behind, that's not an unhandled rejection, which would be logged with its message.
+ */
 export function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  promise.catch(() => undefined);
   if (ms <= 0) return Promise.reject(new TurnDeadlineError('The turn ran out of time'));
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<never>((_, reject) => {
