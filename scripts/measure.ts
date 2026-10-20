@@ -1,4 +1,5 @@
-// What the latency and load scripts share: the two plans they send to preview_plan.
+// What the latency and load scripts share: the two plans they send to preview_plan, and the
+// percentile they report.
 
 /** A plan that changes one light, and the demo's weekend plan, the heaviest real request. */
 export const PLANS = {
@@ -25,3 +26,7 @@ export const PLANS = {
     actions: [{ device: 'light_living', set: { brightness: 30 } }],
   },
 };
+
+/** The p-th percentile of ascending times, by nearest rank. */
+export const percentile = (sorted: number[], p: number) =>
+  sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)] ?? Number.NaN;
