@@ -41,6 +41,7 @@ export {
   check,
   type Reason,
   type RunReport,
+  type TemperatureTrace,
   type TimelineEntry,
   type Verdict,
 } from './verdict.ts';
