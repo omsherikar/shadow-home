@@ -87,6 +87,8 @@ export interface CheckResult {
   timeline: TimelineEntry[];
   /** Absent when lint fails: an invalid plan is never simulated. */
   runs?: Record<RunName, RunReport>;
+  /** Absent when lint fails, like `runs`. */
+  temperatures?: TemperatureTrace;
 }
 
 /**
