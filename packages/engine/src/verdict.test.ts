@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import type { Plan, PlanAction } from '@shadow-home/twin';
 import { loadHome, loadPlan } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
+import { RUN_NAMES } from './simulate.ts';
 import { check } from './verdict.ts';
 
 const root = join(import.meta.dirname, '../../..');
@@ -69,6 +70,23 @@ describe('the weekend away plan', () => {
       ['2027-01-17T07:00:00-06:00', true],
       ['2027-01-17T07:30:00-06:00', false],
     ]);
+  });
+
+  test('keeps each run’s zone temperatures every 15 minutes with the outdoor one, to 0.1 °C', () => {
+    const temps = result.temperatures;
+    expect(temps).toMatchObject({ ...result.horizon, stepMinutes: 15 });
+    // Fri 17:45 to Sun 18:00 is 193 steps of 15 minutes: 194 samples.
+    expect(temps?.outdoorC).toHaveLength(194);
+    for (const run of RUN_NAMES) {
+      const zones = temps?.zonesC[run] ?? {};
+      expect(Object.keys(zones), run).toEqual(['house', 'garage']);
+      for (const series of Object.values(zones)) {
+        expect(series).toHaveLength(194);
+        for (const c of series) expect(Math.round(c * 10) / 10).toBe(c);
+      }
+    }
+    // It travels with every preview to the screen, so it stays small.
+    expect(JSON.stringify(temps).length).toBeLessThan(8_000);
   });
 
   test('includes the lint and hygiene results', () => {
