@@ -9,7 +9,17 @@ import {
   screenFor,
   undoScreen,
 } from './screen.ts';
-import type { DiffRow, Names, Preview, Tier, Verdict } from './types.ts';
+import { type Temperatures, temperaturesFrom } from './temperature.ts';
+import {
+  type DiffRow,
+  type Names,
+  type Preview,
+  TEMPERATURE_RULES_META_KEY,
+  TEMPERATURES_META_KEY,
+  type TemperatureTrace,
+  type Tier,
+  type Verdict,
+} from './types.ts';
 
 const NOW = '2027-01-15T21:30:00-06:00';
 
@@ -373,5 +383,48 @@ describe('after a commit and for an undo', () => {
   test('content that is none of ours draws nothing', () => {
     expect(screenFor({ entries: [] })).toBeNull();
     expect(screenFor(undefined)).toBeNull();
+  });
+});
+
+describe('a zone’s temperature against a house rule', () => {
+  const MIDNIGHT = '2027-01-16T00:00:00-06:00';
+  /** Hourly samples from NOW; the last is at the end of the horizon, half an hour after the third. */
+  const trace = (nominal: number[], pessimistic: number[], optimistic: number[]) =>
+    ({
+      start: NOW,
+      end: MIDNIGHT,
+      stepMinutes: 60,
+      outdoorC: [0, 0, 0, 0],
+      zonesC: {
+        nominal: { house: [20, 20, 20, 20], garage: nominal },
+        pessimistic: { house: [20, 20, 20, 20], garage: pessimistic },
+        optimistic: { house: [20, 20, 20, 20], garage: optimistic },
+      },
+    }) satisfies TemperatureTrace;
+  const freezes = trace([6, 5, 3.5, 2], [6, 4.5, 3, 1.5], [6, 5.5, 4.5, 3]);
+  const rules: Temperatures['rules'] = {
+    R3: {
+      zone: 'garage',
+      zoneName: 'Garage',
+      minC: 4,
+      maxC: null,
+      heatedBy: ['garage_thermostat', 'plug_garage_freezer'],
+    },
+  };
+
+  test('the temperatures come from the result’s _meta, and anything malformed is left out', () => {
+    expect(
+      temperaturesFrom({
+        [TEMPERATURES_META_KEY]: { 'plan-1': freezes },
+        [TEMPERATURE_RULES_META_KEY]: rules,
+      }),
+    ).toEqual({ traces: { 'plan-1': freezes }, rules });
+    expect(
+      temperaturesFrom({
+        [TEMPERATURES_META_KEY]: { 'plan-1': { ...freezes, stepMinutes: 'fifteen' } },
+        [TEMPERATURE_RULES_META_KEY]: { R3: { zone: 'garage', minC: '4' } },
+      }),
+    ).toEqual({ traces: {}, rules: {} });
+    expect(temperaturesFrom(undefined)).toEqual({ traces: {}, rules: {} });
   });
 });
