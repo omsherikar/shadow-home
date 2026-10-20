@@ -2,8 +2,8 @@
 
 import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
-import { RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
-import { groundBounds, houseBounds } from './geometry.ts';
+import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
+import { groundBounds, houseBounds, type WallPiece, wallPieces } from './geometry.ts';
 import type { HouseLayout, Room } from './layout.ts';
 import { palette } from './palette.ts';
 
@@ -15,6 +15,7 @@ export function Shell({ layout }: { layout: HouseLayout }) {
       {layout.rooms.map((r) => (
         <Floor key={r.id} room={r} layout={layout} />
       ))}
+      <Walls layout={layout} />
     </>
   );
 }
@@ -116,5 +117,65 @@ function Floor({ room, layout }: { room: Room; layout: HouseLayout }) {
         metalnessMap={arm}
       />
     </mesh>
+  );
+}
+
+function Walls({ layout }: { layout: HouseLayout }) {
+  const pieces = useMemo(() => wallPieces(layout), [layout]);
+  const plaster = useMemo(
+    () => new MeshStandardMaterial({ color: palette.plaster, roughness: 0.92 }),
+    [],
+  );
+  const cut = useMemo(() => new MeshStandardMaterial({ color: palette.cut, roughness: 0.8 }), []);
+  return (
+    <group>
+      {pieces.map((p) => (
+        <WallBox
+          key={`${p.a.x},${p.a.z},${p.b.x},${p.b.z},${p.bottom}`}
+          piece={p}
+          thickness={layout.wallThickness}
+          plaster={plaster}
+          cut={cut}
+        />
+      ))}
+    </group>
+  );
+}
+
+function WallBox(props: {
+  piece: WallPiece;
+  thickness: number;
+  plaster: MeshStandardMaterial;
+  cut: MeshStandardMaterial;
+}) {
+  const { piece, thickness } = props;
+  const alongX = piece.a.z === piece.b.z;
+  const start = (alongX ? piece.a.x : piece.a.z) - (piece.joinA ? thickness / 2 : 0);
+  const end = (alongX ? piece.b.x : piece.b.z) + (piece.joinB ? thickness / 2 : 0);
+  const length = end - start;
+  const mid = (start + end) / 2;
+  const height = piece.top - piece.bottom;
+  const x = alongX ? mid : piece.a.x;
+  const z = alongX ? piece.a.z : mid;
+  const size: [number, number, number] = alongX
+    ? [length, height, thickness]
+    : [thickness, height, length];
+  return (
+    <group>
+      <mesh
+        position={[x, piece.bottom + height / 2, z]}
+        material={props.plaster}
+        castShadow
+        receiveShadow
+      >
+        <boxGeometry args={size} />
+      </mesh>
+      {piece.capped ? (
+        // The cut through the wall, drawn dark like a section on a plan.
+        <mesh position={[x, piece.top + 0.005, z]} material={props.cut}>
+          <boxGeometry args={[size[0] + 0.002, 0.01, size[2] + 0.002]} />
+        </mesh>
+      ) : null}
+    </group>
   );
 }
