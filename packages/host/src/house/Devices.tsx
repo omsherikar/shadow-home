@@ -42,6 +42,8 @@ function Shape(props: {
       return <Aquarium look={look} />;
     case 'tv':
       return <Tv look={look} />;
+    case 'coffee_maker':
+      return <CoffeeMaker look={look} />;
   }
 }
 
@@ -115,6 +117,38 @@ function Tv({ look }: { look: Look }) {
       </mesh>
       {on ? (
         <pointLight position={[0, 0.42, 0.4]} color={palette.screen} intensity={3} distance={3} />
+      ) : null}
+    </group>
+  );
+}
+
+function CoffeeMaker({ look }: { look: Look }) {
+  const on = look.glow > 0;
+  return (
+    <group>
+      <mesh position={[0, 0.16, -0.02]} castShadow>
+        <boxGeometry args={[0.2, 0.32, 0.2]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.07, 0.07]} castShadow>
+        <cylinderGeometry args={[0.06, 0.07, 0.13, 20]} />
+        <meshStandardMaterial
+          color={on ? '#5a3a24' : palette.glass}
+          transparent
+          opacity={0.75}
+          roughness={0.1}
+        />
+      </mesh>
+      <mesh position={[0.06, 0.25, 0.081]}>
+        <sphereGeometry args={[0.016, 12, 8]} />
+        <meshStandardMaterial
+          color={on ? palette.heat : palette.graphite}
+          emissive={palette.heat}
+          emissiveIntensity={on ? 4 : 0}
+        />
+      </mesh>
+      {on ? (
+        <pointLight position={[0, 0.3, 0.2]} color={palette.heat} intensity={1} distance={1.5} />
       ) : null}
     </group>
   );
