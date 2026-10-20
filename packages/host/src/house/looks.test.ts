@@ -76,6 +76,14 @@ describe('the light outside', () => {
     expect(at('12:30').sky).toBeGreaterThan(at('23:30').sky);
   });
 
+  test('the demo starts at dusk: the sun just down, the light warm and fading', () => {
+    const dusk = at('17:45');
+    expect(dusk.elevation).toBeLessThan(0);
+    expect(dusk.elevation).toBeGreaterThan(-6);
+    expect(dusk.day).toBeGreaterThan(0.05);
+    expect(dusk.day).toBeLessThan(0.5);
+  });
+
   test('colours mix part way, end to end', () => {
     expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
