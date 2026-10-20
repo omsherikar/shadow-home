@@ -306,6 +306,7 @@ describe('plan schema', () => {
     ['a device ID past 100 characters', { device: long, set: { onOff: false } }],
     ['a group past 100 characters', { group: long, set: { onOff: false } }],
     ['a routine past 100 characters', { routine: long, pauseUntil: '2027-01-16T08:00:00-06:00' }],
+    ['an attribute past 100 characters', { device: 'plug_tv', set: { [long]: false } }],
     ['a mode past 100 characters', { mode: long }],
   ])('rejects an action with %s', (_name, action) => {
     expect(planActionSchema.safeParse(action).success).toBe(false);
