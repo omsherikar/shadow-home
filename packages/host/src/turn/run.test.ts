@@ -44,4 +44,31 @@ describe('a turn that runs out of time', () => {
     expect(turn).toMatchObject({ say: 'Done: TV off.' });
     expect(calls).toBe(1);
   });
+
+  test('no model call starts once the deadline has passed, after a slow tool call', async () => {
+    let steps = 0;
+    const model = {
+      async next() {
+        steps += 1;
+        return {
+          call: { name: 'add_house_rule', arguments: { text: 'Porch light off at night' } },
+        };
+      },
+    };
+    const slow = {
+      ...committed,
+      callTool: async () => {
+        await new Promise((r) => setTimeout(r, 60));
+        return committed.callTool();
+      },
+    };
+    const turn = await runTurn(
+      model,
+      slow,
+      { text: 'Add a rule', history: [] },
+      { deadline: Date.now() + 30 },
+    );
+    expect(steps).toBe(1);
+    expect(turn).toMatchObject({ say: 'Done: TV off.' });
+  });
 });
