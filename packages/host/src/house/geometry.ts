@@ -90,6 +90,18 @@ export function wallPieces(layout: HouseLayout): WallPiece[] {
   return pieces;
 }
 
+/** How high the wall an opening sits in stands: full height on the back walls, else the cut. */
+export function wallHeightAt(
+  layout: HouseLayout,
+  opening: HouseLayout['openings'][number],
+): number {
+  const north = Math.min(...layout.rooms.map((r) => r.z));
+  const east = Math.max(...layout.rooms.map((r) => r.x + r.width));
+  const onNorth = mm(opening.from.z) === mm(north) && mm(opening.to.z) === mm(north);
+  const onEast = mm(opening.from.x) === mm(east) && mm(opening.to.x) === mm(east);
+  return onNorth || onEast ? layout.wallHeight : layout.cutHeight;
+}
+
 /** Overlapping or touching spans joined into one. */
 function merge(spans: [number, number][]): [number, number][] {
   const sorted = [...spans].sort((p, q) => p[0] - q[0]);
