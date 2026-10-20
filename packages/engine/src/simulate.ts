@@ -11,6 +11,9 @@ const DAY_MS = 24 * 60 * MINUTE_MS;
 export type RunName = 'nominal' | 'pessimistic' | 'optimistic';
 export const RUN_NAMES: readonly RunName[] = ['nominal', 'pessimistic', 'optimistic'];
 
+/** Minutes of home time between the temperature samples a run keeps for the screen. */
+export const TRACE_STEP_MINUTES = 15;
+
 /** A state change the simulation applied. `source` is "plan" or the routine's ID. */
 export interface Change {
   atMs: number;
