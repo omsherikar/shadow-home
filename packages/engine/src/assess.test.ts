@@ -493,4 +493,8 @@ describe('leaving, with nothing to change', () => {
     expect(a.repaired?.tier.tier).toBe('T0');
     expect(a.offered).toBe('repair');
   });
+
+  test('has no safe part: there are no actions to keep', () => {
+    expect(assess(home, leaving()).safePart).toBeNull();
+  });
 });
