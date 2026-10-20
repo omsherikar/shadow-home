@@ -134,3 +134,10 @@ export interface TemperatureTrace {
   /** Run, then zone ("house", "garage"), then one temperature per sample. */
   zonesC: Record<'nominal' | 'pessimistic' | 'optimistic', Record<string, number[]>>;
 }
+
+/**
+ * Where the server puts temperature traces, plan ID to `TemperatureTrace`, for each preview a
+ * result carries: the plan's own and its repair's. They're only for drawing, so they stay out of
+ * what the model reads.
+ */
+export const TEMPERATURES_META_KEY = 'shadow-home/temperatures';
