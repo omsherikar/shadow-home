@@ -8,7 +8,7 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
-import { spokenText } from '../turn/bounds.ts';
+import { MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import {
   HomeCard,
@@ -305,6 +305,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         <input
           aria-label="Say something"
           placeholder="Type what you'd say to Alexa"
+          maxLength={MAX_TEXT}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           disabled={!ready}
