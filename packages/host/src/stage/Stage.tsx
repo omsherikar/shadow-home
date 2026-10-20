@@ -13,7 +13,15 @@ import type { ScreenLabel } from '../house/House.tsx';
 import { houseLayout } from '../house/layout.ts';
 import type { LiveHome } from '../house/looks.ts';
 import { webglAvailable } from '../house/webgl.ts';
-import { browserStorage, dayAndTime, type Layout, readLayout, writeLayout } from './stage.ts';
+import {
+  browserStorage,
+  CHIPS,
+  type Chip,
+  dayAndTime,
+  type Layout,
+  readLayout,
+  writeLayout,
+} from './stage.ts';
 
 // three.js and the scene load in the browser only, and only on this page.
 const House = dynamic(() => import('../house/House.tsx'), { ssr: false });
@@ -25,6 +33,10 @@ const DEVICE_HEIGHT = DEVICE_WIDTH / 1.6;
 
 export interface StageProps {
   home: LiveHome | null;
+  heard: string;
+  said: string;
+  busy: boolean;
+  chip: Chip | null;
   /** The Echo Show itself. It stays mounted in every layout, so its screen keeps its view. */
   device: ReactNode;
   /** The demo controls: typed input, suggestions, transcript. */
@@ -85,6 +97,7 @@ export function Stage(props: StageProps) {
           >
             {houseOnly ? 'Show the device' : 'House only'}
           </button>
+          {houseOnly ? <Caption {...props} /> : null}
           <div className={drawer ? 'drawer open' : 'drawer'}>
             <div id="demo-controls" className="drawer-body glass" hidden={!drawer}>
               {props.controls}
@@ -149,5 +162,31 @@ function HouseCard({ home }: { home: LiveHome | null }) {
         </dl>
       ) : null}
     </div>
+  );
+}
+
+/** In house-only mode, what was heard and said, and the verdict, float over the house. */
+function Caption({ heard, said, busy, chip }: StageProps) {
+  if (!heard && !said && !chip) return null;
+  return (
+    <div
+      className={busy ? 'float-caption glass thinking' : 'float-caption glass'}
+      aria-live="polite"
+    >
+      {chip ? <VerdictChip chip={chip} /> : null}
+      <div className="float-words">
+        {heard ? <p className="heard">“{heard}”</p> : null}
+        {said ? <p className="said">{said}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function VerdictChip({ chip }: { chip: Chip }) {
+  const { icon, tone } = CHIPS[chip];
+  return (
+    <span className={`verdict-chip ${tone}`}>
+      <span aria-hidden="true">{icon}</span> {chip}
+    </span>
   );
 }
