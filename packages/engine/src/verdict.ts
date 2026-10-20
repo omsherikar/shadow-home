@@ -56,6 +56,24 @@ export interface RunReport {
   loopGuardTrippedAt: string[];
 }
 
+/**
+ * The temperatures of the three runs over the simulation, sampled for drawing rather than kept
+ * every minute. Sample `i` is at `start` plus `i × stepMinutes`, except the last, which is always
+ * at `end` (so the last gap can be shorter). Rounded to 0.1 °C.
+ */
+export interface TemperatureTrace {
+  start: string;
+  end: string;
+  stepMinutes: number;
+  /**
+   * The forecast at each sample, as the nominal run reads it; the other runs shift it by their
+   * offset.
+   */
+  outdoorC: number[];
+  /** Each zone's temperature at each sample, by run: the same readings the rules checked. */
+  zonesC: Record<RunName, Record<string, number[]>>;
+}
+
 export interface CheckResult {
   verdict: Verdict;
   /** Most important first: invalid, then broken rules by priority and time, then unknowns. */
