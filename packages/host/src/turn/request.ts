@@ -1,8 +1,10 @@
 import { z } from 'zod';
+import { MAX_TEXT } from './bounds.ts';
 import type { Names } from './types.ts';
 
+/** What the browser sends for one turn, within the bounds in bounds.ts. */
 export const turnRequest = z.object({
-  text: z.string().min(1).max(500),
+  text: z.string().min(1).max(MAX_TEXT),
   history: z
     .array(
       z.object({
