@@ -40,6 +40,14 @@ describe('how long a turn waits on the MCP server', () => {
     }
   });
 
+  test('a setup that fails after connecting closes the client, so no socket is left open', async () => {
+    vi.spyOn(Client.prototype, 'connect').mockResolvedValue(undefined);
+    vi.spyOn(Client.prototype, 'listTools').mockRejectedValue(new Error('Request timed out'));
+    const close = vi.spyOn(Client.prototype, 'close').mockResolvedValue(undefined);
+    await expect(connectTools({ url: 'http://mcp.test/mcp' })).rejects.toThrow(/timed out/);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
   test('a server that never answers: connecting gives up when its time is up', async () => {
     const silent = createServer(() => {});
     await new Promise<void>((resolve) => silent.listen(0, '127.0.0.1', resolve));
