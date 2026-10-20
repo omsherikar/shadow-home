@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { hourlyBudget, hourlyLimit, perVisitor } from './limit.ts';
+import { hourlyBudget, hourlyCaps, hourlyLimit, perVisitor } from './limit.ts';
 
 const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
@@ -97,5 +97,20 @@ describe('a budget for each visitor', () => {
     t = HOUR;
     turn('c');
     expect(turn.visitors).toBe(1);
+  });
+});
+
+describe('a cap for everyone and one for each visitor, together', () => {
+  test("a visitor retrying while everyone's hour is used up is not charged for it", () => {
+    let t = 0;
+    const turn = hourlyCaps(1, 2, { now: () => t });
+    expect(turn('a')).toBe('ok');
+    t = 30 * MINUTE;
+    expect([turn('b'), turn('b'), turn('b')]).toEqual(['instance', 'instance', 'instance']);
+    // a's turn has left the window; b's refused ones were never counted, so b has both left.
+    t = HOUR;
+    expect([turn('b'), turn('b')]).toEqual(['ok', 'instance']);
+    t = 2 * HOUR;
+    expect(turn('b')).toBe('ok');
   });
 });
