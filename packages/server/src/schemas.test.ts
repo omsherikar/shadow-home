@@ -93,4 +93,10 @@ describe('a plan with no actions', () => {
     expect(ok(previewInput, leaving)).toBe(false);
     expect(ok(previewInput, { ...leaving, presenceSchedule: [] })).toBe(false);
   });
+
+  test('is refused with words that say what to send instead', () => {
+    const issue = previewInput.safeParse(leaving).error?.issues[0];
+    expect(issue?.path).toEqual(['actions']);
+    expect(issue?.message).toMatch(/at least one action, or a presenceSchedule/);
+  });
 });
