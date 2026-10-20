@@ -1,4 +1,4 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Locator, type Page, test } from '@playwright/test';
 
 const WEEKEND = "I'm away for the weekend, set the house to away.";
 const DISHWASHER = "Run the dishwasher at 2 AM when power's cheap.";
@@ -12,6 +12,36 @@ async function openControls(page: Page) {
   const handle = page.getByRole('button', { name: 'Demo controls', exact: true });
   if (await handle.isVisible()) await handle.click();
   await expect(page.getByLabel('Say something')).toBeVisible();
+}
+
+/**
+ * Tap a control in the plan view with the pointer, as a person would. Beside the house the device is
+ * zoomed out to fit, and Playwright places clicks inside a zoomed frame as if it weren't, so this
+ * clicks where the control really shows and leaves the browser to decide what's there.
+ */
+async function tap(page: Page, control: Locator) {
+  await expect(control).toBeVisible();
+  const frame = page.locator('.view iframe');
+  const box = await frame.boundingBox();
+  if (!box) throw new Error('The plan view is not on screen.');
+  const scale = await frame.evaluate(
+    (el) => el.getBoundingClientRect().width / (el as HTMLElement).offsetWidth,
+  );
+  const at = await control.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  const x = box.x + at.x * scale;
+  const y = box.y + at.y * scale;
+  // Nothing covers the control: the view is on top there on the page, and the control in the view.
+  const onPage = await page.evaluate((p) => document.elementFromPoint(p.x, p.y)?.tagName, { x, y });
+  expect(onPage, 'what the page has at the tap').toBe('IFRAME');
+  const inView = await control.evaluate((el, p) => {
+    const hit = el.ownerDocument.elementFromPoint(p.x, p.y);
+    return hit !== null && el.contains(hit);
+  }, at);
+  expect(inView, 'the control is what the view has at the tap').toBe(true);
+  await page.mouse.click(x, y);
 }
 
 async function say(page: Page, text: string) {
@@ -55,12 +85,12 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
   await page.screenshot({ path: 'test-results/weekend-preview.png' });
 
   // A tap is the yes: the repair commits, and the screen offers to undo it.
-  await v.getByRole('button', { name: /Do it with 4 fixes/ }).click();
+  await tap(page, v.getByRole('button', { name: /Do it with 4 fixes/ }));
   await expect(v.getByText('DONE', { exact: true })).toBeVisible();
   await expect(said(page)).toContainText('Done');
   await page.screenshot({ path: 'test-results/weekend-done.png' });
 
-  await v.getByRole('button', { name: /^Undo/ }).click();
+  await tap(page, v.getByRole('button', { name: /^Undo/ }));
   await expect(v.getByRole('heading', { name: 'Putting back' })).toBeVisible();
   // Undoing unlocks the front door again, so the undo itself needs a yes (T2).
   const yes = v.getByRole('button', { name: /Yes, undo it\s*Say “yes”/ });
@@ -73,7 +103,7 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
   await page.screenshot({ path: 'test-results/weekend-undo.png' });
 
   // The tap is that yes: the view approves with the token only the screen has, then commits.
-  await yes.click();
+  await tap(page, yes);
   await expect(v.getByText('DONE', { exact: true })).toBeVisible();
   await expect(v.getByText('Front door lock unlocked', { exact: true })).toBeVisible();
 });
