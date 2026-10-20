@@ -83,6 +83,10 @@ The deployed home starts over from `fixtures/demo-home.json` every day at 08:00 
   never replaced: a new one would void plan IDs in flight).
 - `GCP_REGION` picks another region. `MIN_INSTANCES=1` keeps one server instance warm, which costs
   a little while idle; use it while recording and judging.
+- At the end it runs `scripts/check-mcp.ts` against the new server. If that fails, it prints the
+  commands below for both services and exits with an error.
+- A request may take 60 s on the server (a rule compile gives up at 40 s) and 90 s on the host (a
+  turn sets up and decides within 30 s, then a rule may still take 45 s), not Cloud Run's 300 s.
 
 ### Check the server
 
