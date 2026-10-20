@@ -2,13 +2,14 @@ import type { Beat } from '../turn/scripted.ts';
 
 /**
  * What the person answers in the recorded demo, after each beat's own lines in
- * fixtures/demo-script.json: yes to the weekend fixes, no to running the dishwasher blind, and
- * yes to the undo.
+ * fixtures/demo-script.json: yes to the weekend fixes, no to running the dishwasher blind, yes
+ * to the undo, and yes to the fix on the way out.
  */
 export const ANSWERS: Record<string, string[]> = {
   weekend_away: ['Yes.'],
   dishwasher_2am: ['No.'],
   what_changed_and_undo: ['Yes.'],
+  heading_out: ['Yes.'],
 };
 
 export interface DemoStep {
