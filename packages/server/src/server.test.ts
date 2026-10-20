@@ -408,6 +408,17 @@ describe('checking the house as someone leaves', () => {
     ],
   };
 
+  test('tells a model that leaving is a presence schedule with no actions', async () => {
+    const { tools } = await api.client.listTools();
+    const preview = tools.find((t) => t.name === 'preview_plan');
+    expect(preview?.description).toContain("I'm heading out");
+    const schema = preview?.inputSchema as {
+      properties: Record<string, { description?: string; minItems?: number }>;
+    };
+    expect(schema.properties.actions?.minItems).toBeUndefined();
+    expect(schema.properties.actions?.description).toContain('unless presenceSchedule is given');
+  });
+
   test('no actions and no presence schedule is refused at the tool boundary', async () => {
     const r = await api.client.callTool({
       name: 'preview_plan',
