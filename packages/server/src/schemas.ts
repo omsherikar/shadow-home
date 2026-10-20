@@ -136,25 +136,32 @@ export const previewOutput = z.object({
 });
 export type PreviewOutput = z.infer<typeof previewOutput>;
 
-export const previewInput = z.object({
-  actions: z
-    .array(planActionSchema)
-    .min(1)
-    .max(50)
-    .describe(
-      'Device or group writes ({ device, set, at? }), routine pauses ({ routine, pauseUntil }) and mode changes ({ mode, at? }). Without `at`, an action runs now.',
-    ),
-  intent: words(300, 'What the person asked for, in their words'),
-  requestedBy: member.optional(),
-  presenceSchedule: z
-    .array(z.object({ from: isoIn, to: isoIn, presence: presenceSpecSchema }))
-    .max(20)
-    .optional()
-    .describe(
-      'Who will be home when, if the request says ("away until Sunday"); at most 20 entries',
-    ),
-  planEnd: isoIn.optional().describe('When the plan stops mattering ("until Sunday 6 PM")'),
-});
+// A plan with no actions is a check of the house as someone leaves ("I'm heading out"), so it
+// needs a presence schedule; without one there would be nothing to check.
+export const previewInput = z
+  .object({
+    actions: z
+      .array(planActionSchema)
+      .max(50)
+      .describe(
+        'Device or group writes ({ device, set, at? }), routine pauses ({ routine, pauseUntil }) and mode changes ({ mode, at? }). Without `at`, an action runs now. At least one, unless presenceSchedule is given: "I\'m heading out" with nothing else to change is a presenceSchedule and actions: [].',
+      ),
+    intent: words(300, 'What the person asked for, in their words'),
+    requestedBy: member.optional(),
+    presenceSchedule: z
+      .array(z.object({ from: isoIn, to: isoIn, presence: presenceSpecSchema }))
+      .max(20)
+      .optional()
+      .describe(
+        'Who will be home when, if the request says ("away until Sunday"); at most 20 entries. Someone leaving is a window from now until they\'re back (a few hours if they don\'t say): nobody, or whoever stays.',
+      ),
+    planEnd: isoIn.optional().describe('When the plan stops mattering ("until Sunday 6 PM")'),
+  })
+  .refine((p) => p.actions.length > 0 || (p.presenceSchedule?.length ?? 0) > 0, {
+    message:
+      'expected at least one action, or a presenceSchedule to check the house as someone leaves',
+    path: ['actions'],
+  });
 
 const logChange = z.object({
   target: z.string(),
