@@ -33,6 +33,17 @@ export interface SimResult {
   loopGuardTrippedAt: number[];
 }
 
+/**
+ * Temperatures every TRACE_STEP_MINUTES from the start of the run, and at its last step: what
+ * the rules read then (`zoneTempC`, by zone) and the outdoor temperature driving that minute,
+ * with this run's forecast offset. Parallel arrays, one entry per sample.
+ */
+export interface SimTrace {
+  atMs: number[];
+  outdoorC: number[];
+  zoneTempC: Record<string, number[]>;
+}
+
 interface Event {
   atMs: number;
   /**
