@@ -460,6 +460,13 @@ describe('leaving, with nothing to change', () => {
     },
     actions: [],
   });
+  // The demo home with the front door locked and the indoor lights off: ready to leave.
+  const ready = {
+    front_door_lock: { state: { lockState: 'LOCKED' } },
+    light_living: { state: { onOff: false } },
+    light_kitchen: { state: { onOff: false } },
+    light_bedroom_sam: { state: { onOff: false } },
+  };
 
   test('goes through every stage: lint and hygiene find nothing, and three runs look 12 h ahead', () => {
     const r = check(home, leaving());
@@ -506,5 +513,21 @@ describe('leaving, with nothing to change', () => {
       ask: 'Shall I fix all 4?',
     });
     expectSpeechWithinLimits(a.speech);
+  });
+
+  test('names both when two things are wrong, the more important first', () => {
+    const a = assess(
+      home,
+      leaving({
+        ...ready,
+        back_door_lock: { state: { lockState: 'UNLOCKED' } },
+        plug_bedroom_space_heater: { state: { onOff: true } },
+      }),
+    );
+    expect(a.speech).toEqual({
+      headline: 'Before you go: Bedroom space heater on and Back door lock unlocked.',
+      reason: "Space heater off when nobody's home. That's Maya's rule.",
+      ask: 'Shall I fix both?',
+    });
   });
 });
