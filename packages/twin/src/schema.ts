@@ -299,9 +299,10 @@ export type Home = z.infer<typeof homeSchema>;
 // A plan comes from outside, over a public endpoint, so the names and values in it are bounded,
 // far above any real one: IDs run to 25 characters, values to 8, a write sets at most 2 attributes.
 const planName = z.string().min(1).max(100);
+const planValue = values(z.string().max(100));
 
 const setSchema = z
-  .record(z.string().max(100), valueSchema)
+  .record(z.string().max(100), planValue)
   .refine((s) => Object.keys(s).length > 0, 'set must change at least one attribute');
 
 export const planActionSchema = z.union([
