@@ -530,4 +530,13 @@ describe('leaving, with nothing to change', () => {
       ask: 'Shall I fix both?',
     });
   });
+
+  test('is SAFE, with nothing to fix and nothing to ask, when the house is ready', () => {
+    const a = assess(home, leaving(ready));
+    expect(a.check.verdict).toBe('SAFE');
+    expect(a.tier.tier).toBe('T0');
+    expect(a.repaired).toBeNull();
+    expect(a.safePart).toBeNull();
+    expect(a.speech).toEqual({ headline: "You're all set: nothing needs changing before you go." });
+  });
 });
