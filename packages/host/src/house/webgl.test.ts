@@ -16,4 +16,8 @@ describe('whether the browser can draw the house', () => {
     const canvas = { getContext: (kind: string) => (kind === 'webgl' ? {} : null) };
     expect(webglAvailable(() => canvas)).toBe(true);
   });
+
+  test('no when the browser gives no context', () => {
+    expect(webglAvailable(() => ({ getContext: () => null }))).toBe(false);
+  });
 });
