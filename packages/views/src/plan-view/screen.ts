@@ -26,6 +26,8 @@ import type {
   Violation,
 } from './types.ts';
 
+export { temperaturesFrom } from './temperature.ts';
+
 /** The screen is read from across a room: at most this many rows of changes. */
 export const MAX_ROWS = 5;
 /** At most this many broken rules get their own card; the rest are counted. */
