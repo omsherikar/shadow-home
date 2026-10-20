@@ -25,7 +25,7 @@ import {
   type Value,
   validateHome,
 } from '@shadow-home/twin';
-import type { Names } from '@shadow-home/views';
+import type { Names, TemperatureRule } from '@shadow-home/views';
 import type { z } from 'zod';
 import type { Clock } from './clock.ts';
 import { applyPlan, snapshot, sync } from './live-home.ts';
@@ -86,6 +86,7 @@ const CATCH_UP_LIMIT = 40;
 /** What the screen draws a preview with, beside the result the tool returns. */
 interface Drawing {
   traces: Record<string, TemperatureTrace>;
+  rules: Record<string, TemperatureRule>;
 }
 
 /**
@@ -100,9 +101,10 @@ export class ShadowHomeService {
   private readonly compileRule: ServiceOptions['compileRule'];
   private queue: Promise<unknown> = Promise.resolve();
   /**
-   * Each preview this service built, with the temperature traces of its plan and repair by plan
-   * ID. Kept beside the result rather than in it, since only the screen draws them; a preview
-   * dropped after its call takes its traces with it.
+   * Each preview this service built, with what the screen draws it with: the temperature traces
+   * of its plan and repair by plan ID, and the temperature rules they were checked against. Kept
+   * beside the result rather than in it, since only the screen draws them; a preview dropped
+   * after its call takes them with it.
    */
   private readonly drawing = new WeakMap<object, Drawing>();
 
@@ -895,6 +897,7 @@ export class ShadowHomeService {
         ...(a.check.temperatures ? { [planId]: a.check.temperatures } : {}),
         ...(repairId && repairTrace ? { [repairId]: repairTrace } : {}),
       },
+      rules: temperatureRules(home),
     });
     return out;
   }
@@ -1072,6 +1075,32 @@ function nothingLeft(info: UndoInfo): boolean {
     info.pauses.length === 0 &&
     !info.mode
   );
+}
+
+/**
+ * The home's rules that keep a zone's temperature within bounds at all times, for the screen to
+ * draw a plan's temperatures against: the zone, its bounds, and what heats it. A rule with a
+ * condition is left out: the trace doesn't say when the condition held, so a line across the
+ * whole chart would claim more than the rule does.
+ */
+function temperatureRules(home: Home): Record<string, TemperatureRule> {
+  const out: Record<string, TemperatureRule> = {};
+  for (const rule of home.rules) {
+    if (rule.template !== 'keep_between' || rule.params.when !== null) continue;
+    const zone = home.zones.find((z) => z.id === rule.params.quantity.zone);
+    if (!zone) continue;
+    out[rule.id] = {
+      zone: zone.id,
+      zoneName: zone.name,
+      minC: rule.params.min,
+      maxC: rule.params.max,
+      heatedBy: [
+        zone.heater.thermostat,
+        ...home.internalGains.filter((g) => g.zone === zone.id).map((g) => g.device),
+      ],
+    };
+  }
+  return out;
 }
 
 function retime(plan: Plan, now: string): Plan {
