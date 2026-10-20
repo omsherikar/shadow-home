@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { chipFor, LAYOUT_KEY, readLayout, writeLayout } from './stage.ts';
+import { chipFor, dayAndTime, LAYOUT_KEY, readLayout, writeLayout } from './stage.ts';
 
 function memory() {
   const items = new Map<string, string>();
@@ -63,4 +63,10 @@ describe('the verdict chip', () => {
     expect(chipFor('get_home_state', { verdict: 'SAFE' })).toBeUndefined();
     expect(chipFor('preview_plan', undefined)).toBeUndefined();
   });
+});
+
+test('the home’s time reads as its own clock, with the day spelled out', () => {
+  expect(dayAndTime('2027-01-15T17:45:00-06:00')).toBe('Friday, 5:45 PM');
+  expect(dayAndTime('2027-01-17T00:05:00-06:00')).toBe('Sunday, 12:05 AM');
+  expect(dayAndTime('not a time')).toBe('');
 });
