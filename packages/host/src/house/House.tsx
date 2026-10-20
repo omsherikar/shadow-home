@@ -4,6 +4,7 @@ import { Canvas, useLoader, useThree } from '@react-three/fiber';
 import { Suspense, useLayoutEffect, useMemo } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { Furniture } from './Furniture.tsx';
 import { frame, groundBounds, houseBounds } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveHome } from './looks.ts';
@@ -67,6 +68,7 @@ function Scene({ home, onLabels, shift = 0 }: HouseProps) {
       <KeyLight light={light} />
       <CameraRig onLabels={onLabels} shift={shift} />
       <Shell layout={layout} home={home} />
+      <Furniture layout={layout} />
     </>
   );
 }
