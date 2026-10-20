@@ -416,3 +416,15 @@ h2 {
   font-size: 19px;
   font-weight: 650;
 }
+
+.temps .break .mark {
+  fill: var(--rule);
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+
+.temps .break-label {
+  fill: var(--rule);
+  font-size: 19px;
+  font-weight: 700;
+}
