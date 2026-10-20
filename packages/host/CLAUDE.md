@@ -14,7 +14,8 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - app/mcp/route.ts: the browser's same-origin way to the MCP server (views call tools through it).
   Forward MCP protocol headers only; read responses whole.
 - Non-route code lives in src/: turn/ (the model loop and the scripted model), screen/ (the
-  sandboxed view frame and AppBridge), device/ (the Echo Show page).
+  sandboxed view frame and AppBridge), device/ (the Echo Show page), house/ (the 3D house) and
+  stage/ (the page around them: split or house-only, the demo controls' drawer).
 - Render MCP App views in a sandboxed iframe through @modelcontextprotocol/ext-apps/app-bridge.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
