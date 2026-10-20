@@ -65,6 +65,11 @@ export function speech(
     return alt?.tier.tier === 'T2' ? `${question} ${consequence(alt.tier, alt.diff)}` : question;
   };
   const out: Speech = (() => {
+    if (leaving(plan)) {
+      const fix = offered === 'repair' ? alternatives.repair : null;
+      const words = beforeYouGo(home, plan, result, fix, name, offer);
+      if (words) return words;
+    }
     switch (tier.tier) {
       case 'T5':
         return {
@@ -116,6 +121,64 @@ export function speech(
     }
   })();
   return fit(out);
+}
+
+/** Someone leaving with nothing to change ("I'm heading out"): no actions, and someone away. */
+function leaving(plan: Plan): boolean {
+  return (
+    plan.actions.length === 0 &&
+    (plan.context.presenceSchedule ?? []).some((w) => w.presence !== 'everyone')
+  );
+}
+
+/**
+ * The check as someone leaves: what's still wrong in the house, and an offer to put it right
+ * ("Before you go: Bedroom space heater on and Back door lock unlocked."). Nothing to run means
+ * nothing to ask when the house is fine or can't be confirmed. Undefined when the usual words fit
+ * (a schedule lint rejects).
+ */
+function beforeYouGo(
+  home: Home,
+  plan: Plan,
+  result: CheckResult,
+  fix: OfferedAlternative | null,
+  name: (id: string) => string,
+  offer: (question: string) => string,
+): Speech | undefined {
+  const top = result.reasons[0];
+  if (result.verdict === 'SAFE') {
+    return { headline: "You're all set: nothing needs changing before you go." };
+  }
+  if (result.verdict === 'UNPROVEN') {
+    return {
+      headline: "Before you go: I can't confirm the house will be safe.",
+      reason: reasonFor(home, plan, top, name),
+    };
+  }
+  const broken = result.reasons.filter((r) => r.kind === 'violation').length;
+  if (broken === 0) return undefined;
+  const reason = reasonFor(home, plan, top, name);
+  const wrong = (fix?.diff ?? []).map(leftWrong);
+  if (!fix || wrong.length === 0) {
+    const rules = count(broken, 'house rule', 'house rules');
+    return { headline: `Before you go: ${rules} would break while you're out.`, reason };
+  }
+  // Name two, or one if two don't fit in a headline, and count the rest.
+  const named = (k: number) =>
+    list([...wrong.slice(0, k), ...(wrong.length > k ? [`${wrong.length - k} more`] : [])]);
+  let headline = `Before you go: ${named(2)}.`;
+  if (wordCount(headline) > SPEECH_LIMITS.headline) headline = `Before you go: ${named(1)}.`;
+  const n = fix.fixes;
+  const ask = n === 1 ? 'Shall I fix it?' : n === 2 ? 'Shall I fix both?' : `Shall I fix all ${n}?`;
+  return { headline, reason, ask: offer(ask) };
+}
+
+/** What a fix for someone leaving puts right, as it is now: "Back door lock unlocked". */
+function leftWrong(row: DiffRow): string {
+  if (row.kind === 'routine') return `${row.name} runs while you're out`;
+  return row.from === null
+    ? `${row.name} needs a change`
+    : `${row.name} ${valuePhrase(row.attr, row.from)}`;
 }
 
 /** What a T2 plan's yes agrees to: "That leaves Back door lock unlocked." */
