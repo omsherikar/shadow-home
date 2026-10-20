@@ -81,6 +81,27 @@ export function perVisitor(
   }) as typeof spend & { fits: typeof fits; readonly visitors: number };
 }
 
+/**
+ * A cap for everyone on this instance (`total`) and one for each visitor (`each`), spent together:
+ * a use is spent from both or from neither, so a visitor retrying while everyone's hour is used up
+ * isn't charged for it, and what a visitor's own cap refuses doesn't count against everyone's.
+ * Says which refused, the visitor's first, or 'ok'.
+ */
+export function hourlyCaps(
+  total: number,
+  each: number,
+  options: { maxVisitors?: number; now?: () => number } = {},
+): (visitor: string, amount?: number) => 'ok' | 'visitor' | 'instance' {
+  const everyone = hourlyBudget(total, options.now);
+  const visitors = perVisitor(each, options);
+  return (visitor, amount = 1) => {
+    if (!visitors.fits(visitor, amount)) return 'visitor';
+    if (!everyone(amount)) return 'instance';
+    visitors(visitor, amount);
+    return 'ok';
+  };
+}
+
 /** A whole number from the environment, or the default when it's unset or not one. */
 export function perHour(name: string, fallback: number): number {
   const n = Number(process.env[name]);
