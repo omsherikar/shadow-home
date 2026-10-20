@@ -45,4 +45,15 @@ describe('how a device looks', () => {
       'off',
     );
   });
+
+  test('a thermostat glows warm while it heats, dim when it doesn’t need to, dark when off', () => {
+    const t = (mode: string, temp: number) =>
+      lookOf(
+        device('thermostat', { systemMode: mode, heatingSetpointC: 20, localTemperatureC: temp }),
+      );
+    expect(t('heat', 18).glow).toBe(1);
+    expect(t('heat', 21).glow).toBeGreaterThan(0);
+    expect(t('heat', 21).glow).toBeLessThan(1);
+    expect(t('off', 18).glow).toBe(0);
+  });
 });
