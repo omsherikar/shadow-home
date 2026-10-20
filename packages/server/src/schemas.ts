@@ -217,7 +217,7 @@ export const undoOutput = z.object({
 export type UndoOutput = z.infer<typeof undoOutput>;
 
 export const homeStateInput = z.object({
-  room: z.string().optional().describe('Only devices in this room'),
+  room: idIn.optional().describe('Only devices in this room'),
 });
 
 export const homeStateOutput = z.object({
