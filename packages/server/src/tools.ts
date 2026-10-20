@@ -22,6 +22,7 @@ import {
   PLAN_VIEW_MIME,
   PLAN_VIEW_URI,
   planViewHtml,
+  TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
 } from './view.ts';
 
@@ -71,7 +72,8 @@ export function buildServer(service: ShadowHomeService): McpServer {
 
   // What only the screen needs goes in `_meta`, which the model doesn't read: names to draw with,
   // the tokens that let a tap approve the plans on screen (the model mustn't have those), and the
-  // twin's temperatures over time, which would only fill the model's context.
+  // twin's temperatures over time with the rules they're drawn against, which would only fill the
+  // model's context.
   const forScreen = async (out: unknown) => ({
     ...onScreen,
     [NAMES_META_KEY]: await service.names(),
@@ -79,6 +81,7 @@ export function buildServer(service: ShadowHomeService): McpServer {
       [...planIds(out)].map((id) => [id, service.approvalToken(id)]),
     ),
     [TEMPERATURES_META_KEY]: service.temperatures(out),
+    [TEMPERATURE_RULES_META_KEY]: service.temperatureRules(out),
   });
 
   server.registerResource(
