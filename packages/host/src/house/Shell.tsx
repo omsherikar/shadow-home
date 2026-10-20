@@ -260,6 +260,7 @@ function BuiltPiece({ piece: b }: { piece: Built }) {
   return (
     <group position={[b.x, b.y, b.z]} rotation-y={deg(b.facing)}>
       {b.shape === 'counter' ? <Counter b={b} /> : null}
+      {b.shape === 'bed' ? <Bed b={b} /> : null}
     </group>
   );
 }
@@ -274,6 +275,36 @@ function Counter({ b }: { b: Built }) {
       <mesh position={[0, b.height - 0.02, 0.01]} castShadow receiveShadow>
         <boxGeometry args={[b.width + 0.02, 0.04, b.depth + 0.02]} />
         <meshStandardMaterial color={palette.counterTop} roughness={0.35} />
+      </mesh>
+    </>
+  );
+}
+
+/** A bed whose foot faces the way it faces: frame, mattress, duvet and headboard. */
+function Bed({ b }: { b: Built }) {
+  const duvet = b.room === 'bedroom_sam' ? palette.duvetSam : palette.duvetMain;
+  const head = -b.depth / 2;
+  return (
+    <>
+      <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
+        <boxGeometry args={[b.width, 0.28, b.depth]} />
+        <meshStandardMaterial color={palette.walnut} roughness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.38, 0.02]} castShadow receiveShadow>
+        <boxGeometry args={[b.width - 0.06, 0.2, b.depth - 0.08]} />
+        <meshStandardMaterial color={palette.linen} roughness={0.95} />
+      </mesh>
+      <mesh position={[0, 0.5, 0.28]} castShadow receiveShadow>
+        <boxGeometry args={[b.width - 0.02, 0.06, b.depth - 0.55]} />
+        <meshStandardMaterial color={duvet} roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.48, head + 0.3]} castShadow>
+        <boxGeometry args={[Math.min(0.55, b.width - 0.2), 0.1, 0.3]} />
+        <meshStandardMaterial color={palette.linen} roughness={1} />
+      </mesh>
+      <mesh position={[0, 0.5, head + 0.03]} castShadow receiveShadow>
+        <boxGeometry args={[b.width, 1.0, 0.06]} />
+        <meshStandardMaterial color={palette.walnut} roughness={0.6} />
       </mesh>
     </>
   );
