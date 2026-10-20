@@ -15,7 +15,12 @@ const isoIn = isoDateTime.describe(
 const verdict = z.enum(['SAFE', 'UNSAFE', 'UNPROVEN']);
 const tier = z.enum(['T0', 'T1', 'T2', 'T3', 'T4', 'T5']);
 const reversibility = z.enum(['holdable', 'compensable', 'irreversible']);
-const member = z.string().describe('Household member ID, e.g. "om"');
+
+// What callers send is bounded: the endpoint is public, and what it's sent can reach paid models
+// and the shared home's activity log. Each bound sits well above the longest real value: a
+// ShadowBench request runs to 183 characters, the demo's new rule to 67, a plan ID to under 120,
+// an undo or approval token to 43, a device ID to 25 and a member ID to 4.
+const member = z.string().max(40).describe('Household member ID, e.g. "om"');
 
 export const speechSchema = z
   .object({
