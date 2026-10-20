@@ -6,6 +6,7 @@ import { manualClock } from './clock.ts';
 import { initialState } from './live-home.ts';
 import { ShadowHomeService } from './service.ts';
 import { memoryStore } from './store.ts';
+import { isoAt } from './time.ts';
 
 const fixture = loadHome(join(import.meta.dirname, '../../../fixtures/demo-home.json'));
 const t = (local: string) => Date.parse(`${local}-06:00`);
@@ -132,6 +133,31 @@ describe('a yes to an offered alternative is not a yes to the plan', () => {
     const p = await service.previewPlan(dishwasherAndTv);
     await service.approvePlan({ planId: p.planId, approvalToken: service.approvalToken(p.planId) });
     expect((await service.commitPlan({ planId: p.planId })).status).toBe('committed');
+  });
+});
+
+describe('checking the house as someone leaves', () => {
+  /** "I'm heading out" as a live model writes it: nobody home from get_home_state's now, seconds and all. */
+  async function headingOut(service: ShadowHomeService) {
+    const { now } = await service.getHomeState({});
+    expect(now).toBe('2027-01-15T17:45:01-06:00');
+    const to = isoAt(Date.parse(now) + 4 * 3_600_000, '-06:00');
+    return service.previewPlan({
+      intent: "I'm heading out.",
+      requestedBy: 'om',
+      actions: [],
+      presenceSchedule: [{ from: now, to, presence: 'nobody' }],
+    });
+  }
+
+  test('a window from now, seconds and all, puts things right now: a yes is done, not scheduled', async () => {
+    const { service } = setup('2027-01-15T17:45:00');
+    const p = await headingOut(service);
+    expect(p.repair?.verdict).toBe('SAFE');
+    const c = await service.commitPlan({ planId: p.repair?.planId ?? '', confirmed: true });
+    expect(c).toMatchObject({ status: 'committed', speech: { headline: 'Done: 4 changes.' } });
+    expect(c.applied).toHaveLength(4);
+    expect(c.held).toEqual([]);
   });
 });
 
