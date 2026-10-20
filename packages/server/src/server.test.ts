@@ -625,5 +625,20 @@ describe.each(['legacy', 'modern'] as const)(
       expect(JSON.stringify(r.structuredContent)).not.toContain('zonesC');
       expect(JSON.stringify(r.content)).not.toContain('zonesC');
     });
+
+    test('an undo’s preview comes with its own temperatures', async () => {
+      const p = await api.call<PreviewOutput>('preview_plan', {
+        intent: "Turn off Sam's light.",
+        requestedBy: 'sam',
+        actions: [{ device: 'light_bedroom_sam', set: { onOff: false } }],
+      });
+      const committed = await api.call<CommitOutput>('commit_plan', { planId: p.planId });
+      expect(committed.status).toBe('committed');
+      const r = await api.client.callTool({ name: 'undo', arguments: { token: 'last' } });
+      const undo = r.structuredContent as UndoOutput;
+      const traces = r._meta?.[TEMPERATURES_META_KEY] as Record<string, TemperatureTrace>;
+      expect(Object.keys(traces)).toEqual([undo.preview?.planId]);
+      expect(traces[undo.preview?.planId ?? '']?.zonesC.nominal.house?.length).toBeGreaterThan(1);
+    });
   },
 );
