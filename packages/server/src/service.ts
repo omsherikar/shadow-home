@@ -465,6 +465,7 @@ export class ShadowHomeService {
   }
 
   getActivityLog(input: z.infer<typeof logInput>): Promise<LogOutput> {
+    const person = plainText(input.person ?? '');
     return this.exclusive(async () => {
       const { state } = await this.current();
       const fromMs = input.from ? Date.parse(input.from) : Number.NEGATIVE_INFINITY;
@@ -473,7 +474,7 @@ export class ShadowHomeService {
       const all = (await this.store.listLog()).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
       const entries = all
         .filter((e) => Date.parse(e.at) >= fromMs && Date.parse(e.at) <= toMs)
-        .filter((e) => !input.person || e.who === input.person)
+        .filter((e) => !person || e.who === person)
         .map((e) => ({
           id: e.id,
           at: e.at,
