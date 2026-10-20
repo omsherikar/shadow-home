@@ -9,6 +9,12 @@ import {
   valuePhrase,
   when,
 } from './format.ts';
+import {
+  NO_TEMPERATURES,
+  type TemperatureChart,
+  type Temperatures,
+  temperatureChart,
+} from './temperature.ts';
 import type {
   Commit,
   DiffRow,
@@ -94,6 +100,8 @@ export interface Screen {
   rows: Row[];
   cards: Card[];
   notes: string[];
+  /** A zone's temperature against a house rule, where one is involved; otherwise the timeline. */
+  temperature?: TemperatureChart;
   timeline?: Timeline;
   controls: Control[];
 }
@@ -110,9 +118,14 @@ export function screenFor(content: unknown, names?: Names): Screen | null {
 const DISMISS: Action = { kind: 'dismiss' };
 const CANCEL: Control = { label: 'Cancel', say: 'cancel', action: DISMISS };
 
-export function previewScreen(p: Preview, names?: Names): Screen {
+export function previewScreen(
+  p: Preview,
+  names?: Names,
+  temps: Temperatures = NO_TEMPERATURES,
+): Screen {
   const look = badge(p);
   const offered = offeredAlternative(p);
+  const temperature = temperatureChart(p, offered, temps);
   const fixes = offered === 'repair' && p.repair ? p.repair.changes : [];
   const notes = [...p.invalid.map((i) => i.message), ...p.unknowns.map((u) => withNames(u, names))];
   if (p.violations.length > MAX_CARDS) {
@@ -136,7 +149,8 @@ export function previewScreen(p: Preview, names?: Names): Screen {
         : diffRows(p.diff, p.horizon.start, flaggedDevices(p.violations), names),
     cards: p.violations.slice(0, MAX_CARDS).map((v) => card(v, p, fixes, names)),
     notes,
-    ...timelineFor(p, names),
+    // The chart says when the rule breaks and what the fix holds; the cards say each break.
+    ...(temperature ? { temperature } : timelineFor(p, names)),
     controls: previewControls(p, offered),
   };
 }
