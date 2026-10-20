@@ -123,7 +123,9 @@ export function buildServer(service: ShadowHomeService): McpServer {
       title: 'Preview a plan',
       description:
         'Check a smart-home plan on a simulation of the home before anything runs. Returns SAFE, UNSAFE or UNPROVEN, ' +
-        'the confirmation tier, what changes, the broken rules, repairs and a signed plan ID for commit_plan.',
+        'the confirmation tier, what changes, the broken rules, repairs and a signed plan ID for commit_plan. ' +
+        'When someone leaves with nothing else to change ("I\'m heading out"), send a presenceSchedule and no actions: ' +
+        'the check says what to see to first (a door left unlocked, a heater on) and offers a fix that adds those steps.',
       inputSchema: previewInput,
       outputSchema: previewOutput,
       annotations: readOnly,
