@@ -1,5 +1,6 @@
+import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
-import { wallHeightAt, wallPieces } from './geometry.ts';
+import { frame, groundBounds, wallHeightAt, wallPieces } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
 
 const pieces = wallPieces(layout);
@@ -55,4 +56,27 @@ describe('the walls', () => {
     expect(height('window')).toBe(layout.wallHeight);
     expect(height('garage_door')).toBe(layout.cutHeight);
   });
+});
+
+describe('framing', () => {
+  test.each([0.7, 1, 1.6, 2.2])(
+    'the whole base fits a canvas %f times as wide as tall',
+    (aspect) => {
+      const bounds = groundBounds(layout);
+      const f = frame(bounds, new Vector3(-0.37, 0.73, 0.57), 30, aspect, 0.04, 0.08);
+      const camera = new PerspectiveCamera(30, aspect, 0.1, 1000);
+      camera.position.copy(f.position);
+      camera.lookAt(f.target);
+      camera.updateMatrixWorld();
+      for (const x of [bounds.min.x, bounds.max.x]) {
+        for (const y of [bounds.min.y, bounds.max.y]) {
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            const p = new Vector3(x, y, z).project(camera);
+            expect(Math.abs(p.x)).toBeLessThanOrEqual(1);
+            expect(Math.abs(p.y)).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    },
+  );
 });
