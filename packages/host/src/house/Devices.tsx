@@ -49,6 +49,8 @@ function Shape(props: {
     case 'latch_sensor':
     case 'contact_sensor':
       return <ContactSensor look={look} />;
+    case 'door_lock':
+      return <DoorLock look={look} />;
   }
 }
 
@@ -211,6 +213,23 @@ function ContactSensor({ look }: { look: Look }) {
       <Ivory size={[0.06, 0.03, 0.022]} position={[-0.03 - gap / 2, 0, 0.011]} />
       <Ivory size={[0.03, 0.03, 0.022]} position={[0.015 + gap / 2, 0, 0.011]} />
       <Led look={look} position={[-0.03 - gap / 2, 0, 0.026]} />
+    </group>
+  );
+}
+
+/** A deadbolt plate whose thumb turn stands upright when locked and lies flat when not. */
+function DoorLock({ look }: { look: Look }) {
+  return (
+    <group>
+      <mesh position={[0, 0, 0.012]} castShadow>
+        <boxGeometry args={[0.075, 0.16, 0.024]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.35} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, 0.02, 0.032]} rotation-z={look.open ? Math.PI / 2 : 0}>
+        <boxGeometry args={[0.018, 0.06, 0.018]} />
+        <meshStandardMaterial color={palette.steel} roughness={0.3} metalness={0.7} />
+      </mesh>
+      <Led look={look} position={[0, -0.055, 0.026]} />
     </group>
   );
 }
