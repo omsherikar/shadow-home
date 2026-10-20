@@ -120,3 +120,17 @@ export const NAMES_META_KEY = 'shadow-home/names';
  * screen reads `_meta`, so only a tap can approve a plan.
  */
 export const APPROVAL_META_KEY = 'shadow-home/approval';
+
+/**
+ * The twin's temperatures over a plan's simulation, from the same runs that gave the verdict.
+ * Sample `i` is at `start` plus `i × stepMinutes`, except the last, which is always at `end`.
+ * Rounded to 0.1 °C. `outdoorC` is the forecast as the nominal run reads it.
+ */
+export interface TemperatureTrace {
+  start: string;
+  end: string;
+  stepMinutes: number;
+  outdoorC: number[];
+  /** Run, then zone ("house", "garage"), then one temperature per sample. */
+  zonesC: Record<'nominal' | 'pessimistic' | 'optimistic', Record<string, number[]>>;
+}
