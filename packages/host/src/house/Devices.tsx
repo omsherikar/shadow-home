@@ -40,6 +40,8 @@ function Shape(props: {
       return <Thermostat look={look} />;
     case 'aquarium':
       return <Aquarium look={look} />;
+    case 'tv':
+      return <Tv look={look} />;
   }
 }
 
@@ -86,6 +88,34 @@ function Aquarium({ look }: { look: Look }) {
         <meshStandardMaterial color={palette.graphite} roughness={0.5} />
       </mesh>
       {on ? <pointLight color={palette.water} intensity={2} distance={2.2} /> : null}
+    </group>
+  );
+}
+
+function Tv({ look }: { look: Look }) {
+  const on = look.glow > 0;
+  return (
+    <group>
+      <mesh position={[0, 0.03, 0]} castShadow>
+        <boxGeometry args={[0.36, 0.03, 0.18]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.4} />
+      </mesh>
+      <mesh position={[0, 0.42, 0]} castShadow>
+        <boxGeometry args={[1.15, 0.66, 0.04]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.3} metalness={0.2} />
+      </mesh>
+      <mesh position={[0, 0.42, 0.021]}>
+        <planeGeometry args={[1.1, 0.61]} />
+        <meshStandardMaterial
+          color={on ? palette.screen : '#0d0f12'}
+          emissive={palette.screen}
+          emissiveIntensity={on ? 2.4 : 0}
+          roughness={0.15}
+        />
+      </mesh>
+      {on ? (
+        <pointLight position={[0, 0.42, 0.4]} color={palette.screen} intensity={3} distance={3} />
+      ) : null}
     </group>
   );
 }
