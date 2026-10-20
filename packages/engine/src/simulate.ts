@@ -31,6 +31,7 @@ export interface SimResult {
   changes: Change[];
   /** Steps where routines tried more than loopGuardActionsPerStep actions; the rest were dropped. */
   loopGuardTrippedAt: number[];
+  trace: SimTrace;
 }
 
 /**
@@ -113,6 +114,12 @@ export function simulate(
   const forecastStart = forecast.ms[0] ?? horizon.startMs;
   const forecastEnd = forecast.ms[forecast.ms.length - 1] ?? horizon.endMs;
   const presence = presenceTimeline(home, plan);
+  const trace: SimTrace = {
+    atMs: [],
+    outdoorC: [],
+    zoneTempC: Object.fromEntries(home.zones.map((z) => [z.id, []])),
+  };
+  const traceStepMs = TRACE_STEP_MINUTES * MINUTE_MS;
   let next = 0;
 
   for (let ms = horizon.startMs; ms <= horizon.endMs; ms += MINUTE_MS) {
@@ -160,10 +167,18 @@ export function simulate(
     frame.presence = presence(ms);
     onFrame(frame);
 
-    if (ms === horizon.endMs) break;
     // Outside the forecast (already reported as unknown by the horizon), hold the nearest point.
     const clamped = Math.min(Math.max(ms, forecastStart), forecastEnd);
     const outdoorC = (interpolate(forecast, clamped) ?? 0) + params.forecastOffsetC;
+    if ((ms - horizon.startMs) % traceStepMs === 0 || ms === horizon.endMs) {
+      trace.atMs.push(ms);
+      trace.outdoorC.push(outdoorC);
+      for (const zone of home.zones) {
+        trace.zoneTempC[zone.id]?.push(zoneTempC[zone.id] ?? zone.initialTempC);
+      }
+    }
+
+    if (ms === horizon.endMs) break;
     const nextTemp: Record<string, number> = {};
     for (const zone of home.zones) {
       const t = zoneTempC[zone.id] ?? zone.initialTempC;
@@ -182,7 +197,7 @@ export function simulate(
     Object.assign(zoneTempC, nextTemp);
   }
 
-  return { changes, loopGuardTrippedAt };
+  return { changes, loopGuardTrippedAt, trace };
 }
 
 function planEvents(home: Home, plan: Plan): Event[] {
