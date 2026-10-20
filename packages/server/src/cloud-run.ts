@@ -21,6 +21,7 @@ import { deployedHome } from './deployed.ts';
 import { firestoreStore } from './firestore-store.ts';
 import { log, withRequest } from './log.ts';
 import { ShadowHomeService } from './service.ts';
+import { stopGracefully } from './shutdown.ts';
 
 const secret = process.env.SHADOW_HOME_SECRET;
 if (!secret) throw new Error('Set SHADOW_HOME_SECRET');
@@ -53,7 +54,7 @@ const app = createApp(service, {
   onError: (e) => log('ERROR', 'mcp error', { error: e.name, reason: e.message }),
 });
 
-serve(
+const server = serve(
   {
     // Each request's headers stay in reach of what it logs, so its lines carry its trace.
     fetch: (req, env) => withRequest(req.headers, () => app.fetch(req, env)),
@@ -62,3 +63,4 @@ serve(
   },
   (info) => log('INFO', 'ready', { port: info.port, home: deployed.homeKey() }),
 );
+stopGracefully(server);
