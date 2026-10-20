@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export * as planScreen from './plan-view/screen.ts';
-export { APPROVAL_META_KEY, NAMES_META_KEY, type Names } from './plan-view/types.ts';
+export {
+  APPROVAL_META_KEY,
+  NAMES_META_KEY,
+  type Names,
+  type TemperatureTrace,
+} from './plan-view/types.ts';
 
 /** The plan view: diff, timeline, chain of causes and controls for preview, commit and undo. */
 export const PLAN_VIEW_URI = 'ui://shadow-home/plan-view.html';
