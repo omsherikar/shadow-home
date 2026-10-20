@@ -34,4 +34,10 @@ describe('an hourly budget', () => {
     expect(spend(60)).toBe(true);
     expect(spend(1)).toBe(false);
   });
+
+  test('an amount larger than the whole budget is refused', () => {
+    const spend = hourlyBudget(100, () => 0);
+    expect(spend(101)).toBe(false);
+    expect(spend(100)).toBe(true);
+  });
 });
