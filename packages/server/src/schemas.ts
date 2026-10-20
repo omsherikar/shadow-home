@@ -145,8 +145,11 @@ export const previewInput = z.object({
   requestedBy: member.optional(),
   presenceSchedule: z
     .array(z.object({ from: isoIn, to: isoIn, presence: presenceSpecSchema }))
+    .max(20)
     .optional()
-    .describe('Who will be home when, if the request says ("away until Sunday")'),
+    .describe(
+      'Who will be home when, if the request says ("away until Sunday"); at most 20 entries',
+    ),
   planEnd: isoIn.optional().describe('When the plan stops mattering ("until Sunday 6 PM")'),
 });
 
