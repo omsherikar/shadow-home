@@ -69,4 +69,22 @@ describe('a budget for each visitor', () => {
     const chars = perVisitor(100, { now: () => 0 });
     expect([chars('a', 80), chars('a', 30), chars('b', 30)]).toEqual([true, false, true]);
   });
+
+  test('at most so many visitors are kept, the longest idle forgotten first', () => {
+    let t = 0;
+    const turn = perVisitor(1, { maxVisitors: 2, now: () => t });
+    expect(turn('a')).toBe(true);
+    t = MINUTE;
+    expect(turn('b')).toBe(true);
+    t = 2 * MINUTE;
+    // a asks again, so b is now the longest idle, and goes when c arrives.
+    expect(turn('a')).toBe(false);
+    expect(turn('c')).toBe(true);
+    expect(turn.visitors).toBe(2);
+    expect(turn('a')).toBe(false);
+    // b was forgotten, so starts over; that pushes out c, idle longer than a.
+    expect(turn('b')).toBe(true);
+    expect(turn('a')).toBe(false);
+    expect(turn('c')).toBe(true);
+  });
 });
