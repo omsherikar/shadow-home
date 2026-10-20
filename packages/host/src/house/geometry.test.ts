@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { wallPieces } from './geometry.ts';
+import { wallHeightAt, wallPieces } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
 
 const pieces = wallPieces(layout);
@@ -47,5 +47,12 @@ describe('the walls', () => {
       [0, 0.9],
       [2.1, layout.wallHeight],
     ]);
+  });
+
+  test('an opening knows how tall its wall is', () => {
+    const height = (kind: string) =>
+      wallHeightAt(layout, layout.openings.find((o) => o.kind === kind) as never);
+    expect(height('window')).toBe(layout.wallHeight);
+    expect(height('garage_door')).toBe(layout.cutHeight);
   });
 });
