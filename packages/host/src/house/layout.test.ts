@@ -68,4 +68,10 @@ describe('the house layout', () => {
     const ids = new Set(home.devices.map((d) => d.id));
     for (const o of layout.openings) if (o.device) expect(ids.has(o.device), o.device).toBe(true);
   });
+
+  test('its people are the household', () => {
+    expect(layout.people.map((p) => p.member).sort()).toEqual(
+      home.household.members.map((m) => m.id).sort(),
+    );
+  });
 });
