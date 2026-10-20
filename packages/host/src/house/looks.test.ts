@@ -35,4 +35,14 @@ describe('how a device looks', () => {
     expect(lookOf(device('contact_sensor', { contact: 'open' })).open).toBe(true);
     expect(lookOf(device('contact_sensor', { contact: 'closed' })).open).toBe(false);
   });
+
+  test('a smoke alarm in alarm glows red; switched off it is dark', () => {
+    expect(lookOf(device('smoke_alarm', { smokeState: 'critical', enabled: true }))).toMatchObject({
+      status: 'alarm',
+      glow: 1,
+    });
+    expect(lookOf(device('smoke_alarm', { smokeState: 'normal', enabled: false })).status).toBe(
+      'off',
+    );
+  });
 });
