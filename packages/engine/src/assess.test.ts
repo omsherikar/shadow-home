@@ -497,4 +497,14 @@ describe('leaving, with nothing to change', () => {
   test('has no safe part: there are no actions to keep', () => {
     expect(assess(home, leaving()).safePart).toBeNull();
   });
+
+  test('says what to put right before going, and offers to do it', () => {
+    const a = assess(home, leaving(), { requestedBy: 'om' });
+    expect(a.speech).toEqual({
+      headline: 'Before you go: Front door lock unlocked, Living room lights on and 2 more.',
+      reason: "Front door locked when nobody's home. That's Om's rule.",
+      ask: 'Shall I fix all 4?',
+    });
+    expectSpeechWithinLimits(a.speech);
+  });
 });
