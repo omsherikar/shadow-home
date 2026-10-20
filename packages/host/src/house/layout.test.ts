@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { houseLayout as layout } from './layout.ts';
 
 const root = join(import.meta.dirname, '../../../..');
+const publicDir = join(import.meta.dirname, '../../public');
 const home = JSON.parse(readFileSync(join(root, 'fixtures/demo-home.json'), 'utf8')) as {
   rooms: { id: string; name: string }[];
   devices: { id: string; room: string }[];
@@ -73,5 +74,15 @@ describe('the house layout', () => {
     expect(layout.people.map((p) => p.member).sort()).toEqual(
       home.household.members.map((m) => m.id).sort(),
     );
+  });
+
+  test('every file it loads is in public/house and credited in CREDITS.md', () => {
+    const credits = readFileSync(join(publicDir, 'house/CREDITS.md'), 'utf8');
+    const surfaces = Object.values(layout.floors).flatMap((s) => [s.color, s.normal, s.arm]);
+    const files = new Set([...layout.props.map((p) => p.model), ...surfaces, layout.environment]);
+    for (const f of files) {
+      expect(existsSync(join(publicDir, f)), f).toBe(true);
+      expect(credits, f).toContain(f.split('/').at(-1));
+    }
   });
 });
