@@ -22,4 +22,11 @@ describe('who a visitor is', () => {
   test('behind a Google HTTPS load balancer, which appends the client then itself: one in', () => {
     expect(visitorOf(request('198.51.100.1, 203.0.113.7, 34.120.0.1'), 1)).toBe('203.0.113.7');
   });
+
+  test('fewer entries than the hops, or no header: one shared key, never one a client picks', () => {
+    const shared = visitorOf(request(), 0);
+    expect(visitorOf(request('203.0.113.7'), 1)).toBe(shared);
+    expect(visitorOf(request(''), 0)).toBe(shared);
+    expect(visitorOf(request(' , '), 0)).toBe(shared);
+  });
 });
