@@ -4,7 +4,7 @@ import { loadHome, loadPlan } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import type { Frame } from './conditions.ts';
 import { computeHorizon } from './horizon.ts';
-import { type RunName, simulate } from './simulate.ts';
+import { type RunName, simulate, TRACE_STEP_MINUTES } from './simulate.ts';
 import { formatIso, toMs } from './time.ts';
 
 const root = join(import.meta.dirname, '../../..');
@@ -268,5 +268,25 @@ describe('events', () => {
     }
     const r = run({ context: { now: '2027-01-15T17:45:00-06:00' }, actions: [] }, 'nominal', busy);
     expect(r.result.loopGuardTrippedAt.map(iso)).toEqual(['2027-01-15T19:00:00-06:00']);
+  });
+});
+
+describe('the temperature trace', () => {
+  const step = TRACE_STEP_MINUTES * 60_000;
+
+  test('samples every 15 minutes from the start and at the last step, as the rules read it', () => {
+    const r = run(p001);
+    const { atMs, zoneTempC } = r.result.trace;
+    const h = computeHorizon(home, p001);
+    // Fri 17:45 to Sun 18:00 is 193 steps of 15 minutes: 194 samples, the last at the end.
+    expect(atMs).toHaveLength(194);
+    expect(atMs).toEqual(atMs.map((_, i) => h.startMs + i * step));
+    expect(atMs.at(-1)).toBe(h.endMs);
+    atMs.forEach((ms, i) => {
+      const frame = r.frames[(ms - h.startMs) / 60_000];
+      expect(frame?.ms).toBe(ms);
+      expect(zoneTempC.house?.[i]).toBe(frame?.zoneTempC.house);
+      expect(zoneTempC.garage?.[i]).toBe(frame?.zoneTempC.garage);
+    });
   });
 });
