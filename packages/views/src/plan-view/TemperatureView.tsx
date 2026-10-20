@@ -6,6 +6,8 @@ const H = 130;
 const LEFT = 132;
 const TOP = 28;
 const BOTTOM = H - 8;
+/** The least room between two labels stacked on the right. */
+const LABEL_GAP = 24;
 /** About how wide "Sat 10:37 PM" is at the break label's size. */
 const TIME_WIDTH = 130;
 
@@ -113,6 +115,12 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
           </text>
         </g>
       ) : null}
+
+      {endLabels(c, y).map((l) => (
+        <text key={l.text} x={right + 12} y={l.y + 7} className={`end ${l.holds ? 'held' : ''}`}>
+          {l.text}
+        </text>
+      ))}
     </svg>
   );
 }
@@ -164,6 +172,25 @@ function Line({ curve, x, y, tone }: { curve: Curve; x: Scale; y: Scale; tone: s
       <path d={d} className={`curve ${tone}`} clipPath="url(#temps-outside)" />
     </>
   );
+}
+
+/** Each curve's name beside its last reading, nudged apart if two would touch. */
+function endLabels(c: TemperatureChart, y: Scale): { text: string; y: number; holds: boolean }[] {
+  const labels = c.curves.flatMap((curve) =>
+    curve.label
+      ? [{ text: curve.label, y: y(curve.nominalC.at(-1) ?? 0), holds: curve.holds }]
+      : [],
+  );
+  if (labels.length !== 2) return labels;
+  const [a, b] = labels.sort((p, q) => p.y - q.y) as [(typeof labels)[0], (typeof labels)[0]];
+  const short = LABEL_GAP - (b.y - a.y);
+  if (short > 0) {
+    a.y -= short / 2;
+    b.y += short / 2;
+  }
+  a.y = Math.max(TOP + 4, a.y);
+  b.y = Math.min(BOTTOM - 8, Math.max(b.y, a.y + LABEL_GAP));
+  return [a, b];
 }
 
 function pt(px: number, py: number): string {
