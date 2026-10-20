@@ -23,9 +23,12 @@ import {
 } from './schemas.ts';
 import { ShadowHomeService } from './service.ts';
 import { memoryStore } from './store.ts';
+import { isoAt } from './time.ts';
+import { APPROVAL_META_KEY } from './view.ts';
 
 const home = loadHome(join(import.meta.dirname, '../../../fixtures/demo-home.json'));
 const NOW = Date.parse(home.clock.now);
+const at = (minutes: number) => isoAt(NOW + minutes * 60_000, home.home.utcOffset);
 
 const OUTPUTS = {
   get_home_state: homeStateOutput,
@@ -137,4 +140,117 @@ function expectAnswered(name: Tool, reply: Reply): 'refused' | 'answered' {
     expect(words('ask'), shown).toBeLessThanOrEqual(SPEECH_LIMITS.ask);
   }
   return 'answered';
+}
+
+/** Plan IDs, their approval tokens and undo tokens the server has handed out. */
+interface Known {
+  planIds: string[];
+  tokens: Record<string, string>;
+  undoTokens: string[];
+}
+
+/** Keep what a result hands out, for later calls to use. */
+function harvest(known: Known, reply: Reply): void {
+  const result = reply.result;
+  if (!result || result.isError) return;
+  const walk = (value: unknown) => {
+    if (Array.isArray(value)) for (const v of value) walk(v);
+    else if (value && typeof value === 'object') {
+      for (const [k, v] of Object.entries(value)) {
+        if (k === 'planId' && typeof v === 'string' && !known.planIds.includes(v)) {
+          known.planIds.push(v);
+        } else if (k === 'undoToken' && typeof v === 'string' && !known.undoTokens.includes(v)) {
+          known.undoTokens.push(v);
+        } else walk(v);
+      }
+    }
+  };
+  walk(result.structuredContent);
+  Object.assign(known.tokens, result._meta?.[APPROVAL_META_KEY] ?? {});
+}
+
+// ---- Valid arguments, to start from ----
+
+const RULE_KEYS = ['priority', 'refuse', 'template', 'params'];
+/** The demo home's own rules, as a compiler would hand them over. */
+const COMPILED = home.rules.map((r) =>
+  Object.fromEntries(Object.entries(r).filter(([k]) => RULE_KEYS.includes(k))),
+);
+
+const PREVIEWS = [
+  {
+    intent: 'Dim the living room to 30 percent.',
+    actions: [{ device: 'light_living', set: { brightness: 30 } }],
+  },
+  {
+    intent: 'Turn off the garage freezer.',
+    requestedBy: 'om',
+    actions: [{ device: 'plug_garage_freezer', set: { onOff: false } }],
+  },
+  {
+    intent: 'Run the dishwasher at 2.',
+    actions: [{ device: 'dishwasher', set: { onOff: true }, at: at(8 * 60 + 15) }],
+  },
+  {
+    intent: 'TV off and the freezer off.',
+    actions: [
+      { device: 'plug_tv', set: { onOff: false } },
+      { device: 'plug_garage_freezer', set: { onOff: false } },
+    ],
+  },
+  {
+    intent: "I'm away for the weekend, set the house to away.",
+    requestedBy: 'om',
+    presenceSchedule: [{ from: at(15), to: at(48 * 60 + 15), presence: 'nobody' }],
+    planEnd: at(48 * 60 + 15),
+    actions: [
+      { device: 'thermostat_main', set: { heatingSetpointC: 10 } },
+      { group: 'all_lights', set: { onOff: false } },
+      { routine: 'coffee_at_7', pauseUntil: at(48 * 60) },
+      { mode: 'away' },
+    ],
+  },
+];
+
+/** Previews each plan above and commits the first, so there are plan IDs and tokens to use. */
+async function seed(app: Hono): Promise<Known> {
+  const known: Known = { planIds: [], tokens: {}, undoTokens: [] };
+  const valid = async (tool: Tool, args: unknown) => {
+    const reply = await send(app, '2025-03-26', tool, args);
+    expect(expectAnswered(tool, reply)).toBe('answered');
+    harvest(known, reply);
+  };
+  for (const args of PREVIEWS) await valid('preview_plan', args);
+  await valid('commit_plan', { planId: known.planIds[0] });
+  expect(known.undoTokens).toHaveLength(1);
+  return known;
+}
+
+/** Valid arguments for each tool, some using what the server handed out. */
+function examples(tool: Tool, known: Known): unknown[] {
+  const [planId = '', ...others] = known.planIds;
+  switch (tool) {
+    case 'get_home_state':
+      return [{}, { room: 'garage' }, { room: 'Living room' }];
+    case 'preview_plan':
+      return PREVIEWS;
+    case 'commit_plan':
+      return [
+        { planId },
+        ...others.map((id) => ({ planId: id, confirmed: true })),
+        ...others.map((id) => ({ planId: id, safePartOnly: true, confirmed: true })),
+      ];
+    case 'undo':
+      return [
+        { token: 'last' },
+        ...known.undoTokens.map((token) => ({ token })),
+        ...known.undoTokens.map((token) => ({ token, devices: ['light_living'] })),
+      ];
+    case 'get_activity_log':
+      return [{}, { groupBy: 'none', limit: 5 }, { person: 'om', from: at(-60), to: at(60) }];
+    case 'add_house_rule':
+      return home.rules.map((r, i) => ({ text: r.text, author: r.author, rule: COMPILED[i] }));
+    case 'approve_plan':
+      return known.planIds.map((id) => ({ planId: id, approvalToken: known.tokens[id] ?? '' }));
+  }
 }
