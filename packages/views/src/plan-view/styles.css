@@ -354,3 +354,9 @@ h2 {
   stroke: var(--line);
   stroke-width: 1;
 }
+
+.temps .zone {
+  fill: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
