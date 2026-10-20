@@ -11,4 +11,11 @@ describe('who a visitor is', () => {
   test("directly on Cloud Run: the rightmost entry, the address Google's front end saw", () => {
     expect(visitorOf(request('203.0.113.7'), 0)).toBe('203.0.113.7');
   });
+
+  test('entries a client forged on the left change nothing', () => {
+    expect(visitorOf(request('1.1.1.1, 2.2.2.2,203.0.113.7'), 0)).toBe('203.0.113.7');
+    expect(visitorOf(request('198.51.100.1, 203.0.113.7'), 0)).toBe(
+      visitorOf(request('203.0.113.7'), 0),
+    );
+  });
 });
