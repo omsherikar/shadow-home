@@ -44,3 +44,24 @@ export const CHIPS: Record<Chip, { icon: string; tone: string }> = {
   UNPROVEN: { icon: '?', tone: 'unsure' },
   DONE: { icon: '✓', tone: 'done' },
 };
+
+const verdict = (v: unknown): Chip | undefined =>
+  v === 'SAFE' || v === 'UNSAFE' || v === 'UNPROVEN' ? v : undefined;
+
+/**
+ * What a tool result puts on the verdict chip: the verdict of the preview it carries, or DONE once
+ * a plan is committed. Anything else leaves the chip as it was.
+ */
+export function chipFor(
+  tool: string,
+  result: Record<string, unknown> | undefined,
+): Chip | undefined {
+  if (!result) return undefined;
+  const inner = (key: string) => (result[key] as { verdict?: unknown } | undefined)?.verdict;
+  if (tool === 'preview_plan') return verdict(result.verdict);
+  if (tool === 'undo') return verdict(inner('preview'));
+  if (tool === 'commit_plan') {
+    return result.status === 'committed' ? 'DONE' : verdict(inner('freshPreview'));
+  }
+  return undefined;
+}
