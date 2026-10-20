@@ -464,7 +464,12 @@ export class ShadowHomeService {
     };
   }
 
-  getActivityLog(input: z.infer<typeof logInput>): Promise<LogOutput> {
+  /**
+   * The log, oldest first, with at most `limit` of the most recent entries. Through the tool,
+   * `limit` is 20 unless the caller asks for more (at most 50), which keeps a busy log's result
+   * short; called directly without one, the service gives every entry.
+   */
+  getActivityLog(input: z.input<typeof logInput>): Promise<LogOutput> {
     const person = plainText(input.person ?? '');
     return this.exclusive(async () => {
       const { state } = await this.current();
@@ -472,23 +477,24 @@ export class ShadowHomeService {
       const toMs = input.to ? Date.parse(input.to) : Number.POSITIVE_INFINITY;
       // Stable sort: entries in the same minute keep the order they were written in.
       const all = (await this.store.listLog()).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-      const entries = all
+      const matching = all
         .filter((e) => Date.parse(e.at) >= fromMs && Date.parse(e.at) <= toMs)
-        .filter((e) => !person || e.who === person)
-        .map((e) => ({
-          id: e.id,
-          at: e.at,
-          who: e.who,
-          source: e.source,
-          what: e.what,
-          ...(e.cause ? { cause: e.cause } : {}),
-          ...(e.verdict ? { verdict: e.verdict } : {}),
-          ...(e.tier ? { tier: e.tier } : {}),
-          changes: e.changes,
-          undoable: Boolean(e.undo) && !e.undoneBy,
-          ...(e.undoToken && e.undo && !e.undoneBy ? { undoToken: e.undoToken } : {}),
-          ...(e.undoneBy ? { undoneBy: e.undoneBy } : {}),
-        }));
+        .filter((e) => !person || e.who === person);
+      const leftOut = input.limit ? Math.max(0, matching.length - input.limit) : 0;
+      const entries = matching.slice(leftOut).map((e) => ({
+        id: e.id,
+        at: e.at,
+        who: e.who,
+        source: e.source,
+        what: e.what,
+        ...(e.cause ? { cause: e.cause } : {}),
+        ...(e.verdict ? { verdict: e.verdict } : {}),
+        ...(e.tier ? { tier: e.tier } : {}),
+        changes: e.changes,
+        undoable: Boolean(e.undo) && !e.undoneBy,
+        ...(e.undoToken && e.undo && !e.undoneBy ? { undoToken: e.undoToken } : {}),
+        ...(e.undoneBy ? { undoneBy: e.undoneBy } : {}),
+      }));
       const groups: LogOutput['groups'] = [];
       if (input.groupBy !== 'none') {
         const byKey = new Map<string, LogOutput['groups'][number]>();
@@ -510,7 +516,7 @@ export class ShadowHomeService {
           g.entryIds.push(e.id);
         }
       }
-      return { entries, groups };
+      return { entries, leftOut, groups };
     });
   }
 

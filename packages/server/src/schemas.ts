@@ -269,6 +269,13 @@ export const logInput = z.object({
   to: isoIn.optional(),
   person: member.optional(),
   groupBy: z.enum(['cause', 'none']).optional().describe('Default: cause'),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(20)
+    .describe('How many of the most recent entries to return'),
 });
 
 const logEntry = z.object({
@@ -288,6 +295,10 @@ const logEntry = z.object({
 
 export const logOutput = z.object({
   entries: z.array(logEntry),
+  leftOut: z
+    .number()
+    .int()
+    .describe('Earlier entries left out; ask for more, or a narrower from and to, to see them'),
   groups: z.array(
     z.object({ cause: z.string(), label: z.string(), entryIds: z.array(z.string()) }),
   ),
