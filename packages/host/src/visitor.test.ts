@@ -29,4 +29,12 @@ describe('who a visitor is', () => {
     expect(visitorOf(request(''), 0)).toBe(shared);
     expect(visitorOf(request(' , '), 0)).toBe(shared);
   });
+
+  test('an IPv6 address stands for its /64; an IPv4 address written as IPv6 for itself', () => {
+    const v6 = (address: string) => visitorOf(request(address), 0);
+    expect(v6('2001:db8:1:2:aaaa::1')).toBe(v6('2001:DB8:1:2:bbbb:cccc:dddd:eeee'));
+    expect(v6('2001:db8:1:2::1')).toBe(v6('2001:0db8:0001:0002::9'));
+    expect(v6('2001:db8:1:2::1')).not.toBe(v6('2001:db8:1:3::1'));
+    expect(v6('::ffff:203.0.113.7')).toBe('203.0.113.7');
+  });
 });
