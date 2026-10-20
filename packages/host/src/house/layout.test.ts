@@ -41,4 +41,12 @@ describe('the house layout', () => {
       expect(inside(room, d.x, d.z, slack), `${d.device} in ${room}`).toBe(true);
     }
   });
+
+  test('furniture and built pieces sit in their rooms', () => {
+    for (const p of [...layout.props, ...layout.built]) {
+      expect(inside(p.room, p.x, p.z), `${'model' in p ? p.model : p.shape} in ${p.room}`).toBe(
+        true,
+      );
+    }
+  });
 });
