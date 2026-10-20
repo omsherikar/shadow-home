@@ -174,6 +174,7 @@ export class ShadowHomeService {
   }
 
   previewPlan(input: z.infer<typeof previewInput>): Promise<PreviewOutput> {
+    const requestedBy = plainText(input.requestedBy ?? '');
     return this.exclusive(async () => {
       const { state, nowMs } = await this.current();
       const plan: Plan = {
@@ -190,7 +191,7 @@ export class ShadowHomeService {
       return this.preview(state, nowMs, plan, {
         kind: 'plan',
         intent: plainText(input.intent),
-        ...(input.requestedBy ? { requestedBy: input.requestedBy } : {}),
+        ...(requestedBy ? { requestedBy } : {}),
       });
     });
   }
