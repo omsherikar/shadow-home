@@ -29,3 +29,13 @@
   overflow: hidden;
   background: radial-gradient(ellipse at 45% 58%, #3d3129 0%, #241c17 55%, #15110e 100%);
 }
+
+.glass {
+  border: 1px solid var(--glass-edge);
+  border-radius: 18px;
+  background: var(--glass);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
