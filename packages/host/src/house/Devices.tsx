@@ -64,6 +64,8 @@ function Shape(props: {
       return <BedsideLamp look={look} />;
     case 'desk_lamp':
       return <DeskLamp look={look} />;
+    case 'porch_light':
+      return <PorchLight look={look} />;
   }
 }
 
@@ -373,6 +375,34 @@ function DeskLamp({ look }: { look: Look }) {
       <group position={[0, 0.38, 0.05]} rotation-x={0.5}>
         <Shade look={look} radius={[0.03, 0.08]} height={0.1} y={0} power={7} />
       </group>
+    </group>
+  );
+}
+
+function PorchLight({ look }: { look: Look }) {
+  return (
+    <group>
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <boxGeometry args={[0.07, 1.1, 0.07]} />
+        <meshStandardMaterial color={palette.graphite} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, 1.2, 0]} castShadow>
+        <boxGeometry args={[0.17, 0.22, 0.17]} />
+        <meshStandardMaterial
+          color={palette.glass}
+          emissive={palette.lamp}
+          emissiveIntensity={look.glow * 3.6}
+          roughness={0.2}
+        />
+      </mesh>
+      {look.glow > 0 ? (
+        <pointLight
+          position={[0, 1.2, 0]}
+          color={palette.lamp}
+          intensity={10 * look.glow}
+          distance={6}
+        />
+      ) : null}
     </group>
   );
 }
