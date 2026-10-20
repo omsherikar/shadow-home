@@ -76,6 +76,9 @@ test('saying it does what tapping does: a yes by voice commits what the screen a
   const v = view(page);
   await expect(v.getByText('UNPROVEN', { exact: true })).toBeVisible();
   await expect(v.getByRole('button', { name: /Run it anyway\s*Say “yes”/ })).toBeVisible();
+  // No temperature rule is involved, so the timeline is drawn instead.
+  await expect(v.getByRole('img', { name: 'Timeline' })).toBeVisible();
+  await expect(v.getByRole('img', { name: 'Garage temperature' })).toHaveCount(0);
   await page.screenshot({ path: 'test-results/dishwasher-preview.png' });
 
   await say(page, 'yes');
