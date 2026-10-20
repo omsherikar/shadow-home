@@ -5,7 +5,7 @@ import { Suspense, useLayoutEffect, useMemo } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
-import { Furniture } from './Furniture.tsx';
+import { Furniture, People } from './Furniture.tsx';
 import { frame, groundBounds, houseBounds } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveHome } from './looks.ts';
@@ -71,6 +71,7 @@ function Scene({ home, onLabels, shift = 0 }: HouseProps) {
       <Shell layout={layout} home={home} />
       <Furniture layout={layout} />
       <Devices layout={layout} home={home} />
+      <People layout={layout} presence={home?.presence} />
     </>
   );
 }
