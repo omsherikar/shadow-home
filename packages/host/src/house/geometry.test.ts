@@ -33,4 +33,19 @@ describe('the walls', () => {
     expect(front.every((p) => !p.tall && p.top === layout.cutHeight)).toBe(true);
     expect(onLine('z', 15.5).every((p) => p.tall)).toBe(true);
   });
+
+  test('a door is a gap, and a window keeps its sill and the wall above it', () => {
+    // Front door at x 8.4 to 9.3 on the front wall: nothing stands in it.
+    const inDoor = onLine('x', 9).filter((p) => {
+      const [s, e] = span(p) as [number, number];
+      return s < 9.3 && e > 8.4;
+    });
+    expect(inDoor).toEqual([]);
+    // Bedroom window at x 13.6 to 14.8 on the back wall, from 0.9 m to 2.1 m.
+    const atWindow = onLine('x', 0).filter((p) => p.a.x === 13.6 && p.b.x === 14.8);
+    expect(atWindow.map((p) => [p.bottom, p.top])).toEqual([
+      [0, 0.9],
+      [2.1, layout.wallHeight],
+    ]);
+  });
 });
