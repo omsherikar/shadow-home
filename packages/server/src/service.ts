@@ -515,6 +515,8 @@ export class ShadowHomeService {
   }
 
   async addHouseRule(input: z.infer<typeof addRuleInput>): Promise<AddRuleOutput> {
+    const words = plainText(input.text);
+    const author = plainText(input.author);
     // With a compiler, the person's words decide: a compiled rule from the caller would skip the
     // agreement check. Without one (the recorded demo), the caller's compiled rule is used.
     let compiled = this.compileRule ? undefined : input.rule;
@@ -536,7 +538,7 @@ export class ShadowHomeService {
       // Compiling asks several models and takes seconds, so it happens before this call takes
       // its turn with the home; the rule is then checked against the home as it is.
       const { home } = await this.store.loadState();
-      const outcome = await this.compileRule({ text: input.text, author: input.author, home });
+      const outcome = await this.compileRule({ text: words, author, home });
       if (outcome.status === 'failed') {
         return notCompiled(outcome.problems, "I couldn't work out that rule just now.");
       }
@@ -555,7 +557,7 @@ export class ShadowHomeService {
       }
       if (outcome.status === 'disagree') {
         const say = (r: (typeof outcome.readings)[number]) =>
-          readBack(home, { ...r, id: 'new', text: input.text, author: input.author } as Rule);
+          readBack(home, { ...r, id: 'new', text: words, author } as Rule);
         const sentences = outcome.readings.map(say);
         // The read-back doesn't say how strict a rule is, so readings that differ only there
         // read alike: name the priority, and whether it may never happen at all.
@@ -599,8 +601,8 @@ export class ShadowHomeService {
       const parsed = ruleSchema.safeParse({
         ...wanted,
         id,
-        text: input.text,
-        author: input.author,
+        text: words,
+        author,
         source: 'add_house_rule',
         ...(hash ? { hash } : {}),
       });
@@ -620,7 +622,7 @@ export class ShadowHomeService {
       if (problems.length > 0) return invalid(problems);
 
       const conflicts = findConflicts(home, rule);
-      const role = home.household.members.find((m) => m.id === input.author)?.role;
+      const role = home.household.members.find((m) => m.id === author)?.role;
       const needsOwnerApproval =
         role !== 'owner' &&
         conflicts.some(
