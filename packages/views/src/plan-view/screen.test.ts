@@ -559,4 +559,33 @@ describe('a zone’s temperature against a house rule', () => {
     ).toEqual({ traces: {}, rules: {} });
     expect(temperaturesFrom(undefined)).toEqual({ traces: {}, rules: {} });
   });
+
+  test('a fresh preview after a stale plan, and an undo, are drawn from their own temperatures', () => {
+    const fresh = commitScreen(
+      {
+        status: 'refused',
+        reason: 'state_changed',
+        planId: 'old-1',
+        speech: { headline: 'The home changed.' },
+        applied: [],
+        held: [],
+        freshPreview: blocked,
+      },
+      names,
+      both,
+    );
+    expect(fresh.temperature?.breaks?.label).toBe('Fri 11:10 PM');
+    const undo = undoScreen(
+      {
+        status: 'preview',
+        preview: { ...blocked, kind: 'undo' },
+        cannotUndo: [],
+        notes: [],
+        speech: { headline: 'Undo: Garage heater thermostat heating off.' },
+      },
+      names,
+      both,
+    );
+    expect(undo.temperature?.curves.map((c) => c.label)).toEqual(['The undo', 'With 1 fix']);
+  });
 });
