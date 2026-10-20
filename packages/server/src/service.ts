@@ -60,6 +60,7 @@ import type {
   UndoExtras,
   UndoInfo,
 } from './store.ts';
+import { plainText } from './text.ts';
 import { isoAt } from './time.ts';
 
 export interface ServiceOptions {
@@ -188,7 +189,7 @@ export class ShadowHomeService {
       planContextSchema.parse(plan.context);
       return this.preview(state, nowMs, plan, {
         kind: 'plan',
-        intent: input.intent,
+        intent: plainText(input.intent),
         ...(input.requestedBy ? { requestedBy: input.requestedBy } : {}),
       });
     });
