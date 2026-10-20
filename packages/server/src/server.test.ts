@@ -280,6 +280,21 @@ describe('the commit contract', () => {
     expect(r.isError).toBe(true);
   });
 
+  test('words past their bound are refused at the tool boundary, whose schema gives the bound', async () => {
+    const r = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: { ...dim, intent: 'a'.repeat(301) },
+    });
+    expect(r.isError).toBe(true);
+    const { tools } = await api.client.listTools();
+    const preview = tools.find((t) => t.name === 'preview_plan')?.inputSchema as {
+      properties: Record<string, { maxLength?: number; maxItems?: number }>;
+    };
+    expect(preview.properties.intent?.maxLength).toBe(300);
+    expect(preview.properties.requestedBy?.maxLength).toBe(40);
+    expect(preview.properties.presenceSchedule?.maxItems).toBe(20);
+  });
+
   test('switching off a smoke alarm is refused at T5, and nothing can approve it', async () => {
     const shown = await api.client.callTool({
       name: 'preview_plan',
