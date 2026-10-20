@@ -34,3 +34,13 @@ export function browserStorage(): Storage | null {
     return null;
   }
 }
+
+export type Chip = 'SAFE' | 'UNSAFE' | 'UNPROVEN' | 'DONE';
+
+/** Icon, word and tone for each chip, as the plan view shows them. */
+export const CHIPS: Record<Chip, { icon: string; tone: string }> = {
+  SAFE: { icon: '✓', tone: 'safe' },
+  UNSAFE: { icon: '✕', tone: 'blocked' },
+  UNPROVEN: { icon: '?', tone: 'unsure' },
+  DONE: { icon: '✓', tone: 'done' },
+};
