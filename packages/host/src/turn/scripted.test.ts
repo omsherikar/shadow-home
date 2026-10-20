@@ -150,6 +150,36 @@ describe('the scripted stand-in for the model', () => {
     });
   });
 
+  test('"I\'m heading out" checks the house, nobody home from this minute, with nothing to change', async () => {
+    const leaving = scriptedModel(script.beats, { now: '2027-01-18T07:15:42-06:00' });
+    for (const line of ["I'm heading out.", "I'm leaving", "We're heading out now."]) {
+      expect(await leaving.next({ text: line, history: [], thisTurn: [] })).toEqual({
+        call: {
+          name: 'preview_plan',
+          arguments: {
+            intent: line,
+            requestedBy: 'om',
+            actions: [],
+            presenceSchedule: [
+              {
+                from: '2027-01-18T07:15:00-06:00',
+                to: '2027-01-18T11:15:00-06:00',
+                presence: 'nobody',
+              },
+            ],
+          },
+        },
+      });
+    }
+    // Leaving for the weekend is still the weekend line, with its own plan.
+    const weekend = await leaving.next({
+      text: "I'm leaving for the weekend, set the house to away.",
+      history: [],
+      thisTurn: [],
+    });
+    expect('call' in weekend && weekend.call.arguments.actions).toHaveLength(7);
+  });
+
   test('it speaks only from the server’s speech fields', () => {
     expect(
       spokenFrom({ speech: { headline: 'Blocked.', reason: 'A rule.', ask: 'Fix it?' } }, []),
