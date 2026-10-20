@@ -77,6 +77,35 @@ const plan: fc.Arbitrary<Plan> = fc
     actions,
   }));
 
+/** "I'm heading out": no actions, nobody home for a while, from a house in any state that matters. */
+const leaving: fc.Arbitrary<Plan> = fc
+  .tuple(
+    fc.constantFrom('LOCKED', 'UNLOCKED'),
+    fc.constantFrom('LOCKED', 'UNLOCKED'),
+    fc.tuple(fc.boolean(), fc.boolean(), fc.boolean(), fc.boolean(), fc.boolean(), fc.boolean()),
+    fc.integer({ min: 0, max: 60 }),
+    fc.integer({ min: 15, max: 12 * 60 }),
+  )
+  .map(([front, back, [heater, coffee, living, kitchen, sam, alarm], start, minutes]) => ({
+    context: {
+      now: iso(0),
+      stateOverrides: {
+        front_door_lock: { state: { lockState: front } },
+        back_door_lock: { state: { lockState: back } },
+        plug_bedroom_space_heater: { state: { onOff: heater } },
+        plug_coffee_maker: { state: { onOff: coffee } },
+        light_living: { state: { onOff: living } },
+        light_kitchen: { state: { onOff: kitchen } },
+        light_bedroom_sam: { state: { onOff: sam } },
+        smoke_alarm_kitchen: { state: { enabled: alarm } },
+      },
+      presenceSchedule: [
+        { from: iso(start), to: iso(start + minutes), presence: 'nobody' as const },
+      ],
+    },
+    actions: [],
+  }));
+
 // Each property runs dozens of full three-run checks: about 3 s alone, several times that on a
 // loaded machine or a CI runner, so the 5 s default would time out.
 describe('verdict properties', { timeout: 60_000 }, () => {
@@ -165,6 +194,31 @@ describe('verdict properties', { timeout: 60_000 }, () => {
       }),
       { numRuns: 20 },
     );
+  });
+
+  test('leaving with nothing to change is never refused, has no safe part, and its fix only adds steps', () => {
+    let fixed = 0;
+    fc.assert(
+      fc.property(leaving, (p) => {
+        const a = assess(home, p, { requestedBy: 'om' });
+        expect(a.tier.tier).not.toBe('T5');
+        expect(a.safePart).toBeNull();
+        expect(wordCount(a.speech.headline)).toBeLessThanOrEqual(SPEECH_LIMITS.headline);
+        expect(wordCount(a.speech.reason ?? '')).toBeLessThanOrEqual(SPEECH_LIMITS.reason);
+        expect(wordCount(a.speech.ask ?? '')).toBeLessThanOrEqual(SPEECH_LIMITS.ask);
+        if (a.check.verdict === 'SAFE') expect(a.repaired).toBeNull();
+        else expect(a.speech.headline).toMatch(/^Before you go: /);
+        if (a.repaired) {
+          fixed++;
+          const kinds = new Set(a.repaired.detail.repairs.map((r) => r.kind));
+          expect([...kinds].every((k) => k === 'add_action' || k === 'pause_routine')).toBe(true);
+        }
+        // Only a fix the person can say yes to is asked about.
+        expect(a.speech.ask !== undefined).toBe(a.offered === 'repair');
+      }),
+      { numRuns: 20 },
+    );
+    expect(fixed, 'no leaving check with a fix was generated').toBeGreaterThan(0);
   });
 
   test('checking a plan never changes the home', () => {
