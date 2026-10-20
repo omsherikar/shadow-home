@@ -1,0 +1,31 @@
+/*
+ * The house beside the device. The house is a warm dollhouse at dusk on the same dark wood tone
+ * as the room; what floats over it is frosted glass with a serif title, read on video at 1440 x 900.
+ * Verdict colours match the plan view.
+ */
+:root {
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --glass: rgb(30 24 19 / 55%);
+  --glass-edge: rgb(255 238 214 / 14%);
+  --ink: #f6efe4;
+  --ink-soft: #d3c5b2;
+  --ink-muted: #a8998a;
+  --safe: #34d399;
+  --blocked: #f87171;
+  --unsure: #fbbf24;
+  --done: #60a5fa;
+}
+
+.stage {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.house-panel {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 45% 58%, #3d3129 0%, #241c17 55%, #15110e 100%);
+}
