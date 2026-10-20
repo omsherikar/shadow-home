@@ -8,8 +8,8 @@ export const MCP_SERVER_URL = process.env.MCP_SERVER_URL ?? 'http://localhost:30
  * How long a turn waits on the MCP server. Measured against a local server, connecting took at
  * most 0.7 s and each tool call at most about 1 s (the weekend preview's three simulations), and
  * the deployed server's p99 is 400 ms (decision 94); 15 s also covers a server instance starting
- * cold. add_house_rule compiles with three models at once: 5 to 9 s (decision 79), but each
- * model call may take 20 s and retry once, so it gets 45 s. The SDK's own default is 60 s.
+ * cold. add_house_rule compiles with three models at once, and the server gives up on that after
+ * 40 s (COMPILE_DEADLINE_MS), so the host waits 45 s for it. The SDK's own default is 60 s.
  */
 export const MCP_TIMEOUT_MS = 15_000;
 export const RULE_TIMEOUT_MS = 45_000;
