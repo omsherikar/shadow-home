@@ -29,7 +29,11 @@ export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | 
         />
       ))}
       {layout.built.map((b) => (
-        <BuiltPiece key={`${b.shape},${b.x},${b.z}`} piece={b} />
+        <BuiltPiece
+          key={`${b.shape},${b.x},${b.z}`}
+          piece={b}
+          glow={lookOf(device(b.drivenBy)).glow}
+        />
       ))}
     </>
   );
@@ -256,7 +260,7 @@ function Frame({ width, height }: { width: number; height: number }) {
 }
 
 /** Counters, beds, rugs and the garage heater, from simple shapes in matching materials. */
-function BuiltPiece({ piece: b }: { piece: Built }) {
+function BuiltPiece({ piece: b, glow }: { piece: Built; glow: number }) {
   return (
     <group position={[b.x, b.y, b.z]} rotation-y={deg(b.facing)}>
       {b.shape === 'counter' ? <Counter b={b} /> : null}
@@ -269,6 +273,25 @@ function BuiltPiece({ piece: b }: { piece: Built }) {
             roughness={1}
           />
         </mesh>
+      ) : null}
+      {b.shape === 'wall_heater' ? (
+        <group position={[0, b.height / 2, 0]}>
+          <mesh castShadow>
+            <boxGeometry args={[b.width, b.height, b.depth]} />
+            <meshStandardMaterial color={palette.graphite} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0, b.depth / 2 + 0.002]}>
+            <planeGeometry args={[b.width * 0.85, b.height * 0.6]} />
+            <meshStandardMaterial
+              color={palette.graphite}
+              emissive={palette.heat}
+              emissiveIntensity={glow >= 1 ? 2.2 : 0}
+            />
+          </mesh>
+          {glow >= 1 ? (
+            <pointLight position={[0, 0, 0.4]} color={palette.heat} intensity={1.2} distance={3} />
+          ) : null}
+        </group>
       ) : null}
     </group>
   );
