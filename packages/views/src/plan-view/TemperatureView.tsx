@@ -73,11 +73,26 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
       {c.curves.map((curve, i) => (
         <Line key={`line-${curve.label ?? i}`} curve={curve} x={x} y={y} tone={tone} />
       ))}
+
+      <text x={0} y={titleY(bounds.map(y))} className="zone">
+        {c.zone}
+      </text>
     </svg>
   );
 }
 
 type Scale = (v: number) => number;
+
+/** The zone's name at the top of the left gutter, or lower down if a rule's label is there. */
+function titleY(boundYs: number[]): number {
+  const top = TOP + 18;
+  const room = (spot: number) => Math.min(...boundYs.map((b) => Math.abs(b + 7 - spot)));
+  if (room(top) >= 28) return top;
+  return [(TOP + BOTTOM) / 2 + 7, BOTTOM].reduce(
+    (best, spot) => (room(spot) > room(best) ? spot : best),
+    top,
+  );
+}
 
 function Band({ curve, x, y, tone }: { curve: Curve; x: Scale; y: Scale; tone: string }) {
   const top = curve.atMs.map((ms, i) => pt(x(ms), y(curve.highC[i] ?? 0)));
