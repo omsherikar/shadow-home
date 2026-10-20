@@ -3,7 +3,7 @@ import { computeHorizon } from './horizon.ts';
 import { type HygieneFinding, hygiene } from './hygiene.ts';
 import { type LintCode, type LintResult, lint } from './lint.ts';
 import { createRuleTracker, pushesTowardViolation, type RuleOutcome, ruleAtoms } from './rules.ts';
-import { type Change, RUN_NAMES, type RunName, simulate } from './simulate.ts';
+import { type Change, RUN_NAMES, type RunName, type SimTrace, simulate } from './simulate.ts';
 import { formatIso, offsetMinutes } from './time.ts';
 import { untrustedSensors } from './trust.ts';
 
@@ -125,7 +125,10 @@ export function check(home: Home, plan: Plan): CheckResult {
   }
 
   const untrusted = untrustedSensors(home, plan);
-  const results = {} as Record<RunName, { outcomes: RuleOutcome[]; changes: Change[] }>;
+  const results = {} as Record<
+    RunName,
+    { outcomes: RuleOutcome[]; changes: Change[]; trace: SimTrace }
+  >;
   const runs = {} as Record<RunName, RunReport>;
   for (const name of RUN_NAMES) {
     const tracker = createRuleTracker(home, untrusted);
@@ -143,7 +146,7 @@ export function check(home: Home, plan: Plan): CheckResult {
       }
     });
     const outcomes = tracker.outcomes();
-    results[name] = { outcomes, changes: sim.changes };
+    results[name] = { outcomes, changes: sim.changes, trace: sim.trace };
     runs[name] = {
       violated: outcomes.filter((o) => o.status === 'violated').map((o) => o.rule),
       unknown: outcomes.filter((o) => o.status === 'unknown').map((o) => o.rule),
