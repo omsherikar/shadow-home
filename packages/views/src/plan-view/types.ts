@@ -154,3 +154,6 @@ export interface TemperatureRule {
   maxC: number | null;
   heatedBy: string[];
 }
+
+/** Where the server puts the temperature rules, rule ID to `TemperatureRule`, beside the traces. */
+export const TEMPERATURE_RULES_META_KEY = 'shadow-home/temperature-rules';
