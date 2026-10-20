@@ -84,3 +84,13 @@ describe('what a caller sends is bounded', () => {
     expect(ok(previewInput, { ...tvOff, presenceSchedule: [crowd] })).toBe(false);
   });
 });
+
+describe('a plan with no actions', () => {
+  const leaving = { intent: "I'm heading out.", requestedBy: 'om', actions: [] };
+
+  test('is a check of the house as someone leaves, so it needs a presence schedule', () => {
+    expect(ok(previewInput, { ...leaving, presenceSchedule: [away] })).toBe(true);
+    expect(ok(previewInput, leaving)).toBe(false);
+    expect(ok(previewInput, { ...leaving, presenceSchedule: [] })).toBe(false);
+  });
+});
