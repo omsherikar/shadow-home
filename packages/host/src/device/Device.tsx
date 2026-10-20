@@ -8,6 +8,7 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
+import { spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import {
   HomeCard,
@@ -172,7 +173,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
    */
   const say = useCallback(
     async (text: string) => {
-      const words = text.trim();
+      const words = spokenText(text);
       if (!words) return;
       stopSpeaking();
       if (working.current) return;
