@@ -248,3 +248,7 @@
 .stage .device {
   width: 1180px;
 }
+
+.stage.house-only .device-panel {
+  display: none;
+}
