@@ -145,6 +145,17 @@ function expectAnswered(name: Tool, reply: Reply): 'refused' | 'answered' {
   return 'answered';
 }
 
+/** Answered calls on each protocol version. */
+const byEra = () => Object.fromEntries(ERAS.map((era) => [era, 0])) as Record<Era, number>;
+
+/**
+ * Each protocol version had calls answered, not only refused, so one that fails as a whole (a
+ * missing 2026-07-28 envelope, say, refuses every call) can't hide behind the others.
+ */
+function expectEveryEra(answered: Record<Era, number>): void {
+  for (const era of ERAS) expect(answered[era], era).toBeGreaterThan(0);
+}
+
 /** Plan IDs, their approval tokens and undo tokens the server has handed out. */
 interface Known {
   planIds: string[];
@@ -438,9 +449,12 @@ describe('every tool answers whatever arguments it is sent', { timeout: 60_000 }
     const { app } = fresh();
     const known = await seed(app);
     const seen = { refused: 0, answered: 0 };
+    const answered = byEra();
     await fc.assert(
       fc.asyncProperty(fc.constantFrom(...ERAS), argsFor(tool, known), async (era, args) => {
-        seen[expectAnswered(tool, await send(app, era, tool, args))]++;
+        const outcome = expectAnswered(tool, await send(app, era, tool, args));
+        seen[outcome]++;
+        if (outcome === 'answered') answered[era]++;
       }),
       {
         numRuns: 40,
@@ -450,5 +464,6 @@ describe('every tool answers whatever arguments it is sent', { timeout: 60_000 }
     // Some arguments got past the input schema, so the tools' own code was reached.
     expect(seen.answered).toBeGreaterThan(0);
     expect(seen.refused).toBeGreaterThan(0);
+    expectEveryEra(answered);
   });
 });
