@@ -13,3 +13,14 @@ export function spokenText(text: string): string {
     .replace(/[\uD800-\uDBFF]$/, '')
     .trimEnd();
 }
+
+/** At most `max` characters as JSON. A value nested too deep to serialize doesn't fit. */
+export function fits(max: number) {
+  return (value: unknown) => {
+    try {
+      return JSON.stringify(value).length <= max;
+    } catch {
+      return false;
+    }
+  };
+}
