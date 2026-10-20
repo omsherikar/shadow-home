@@ -120,6 +120,13 @@ body {
   grid-template-columns: 1fr 1fr;
 }
 
+.lead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  min-width: 0;
+}
+
 h2 {
   margin: 0 0 0.45em;
   color: var(--muted);
