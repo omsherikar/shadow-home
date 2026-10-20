@@ -6,6 +6,7 @@ import {
   valueSchema,
 } from '@shadow-home/twin';
 import { z } from 'zod';
+import { plainText } from './text.ts';
 
 const iso = z.string().describe('ISO 8601 time with offset, in the home time zone');
 /** Times the caller sends must carry an offset, or they would be read in the server's time zone. */
@@ -21,6 +22,16 @@ const reversibility = z.enum(['holdable', 'compensable', 'irreversible']);
 // ShadowBench request runs to 183 characters, the demo's new rule to 67, a plan ID to under 120,
 // an undo or approval token to 43, a device ID to 25 and a member ID to 4.
 const member = z.string().max(40).describe('Household member ID, e.g. "om"');
+
+/** A person's words, with something left once control characters are gone (see plainText). */
+function words(max: number, description: string) {
+  return z
+    .string()
+    .min(1)
+    .max(max)
+    .refine((s) => plainText(s) !== '', 'expected words, not only spaces or control characters')
+    .describe(`${description}; at most ${max} characters`);
+}
 
 export const speechSchema = z
   .object({
@@ -130,7 +141,7 @@ export const previewInput = z.object({
     .describe(
       'Device or group writes ({ device, set, at? }), routine pauses ({ routine, pauseUntil }) and mode changes ({ mode, at? }). Without `at`, an action runs now.',
     ),
-  intent: z.string().min(1).describe('What the person asked for, in their words'),
+  intent: words(300, 'What the person asked for, in their words'),
   requestedBy: member.optional(),
   presenceSchedule: z
     .array(z.object({ from: isoIn, to: isoIn, presence: presenceSpecSchema }))
