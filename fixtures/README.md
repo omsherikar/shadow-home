@@ -53,4 +53,6 @@ A garage setting of 4.5 °C still fails the pessimistic run (minimum 3.99 °C), 
 
 ## demo-script.json
 
-The four demo beats: what the person says, the scenario context, and the outcome we expect. `recordedPlan` stays null until Sun Oct 18, when demo mode records the plans the model actually drafted.
+The five demo beats: what the person says, the scenario context, and the outcome we expect. `recordedPlan` stays null until Sun Oct 18, when demo mode records the plans the model actually drafted.
+
+The last beat, "I'm heading out." on Monday at 7:15 AM, checks the house as everyone leaves (decision 100): Coffee at 7 still has the coffee maker on, R8 breaks, and a yes switches it off.
