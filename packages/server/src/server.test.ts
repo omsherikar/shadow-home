@@ -8,6 +8,7 @@ import {
   NAMES_META_KEY,
   type Names,
   planScreen,
+  TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type TemperatureTrace,
 } from '@shadow-home/views';
@@ -624,6 +625,36 @@ describe.each(['legacy', 'modern'] as const)(
       }
       expect(JSON.stringify(r.structuredContent)).not.toContain('zonesC');
       expect(JSON.stringify(r.content)).not.toContain('zonesC');
+    });
+
+    test('gets the rule they are drawn against, and the screen plots the garage crossing it', async () => {
+      const r = await api.client.callTool({ name: 'preview_plan', arguments: weekend });
+      expect(r._meta?.[TEMPERATURE_RULES_META_KEY]).toEqual({
+        R3: {
+          zone: 'garage',
+          zoneName: 'Garage',
+          minC: 4,
+          maxC: null,
+          heatedBy: ['garage_thermostat', 'plug_garage_freezer'],
+        },
+      });
+      expect(JSON.stringify(r.structuredContent)).not.toContain('heatedBy');
+      const s = planScreen.previewScreen(
+        r.structuredContent as PreviewOutput,
+        r._meta?.[NAMES_META_KEY] as Names,
+        planScreen.temperaturesFrom(r._meta),
+      );
+      expect(s.timeline).toBeUndefined();
+      expect(s.temperature).toMatchObject({
+        zone: 'Garage',
+        rule: 'R3',
+        breaks: { atC: 4, label: 'Sat 10:37 PM', tone: 'blocked' },
+        summary:
+          'Garage temperature. Your plan: drops below 4 °C at Sat 10:37 PM. With 4 fixes: stays above 4 °C.',
+      });
+      const [plan, fixed] = s.temperature?.curves ?? [];
+      expect(Math.min(...(plan?.nominalC ?? []))).toBeLessThan(4);
+      expect(Math.min(...(fixed?.lowC ?? [Number.NaN]))).toBeGreaterThanOrEqual(4);
     });
 
     test('an undo’s preview comes with its own temperatures', async () => {
