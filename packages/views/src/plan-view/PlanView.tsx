@@ -157,54 +157,57 @@ function ScreenView({
 }) {
   return (
     <main className={`screen tone-${s.tone}`} aria-busy={busy}>
-      <header className="head">
-        <div className="badge">
-          <span className="icon" aria-hidden="true">
-            {s.icon}
-          </span>
-          <span className="word">{s.word}</span>
-        </div>
-        <div className="speech">
-          <h1>{s.headline}</h1>
-          {s.reason ? <p className="reason">{s.reason}</p> : null}
-          {s.ask ? <p className="ask">{s.ask}</p> : null}
-        </div>
-      </header>
-
+      {/* With broken rules, their cards take the right half from the top, beside the headline. */}
       <section className={s.cards.length > 0 ? 'body two' : 'body'}>
-        {s.rows.length > 0 || s.notes.length > 0 ? (
-          <div className="changes">
-            {s.rows.length > 0 ? (
-              <>
-                <h2>{s.rowsTitle}</h2>
-                <ul className="rows">
-                  {s.rows.map((row) => (
-                    <li key={row.place} className="row">
-                      <span className="place">{row.place}</span>
-                      <span className="chips">
-                        {row.chips.map((chip) => (
-                          <span
-                            key={`${chip.tone}-${chip.text}`}
-                            className={`chip ${chip.tone ?? ''}`}
-                          >
-                            {chip.text}
-                          </span>
-                        ))}
-                      </span>
-                    </li>
+        <div className="lead">
+          <header className="head">
+            <div className="badge">
+              <span className="icon" aria-hidden="true">
+                {s.icon}
+              </span>
+              <span className="word">{s.word}</span>
+            </div>
+            <div className="speech">
+              <h1>{s.headline}</h1>
+              {s.reason ? <p className="reason">{s.reason}</p> : null}
+              {s.ask ? <p className="ask">{s.ask}</p> : null}
+            </div>
+          </header>
+
+          {s.rows.length > 0 || s.notes.length > 0 ? (
+            <div className="changes">
+              {s.rows.length > 0 ? (
+                <>
+                  <h2>{s.rowsTitle}</h2>
+                  <ul className="rows">
+                    {s.rows.map((row) => (
+                      <li key={row.place} className="row">
+                        <span className="place">{row.place}</span>
+                        <span className="chips">
+                          {row.chips.map((chip) => (
+                            <span
+                              key={`${chip.tone}-${chip.text}`}
+                              className={`chip ${chip.tone ?? ''}`}
+                            >
+                              {chip.text}
+                            </span>
+                          ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
+              {s.notes.length > 0 ? (
+                <ul className="notes">
+                  {s.notes.map((n) => (
+                    <li key={n}>{n}</li>
                   ))}
                 </ul>
-              </>
-            ) : null}
-            {s.notes.length > 0 ? (
-              <ul className="notes">
-                {s.notes.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         {s.cards.length > 0 ? (
           <div className="why">
             <h2>Why</h2>
