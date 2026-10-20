@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { clock, count, midnights } from './format.ts';
+import { capitalise, clock, count, midnights } from './format.ts';
 import {
   type Preview,
   TEMPERATURE_RULES_META_KEY,
@@ -72,6 +72,8 @@ export interface TemperatureChart {
   curves: Curve[];
   /** Where the plan first breaks the rule. Blocked in the nominal run; unsure in another run only. */
   breaks?: { atMs: number; atC: number; label: string; tone: 'blocked' | 'unsure' };
+  /** The chart in words, for a screen reader. */
+  summary: string;
 }
 
 /**
@@ -129,6 +131,7 @@ export function temperatureChart(
     toC: highest + margin,
     curves,
     ...(breaks ? { breaks } : {}),
+    summary: summary(rule, curves, breaks),
   };
 }
 
@@ -173,4 +176,34 @@ function breakMark(
     label: clock(v.firstAt),
     tone: v.run === 'nominal' ? 'blocked' : 'unsure',
   };
+}
+
+/** "Garage temperature. Your plan: drops below 4 °C at Sat 10:37 PM. With 4 fixes: stays above 4 °C." */
+function summary(
+  rule: TemperatureRule,
+  curves: Curve[],
+  breaks: TemperatureChart['breaks'],
+): string {
+  const { minC, maxC } = rule;
+  const holds =
+    minC !== null && maxC !== null
+      ? `stays between ${minC} and ${maxC} °C`
+      : minC !== null
+        ? `stays above ${minC} °C`
+        : `stays below ${maxC} °C`;
+  const broke = (b: NonNullable<typeof breaks>) => {
+    const below = b.atC === minC;
+    const way =
+      b.tone === 'unsure'
+        ? `may ${below ? 'drop below' : 'rise above'}`
+        : below
+          ? 'drops below'
+          : 'rises above';
+    return `${way} ${b.atC} °C at ${b.label}`;
+  };
+  const said = curves.map((c) => {
+    const what = !c.holds && breaks ? broke(breaks) : holds;
+    return c.label ? `${c.label}: ${what}.` : `${capitalise(what)}.`;
+  });
+  return `${rule.zoneName} temperature. ${said.join(' ')}`;
 }
