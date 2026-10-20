@@ -95,6 +95,9 @@ Use the MCP URL it printed (it ends in `/mcp`):
 - `node scripts/latency.ts <mcp-url> 50` reports the round trip of `preview_plan`, p50 and p99.
   From far away most of that is the network; Cloud Run's request logs give the server's own time:
   `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="shadow-home-mcp"' --format='value(httpRequest.latency)'`.
+- `node scripts/load.ts` measures `preview_plan` with 1 to 32 requests at once (p50, p90, p99),
+  which is what the server's 2 at once was set from. Run it against a local server
+  (`node packages/server/src/main.ts`), not the deployed one: it sends about 7,000 previews.
 - `npm run inspect`, then point the Inspector at the URL.
 - The spec-checker agent runs the whole checklist against a URL you give it.
 
