@@ -10,6 +10,7 @@
 //   RULE_COMPILER            "anthropic" or "bedrock" compiles house rules in plain words
 //   FIRESTORE_COLLECTION     the collection homes are kept in (default homes)
 //   FIRESTORE_EMULATOR_HOST  the Firestore emulator, for running the container on a laptop
+//   GOOGLE_CLOUD_PROJECT     the project, so log lines carry their request's trace
 // The Firestore client finds the project and credentials itself on Cloud Run
 // (GOOGLE_CLOUD_PROJECT names the project elsewhere).
 import { Firestore } from '@google-cloud/firestore';
@@ -18,6 +19,7 @@ import { createApp } from './app.ts';
 import { compilerFromEnv } from './compiler.ts';
 import { deployedHome } from './deployed.ts';
 import { firestoreStore } from './firestore-store.ts';
+import { log, withRequest } from './log.ts';
 import { ShadowHomeService } from './service.ts';
 
 const secret = process.env.SHADOW_HOME_SECRET;
@@ -48,9 +50,15 @@ const allowedHosts = (process.env.ALLOWED_HOSTS ?? '')
   .filter(Boolean);
 const app = createApp(service, {
   ...(allowedHosts.length > 0 ? { allowedHosts } : { anyHost: true }),
-  onError: (e) => console.error('mcp:', e.message),
+  onError: (e) => log('ERROR', 'mcp error', { error: e.name, reason: e.message }),
 });
 
-serve({ fetch: app.fetch, port, hostname: '0.0.0.0' }, (info) => {
-  console.log(`Shadow Home MCP server on port ${info.port} (/mcp), home ${deployed.homeKey()}`);
-});
+serve(
+  {
+    // Each request's headers stay in reach of what it logs, so its lines carry its trace.
+    fetch: (req, env) => withRequest(req.headers, () => app.fetch(req, env)),
+    port,
+    hostname: '0.0.0.0',
+  },
+  (info) => log('INFO', 'ready', { port: info.port, home: deployed.homeKey() }),
+);
