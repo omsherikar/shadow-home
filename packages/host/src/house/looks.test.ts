@@ -56,4 +56,9 @@ describe('how a device looks', () => {
     expect(t('heat', 21).glow).toBeLessThan(1);
     expect(t('off', 18).glow).toBe(0);
   });
+
+  test('a sensor the twin can’t trust shows its reading as unknown', () => {
+    expect(lookOf(device('contact_sensor', { contact: 'closed' }, false)).status).toBe('unknown');
+    expect(lookOf(device('contact_sensor', { contact: 'closed' }, true)).status).toBe('ok');
+  });
 });
