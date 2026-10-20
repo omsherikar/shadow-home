@@ -63,4 +63,9 @@ describe('the house layout', () => {
       }
     }
   });
+
+  test('doors and windows name real devices', () => {
+    const ids = new Set(home.devices.map((d) => d.id));
+    for (const o of layout.openings) if (o.device) expect(ids.has(o.device), o.device).toBe(true);
+  });
 });
