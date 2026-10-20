@@ -61,4 +61,8 @@ describe('how a device looks', () => {
     expect(lookOf(device('contact_sensor', { contact: 'closed' }, false)).status).toBe('unknown');
     expect(lookOf(device('contact_sensor', { contact: 'closed' }, true)).status).toBe('ok');
   });
+
+  test('a device the home doesn’t report is drawn dark', () => {
+    expect(lookOf(undefined)).toEqual({ glow: 0, status: 'off', open: false });
+  });
 });
