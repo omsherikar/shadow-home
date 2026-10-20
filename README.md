@@ -14,6 +14,8 @@ Built for the Amazon Developer Hackathon, Alexa+ track (Oct 13 to 23, 2026). All
 
 It answers UNSAFE, names the broken rules and who set them, and offers the plan with four fixes: keep the freezer and the aquarium on, pause Coffee at 7, hold the garage at 5 °C. A yes runs the fixed plan; "undo the thermostat" later puts back just that.
 
+"I'm heading out" needs no plan at all: Shadow Home checks the house as it stands with nobody in it, says what to see to first ("Before you go: Bedroom space heater on and Back door lock unlocked."), and a yes adds the missing steps.
+
 Three answers, never a guess:
 
 | Verdict | Means |
