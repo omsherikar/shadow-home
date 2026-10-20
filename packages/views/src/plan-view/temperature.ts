@@ -49,3 +49,20 @@ export interface Curve {
   lowC: number[];
   highC: number[];
 }
+
+export interface TemperatureChart {
+  /** The zone's name: "Garage". */
+  zone: string;
+  /** The rule drawn, by ID: "R3". */
+  rule: string;
+  minC: number | null;
+  maxC: number | null;
+  startMs: number;
+  endMs: number;
+  days: { atMs: number; label: string }[];
+  /** The span of temperatures drawn: every run and the rule's bounds, with a margin. */
+  fromC: number;
+  toC: number;
+  /** The plan first; then, if the screen offers one, the repaired plan. */
+  curves: Curve[];
+}
