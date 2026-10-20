@@ -333,6 +333,7 @@ export const approveInput = z.object({
   approvalToken: z
     .string()
     .min(1)
+    .max(100)
     .describe('The token the plan view received with this plan; only the screen has it'),
 });
 export const approveOutput = z.object({
