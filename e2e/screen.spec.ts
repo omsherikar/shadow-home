@@ -6,7 +6,16 @@ const DISHWASHER = "Run the dishwasher at 2 AM when power's cheap.";
 const view = (page: Page) => page.frameLocator('.view iframe');
 const said = (page: Page) => page.locator('.caption .said');
 
+/** The demo controls sit in a drawer beside the house; without the house they're under the device. */
+async function openControls(page: Page) {
+  await expect(page.getByLabel('Say something')).toBeAttached();
+  const handle = page.getByRole('button', { name: 'Demo controls', exact: true });
+  if (await handle.isVisible()) await handle.click();
+  await expect(page.getByLabel('Say something')).toBeVisible();
+}
+
 async function say(page: Page, text: string) {
+  await openControls(page);
   await page.getByLabel('Say something').fill(text);
   await page.getByRole('button', { name: 'Say it' }).click();
 }
@@ -18,6 +27,7 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
 }) => {
   await page.goto('/');
   await expect(page.getByText('Home mode')).toBeVisible();
+  await openControls(page);
   await page.getByRole('button', { name: WEEKEND }).click();
 
   const v = view(page);
@@ -92,6 +102,7 @@ test('saying it does what tapping does: a yes by voice commits what the screen a
 test('the whole demo script plays in demo mode, with no manual steps', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/');
+  await openControls(page);
   await page.getByRole('button', { name: 'Play the demo' }).click();
   await expect(page.getByText('Demo finished.')).toBeVisible({ timeout: 150_000 });
   const lines = await page
