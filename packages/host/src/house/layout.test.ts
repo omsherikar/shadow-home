@@ -49,4 +49,18 @@ describe('the house layout', () => {
       );
     }
   });
+
+  test('no two rooms overlap', () => {
+    for (const a of layout.rooms) {
+      for (const b of layout.rooms) {
+        if (a === b) continue;
+        const apart =
+          a.x + a.width <= b.x ||
+          b.x + b.width <= a.x ||
+          a.z + a.depth <= b.z ||
+          b.z + b.depth <= a.z;
+        expect(apart, `${a.id} and ${b.id}`).toBe(true);
+      }
+    }
+  });
 });
