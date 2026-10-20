@@ -388,6 +388,28 @@ describe('the commit contract', () => {
   });
 });
 
+describe('checking the house as someone leaves', () => {
+  let env: Awaited<ReturnType<typeof start>>;
+  let api: Awaited<ReturnType<typeof connect>>;
+  beforeAll(async () => {
+    env = await start();
+    api = await connect(env.url, 'legacy');
+  });
+  afterAll(async () => {
+    await api.client.close();
+    await env.close();
+  });
+
+  test('no actions and no presence schedule is refused at the tool boundary', async () => {
+    const r = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: { intent: 'Check the house.', actions: [] },
+    });
+    expect(r.isError).toBe(true);
+    expect(JSON.stringify(r.content)).toContain('presenceSchedule');
+  });
+});
+
 describe('house rules', () => {
   let env: Awaited<ReturnType<typeof start>>;
   let api: Awaited<ReturnType<typeof connect>>;
