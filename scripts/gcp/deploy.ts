@@ -206,8 +206,12 @@ watch([
   '.',
 ]);
 
-/** Both services: public (Alexa+ and judges call them directly), one vCPU, a few instances at most. */
-const service = (name: string, image: string) => [
+/**
+ * Both services: public (Alexa+ and judges call them directly), one vCPU, a few instances at most.
+ * A request may take `timeout`, just above the service's longest legitimate one, instead of Cloud
+ * Run's 300 s.
+ */
+const service = (name: string, image: string, timeout: string) => [
   'run',
   'deploy',
   name,
@@ -219,11 +223,13 @@ const service = (name: string, image: string) => [
   '--cpu=1',
   '--memory=1Gi',
   '--cpu-boost',
+  `--timeout=${timeout}`,
 ];
 
 step('The MCP server');
 watch([
-  ...service(SERVER, serverImage),
+  // The longest request is a rule compile, which gives up at 40 s.
+  ...service(SERVER, serverImage, '60s'),
   `--min-instances=${process.env.MIN_INSTANCES ?? 0}`,
   '--max-instances=4',
   // Calls to the home take turns, so each request at once on an instance waits for those ahead of
@@ -251,7 +257,8 @@ const hostSecrets = [
   ...(voice ? [`ELEVENLABS_API_KEY=${SECRET.elevenlabs}:latest`] : []),
 ];
 watch([
-  ...service(HOST, hostImage),
+  // The longest request is a turn: 30 s to set up and decide, then a rule that may take 45 s.
+  ...service(HOST, hostImage, '90s'),
   '--min-instances=0',
   '--max-instances=2',
   // Without a model key the host still runs, on the scripted model.
