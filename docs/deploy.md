@@ -34,6 +34,9 @@ one script can't use the hour up for everyone:
 
 With at most 2 host and 4 server instances, that bounds the worst hour. Change one with
 `gcloud run services update shadow-home-host --region=us-central1 --update-env-vars=LIVE_TURNS_PER_HOUR=30`.
+A visitor is the address Google's front end adds at the right of `X-Forwarded-For`. Behind a
+Google HTTPS load balancer, which appends its own address after the client's, set
+`CLIENT_IP_HOPS=1` on the host.
 Also set a monthly spend limit in the Anthropic console, and keep an eye on ElevenLabs' quota.
 
 ## Google Cloud
