@@ -162,3 +162,35 @@
 .drawer-body .suggestions {
   justify-content: flex-start;
 }
+
+.float-caption {
+  position: absolute;
+  bottom: 76px;
+  left: 50%;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  width: min(820px, calc(100% - 48px));
+  padding: 16px 22px;
+  transform: translateX(-50%);
+}
+
+.float-caption p {
+  margin: 0;
+}
+
+.float-caption .heard {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.float-caption .said {
+  margin-top: 4px;
+  font-family: var(--serif);
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.float-caption.thinking .said {
+  opacity: 0.6;
+}
