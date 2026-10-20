@@ -230,3 +230,21 @@
   align-items: center;
   gap: 16px;
 }
+
+.stage .device-panel {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  justify-content: center;
+  width: 52vw;
+  padding: 24px 28px 24px 4px;
+}
+
+.stage .device-scaled {
+  width: 1180px;
+  zoom: var(--device-scale);
+}
+
+.stage .device {
+  width: 1180px;
+}
