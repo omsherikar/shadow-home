@@ -58,4 +58,9 @@ describe('the verdict chip', () => {
     ).toBe('UNPROVEN');
     expect(chipFor('commit_plan', { status: 'needs_confirmation' })).toBeUndefined();
   });
+
+  test('other tools leave it as it was', () => {
+    expect(chipFor('get_home_state', { verdict: 'SAFE' })).toBeUndefined();
+    expect(chipFor('preview_plan', undefined)).toBeUndefined();
+  });
 });
