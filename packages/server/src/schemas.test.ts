@@ -71,4 +71,16 @@ describe('what a caller sends is bounded', () => {
     expect(ok(undoInput, { token: 'last', devices: ['d'.repeat(101)] })).toBe(false);
     expect(ok(homeStateInput, { room: 'r'.repeat(101) })).toBe(false);
   });
+
+  test("a plan's names and values, and who it says is home, are bounded at the tool boundary", () => {
+    const long = 'x'.repeat(101);
+    const plan = (action: unknown) => ({ ...tvOff, actions: [action] });
+    expect(ok(previewInput, plan({ device: long, set: { onOff: false } }))).toBe(false);
+    expect(ok(previewInput, plan({ device: 'front_door_lock', set: { lockState: long } }))).toBe(
+      false,
+    );
+    expect(ok(previewInput, plan({ mode: long }))).toBe(false);
+    const crowd = { ...away, presence: { home: Array(21).fill('om') } };
+    expect(ok(previewInput, { ...tvOff, presenceSchedule: [crowd] })).toBe(false);
+  });
 });
