@@ -77,6 +77,58 @@ export function lookOf(device: LiveDevice | undefined): Look {
   return device.sensor?.trusted === false ? { ...look, status: 'unknown' } : look;
 }
 
+export interface Daylight {
+  /** Sun's height above the horizon in degrees; negative after sunset. */
+  elevation: number;
+  /** 0 at night, 1 in full day. */
+  day: number;
+  /** Strength and colour of the key light (the sun, or the moon at night). */
+  key: number;
+  keyColor: string;
+  /** Strength of the sky's light on the house. */
+  sky: number;
+  /** Unit vector from the house towards the key light (x east, y up, z south). */
+  direction: [number, number, number];
+}
+
+// The demo home is in January: the sun is up from about 7:25 AM to 5:35 PM and stays low.
+const SUNRISE = 7.4;
+const SUNSET = 17.6;
+const NOON_ELEVATION = 30;
+
+/** The light outside at a home time ("2027-01-15T17:45:00-06:00", read as the home's clock). */
+export function daylight(iso: string): Daylight {
+  const m = /T(\d{2}):(\d{2})/.exec(iso);
+  const hour = m ? Number(m[1]) + Number(m[2]) / 60 : 12;
+  const elevation = NOON_ELEVATION * Math.sin((Math.PI * (hour - SUNRISE)) / (SUNSET - SUNRISE));
+  const day = smoothstep(-6, 10, elevation);
+  const night = '#9db4ff';
+  const dusk = '#ffa36b';
+  const noon = '#fff3e0';
+  const keyColor = day < 0.4 ? mix(night, dusk, day / 0.4) : mix(dusk, noon, (day - 0.4) / 0.6);
+  // The sun crosses from south-east to south-west; at night a moon hangs high in the south-east.
+  const up = elevation > -3;
+  const azimuth = up
+    ? 120 + 120 * Math.min(1, Math.max(0, (hour - SUNRISE) / (SUNSET - SUNRISE)))
+    : 150;
+  const height = up ? Math.max(elevation, 12) : 35;
+  const a = (azimuth * Math.PI) / 180;
+  const e = (height * Math.PI) / 180;
+  return {
+    elevation,
+    day,
+    key: 0.35 + 2.2 * day,
+    keyColor,
+    sky: 0.3 + 0.7 * day,
+    direction: [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)],
+  };
+}
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 /** A colour part way from `a` to `b`, both "#rrggbb". */
 export function mix(a: string, b: string, t: number): string {
   const k = Math.min(1, Math.max(0, t));
