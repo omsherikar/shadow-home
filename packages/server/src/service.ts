@@ -294,12 +294,18 @@ export class ShadowHomeService {
         );
       }
       // A check with nothing to apply ("I'm heading out") changes nothing, so it needs no yes:
-      // no log entry and nothing to undo, so "undo" still reaches the last real change.
+      // no log entry and nothing to undo, so "undo" still reaches the last real change. One the
+      // engine couldn't confirm says so, rather than "Done".
       if (plan.actions.length === 0 && !record.undo) {
         const result: CommitOutput = {
           status: 'committed',
           planId,
-          speech: { headline: committedHeadline(record.summary, 0, 0) },
+          speech: {
+            headline:
+              record.verdict === 'SAFE'
+                ? committedHeadline(record.summary, 0, 0)
+                : "Nothing to change, but I couldn't confirm the house is safe.",
+          },
           applied: [],
           held: [],
         };
