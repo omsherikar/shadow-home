@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { count, midnights } from './format.ts';
+import { clock, count, midnights } from './format.ts';
 import {
   type Preview,
   TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type TemperatureRule,
   type TemperatureTrace,
+  type Violation,
 } from './types.ts';
 
 const RUNS = ['nominal', 'pessimistic', 'optimistic'] as const;
@@ -69,6 +70,8 @@ export interface TemperatureChart {
   toC: number;
   /** The plan first; then, if the screen offers one, the repaired plan. */
   curves: Curve[];
+  /** Where the plan first breaks the rule. Blocked in the nominal run; unsure in another run only. */
+  breaks?: { atMs: number; atC: number; label: string; tone: 'blocked' | 'unsure' };
 }
 
 /**
@@ -113,6 +116,7 @@ export function temperatureChart(
   const margin = Math.max(0.5, (highest - lowest) * 0.06);
   const startMs = plan.atMs[0] ?? 0;
   const endMs = plan.atMs.at(-1) ?? 0;
+  const breaks = broken ? breakMark(broken, rule, own) : undefined;
   return {
     zone: rule.zoneName,
     rule: ruleId,
@@ -124,6 +128,7 @@ export function temperatureChart(
     fromC: lowest - margin,
     toC: highest + margin,
     curves,
+    ...(breaks ? { breaks } : {}),
   };
 }
 
@@ -144,5 +149,28 @@ function curveOf(t: TemperatureTrace, zone: string, holds: boolean): Curve | und
     nominalC: nominal,
     lowC: nominal.map((_, i) => Math.min(...at(i))),
     highC: nominal.map((_, i) => Math.max(...at(i))),
+  };
+}
+
+/** The bound the rule broke, at the minute it broke, from the run that broke it. */
+function breakMark(
+  v: Violation,
+  rule: TemperatureRule,
+  t: TemperatureTrace,
+): TemperatureChart['breaks'] {
+  const atMs = Date.parse(v.firstAt);
+  let atC = rule.minC ?? rule.maxC;
+  if (rule.minC !== null && rule.maxC !== null) {
+    const run = RUNS.find((r) => r === v.run) ?? 'nominal';
+    const i = Math.round((atMs - Date.parse(t.start)) / (t.stepMinutes * 60_000));
+    const c = t.zonesC[run][rule.zone]?.[Math.max(0, i)] ?? rule.minC;
+    atC = c < (rule.minC + rule.maxC) / 2 ? rule.minC : rule.maxC;
+  }
+  if (atC === null || Number.isNaN(atMs)) return undefined;
+  return {
+    atMs,
+    atC,
+    label: clock(v.firstAt),
+    tone: v.run === 'nominal' ? 'blocked' : 'unsure',
   };
 }
