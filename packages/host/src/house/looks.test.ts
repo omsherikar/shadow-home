@@ -14,4 +14,9 @@ describe('how a device looks', () => {
     expect(lookOf(device('light', { onOff: true })).glow).toBe(1);
     expect(lookOf(device('light', { onOff: false, brightness: 70 })).glow).toBe(0);
   });
+
+  test('a plug or appliance lights what it powers while on', () => {
+    expect(lookOf(device('plug', { onOff: true })).glow).toBe(1);
+    expect(lookOf(device('appliance', { onOff: false })).glow).toBe(0);
+  });
 });
