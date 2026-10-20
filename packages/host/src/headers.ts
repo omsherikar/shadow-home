@@ -28,3 +28,15 @@ export function contentSecurityPolicy(dev: boolean): string {
     "frame-ancestors 'none'",
   ].join('; ');
 }
+
+/** The headers every response carries: the policy above, and no framing, sniffing or sensors. */
+export function securityHeaders(dev: boolean): { key: string; value: string }[] {
+  return [
+    { key: 'Content-Security-Policy', value: contentSecurityPolicy(dev) },
+    { key: 'X-Content-Type-Options', value: 'nosniff' },
+    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+    { key: 'X-Frame-Options', value: 'DENY' },
+    // Speech recognition needs the microphone; nothing needs the camera or location.
+    { key: 'Permissions-Policy', value: 'microphone=(self), camera=(), geolocation=()' },
+  ];
+}
