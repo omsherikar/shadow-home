@@ -3,6 +3,7 @@ import type { Home, Plan, PlanAction } from '@shadow-home/twin';
 import { loadHome, loadPlan } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import type { Frame } from './conditions.ts';
+import { forecastAt } from './forecast.ts';
 import { computeHorizon } from './horizon.ts';
 import { type RunName, simulate, TRACE_STEP_MINUTES } from './simulate.ts';
 import { formatIso, toMs } from './time.ts';
@@ -302,5 +303,15 @@ describe('the temperature trace', () => {
     ]);
     expect(trace.outdoorC).toHaveLength(4);
     expect(trace.zoneTempC.garage).toHaveLength(4);
+  });
+
+  test('the outdoor temperature is the forecast shifted by the run’s offset', () => {
+    const outdoor = (name: RunName) => run(p001, name).result.trace.outdoorC;
+    const { atMs, outdoorC: nominal } = run(p001).result.trace;
+    atMs.forEach((ms, i) => {
+      expect(nominal[i]).toBeCloseTo(forecastAt(home, ms) ?? Number.NaN, 9);
+    });
+    expect(outdoor('pessimistic')).toEqual(nominal.map((c) => c - 2));
+    expect(outdoor('optimistic')).toEqual(nominal.map((c) => c + 2));
   });
 });
