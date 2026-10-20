@@ -53,6 +53,8 @@ function Shape(props: {
       return <DoorLock look={look} />;
     case 'motion_sensor':
       return <MotionSensor look={look} />;
+    case 'smoke_alarm':
+      return <SmokeAlarm look={look} />;
   }
 }
 
@@ -249,6 +251,27 @@ function MotionSensor({ look }: { look: Look }) {
         />
       </mesh>
       <Led look={look} position={[0, -0.06, 0.012]} />
+    </group>
+  );
+}
+
+function SmokeAlarm({ look }: { look: Look }) {
+  const alarm = look.status === 'alarm';
+  return (
+    <group>
+      <mesh rotation-x={Math.PI / 2} position={[0, 0, 0.016]} castShadow>
+        <cylinderGeometry args={[0.085, 0.085, 0.032, 32]} />
+        <meshStandardMaterial
+          color={palette.ivory}
+          emissive={palette.alarm}
+          emissiveIntensity={alarm ? 2.5 : 0}
+          roughness={0.4}
+        />
+      </mesh>
+      <Led look={look} position={[0.04, 0.02, 0.034]} />
+      {alarm ? (
+        <pointLight position={[0, 0, 0.4]} color={palette.alarm} intensity={4} distance={4} />
+      ) : null}
     </group>
   );
 }
