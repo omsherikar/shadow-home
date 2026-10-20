@@ -76,6 +76,29 @@ test('the house is drawn beside the device, and house-only mode is remembered', 
   await expect(device.getByText('Home mode')).toBeVisible();
 });
 
+test('without WebGL the house steps aside and the device works as before', async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      this: HTMLCanvasElement,
+      kind: string,
+      ...rest: unknown[]
+    ) {
+      return /webgl/i.test(kind) ? null : getContext.call(this, kind, ...(rest as []));
+    } as typeof getContext;
+  });
+  await page.goto('/');
+  await expect(page.getByText('Home mode')).toBeVisible();
+  await expect(page.getByRole('region', { name: 'The house' })).toHaveCount(0);
+  await expect(page.locator('canvas')).toHaveCount(0);
+  // No drawer: the controls are under the device, as before.
+  await expect(page.getByRole('button', { name: /demo controls/i })).toHaveCount(0);
+  await expect(page.getByLabel('Say something')).toBeVisible();
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/no-webgl.png' });
+});
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
