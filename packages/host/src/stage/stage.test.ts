@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { LAYOUT_KEY, readLayout, writeLayout } from './stage.ts';
+import { chipFor, LAYOUT_KEY, readLayout, writeLayout } from './stage.ts';
 
 function memory() {
   const items = new Map<string, string>();
@@ -37,5 +37,12 @@ describe('the layout choice', () => {
     expect(readLayout(null)).toBe('split');
     expect(readLayout(refusing)).toBe('split');
     expect(() => writeLayout(refusing, 'house')).not.toThrow();
+  });
+});
+
+describe('the verdict chip', () => {
+  test('a preview shows its verdict', () => {
+    expect(chipFor('preview_plan', { verdict: 'UNSAFE' })).toBe('UNSAFE');
+    expect(chipFor('preview_plan', { verdict: 'SAFE' })).toBe('SAFE');
   });
 });
