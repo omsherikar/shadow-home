@@ -34,14 +34,8 @@ export function hourlyBudget(
  * the model behind it: instances are capped too, so the worst hour is known.
  */
 export function hourlyLimit(max: number, now: () => number = Date.now): () => boolean {
-  const used: number[] = [];
-  return () => {
-    const t = now();
-    while (used.length > 0 && (used[0] as number) <= t - HOUR_MS) used.shift();
-    if (used.length >= max) return false;
-    used.push(t);
-    return true;
-  };
+  const spend = hourlyBudget(max, now);
+  return () => spend();
 }
 
 /** A whole number from the environment, or the default when it's unset or not one. */
