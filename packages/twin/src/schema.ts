@@ -301,7 +301,7 @@ export type Home = z.infer<typeof homeSchema>;
 const planName = z.string().min(1).max(100);
 
 const setSchema = z
-  .record(z.string(), valueSchema)
+  .record(z.string().max(100), valueSchema)
   .refine((s) => Object.keys(s).length > 0, 'set must change at least one attribute');
 
 export const planActionSchema = z.union([
