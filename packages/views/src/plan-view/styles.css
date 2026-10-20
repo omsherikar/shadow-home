@@ -364,3 +364,9 @@ h2 {
 .temps .outside {
   fill: color-mix(in srgb, var(--rule) 7%, transparent);
 }
+
+.temps .bound {
+  stroke: var(--soft);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+}
