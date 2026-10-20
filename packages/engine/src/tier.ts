@@ -5,7 +5,7 @@ import { expandWrites } from './writes.ts';
 
 /**
  * How Alexa should confirm, highest that applies:
- * - T5 the plan breaks a rule that forbids it outright: refuse
+ * - T5 the plan breaks a rule that forbids it outright: refuse (never a plan with no actions)
  * - T3 UNSAFE: block, cite the rule, offer the safe part
  * - T4 UNPROVEN: offer the proven part, ask one question
  * - T2 SAFE but irreversible, or it weakens security: one yes/no naming the consequence
@@ -43,7 +43,9 @@ export function confirmationTier(
     (r) => (r.kind === 'violation' || r.kind === 'not_robust') && r.refuse,
   );
   const others = home.household.members.map((m) => m.id).filter((id) => id !== requestedBy);
-  if (refused && 'rule' in refused) {
+  // A plan with no actions asks for nothing a rule could forbid: when the house already breaks a
+  // refuse rule as someone leaves, that is a block with a fix on offer, not a refusal.
+  if (refused && 'rule' in refused && plan.actions.length > 0) {
     return { tier: 'T5', why: `rule ${refused.rule} forbids it`, affects: [], sensitive: [] };
   }
   if (result.verdict === 'UNSAFE') {
