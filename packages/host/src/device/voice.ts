@@ -26,7 +26,9 @@ export async function speak(text: string): Promise<void> {
         // Stopped, or a newer reply started, while this one was on its way: stay quiet.
         return mine === generation ? play(blob) : undefined;
       }
-      // Don't ask again this session; the browser's voice takes over.
+      // 503: no voice, or this instance has spoken enough this hour. Don't ask again this
+      // session; the browser's voice takes over. Anything else (429: this visitor has heard
+      // enough this hour; 400: a line too long) is this line only, and the next asks again.
       if (res.status === 503) voiceAvailable = false;
     } catch {
       voiceAvailable = false;
