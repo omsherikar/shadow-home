@@ -545,3 +545,39 @@ describe('the plan view', () => {
     expect(s.controls[0]?.action).toEqual({ kind: 'undo', token: commit.undoToken });
   });
 });
+
+test('the activity log gives the 20 most recent entries unless asked for more', async () => {
+  const env = await start();
+  const api = await connect(env.url, 'modern');
+  try {
+    for (let i = 0; i < 25; i++) {
+      const p = await api.call<PreviewOutput>('preview_plan', {
+        intent: `TV change ${i}`,
+        requestedBy: 'om',
+        actions: [{ device: 'plug_tv', set: { onOff: i % 2 === 1 } }],
+      });
+      expect((await api.call<CommitOutput>('commit_plan', { planId: p.planId })).status).toBe(
+        'committed',
+      );
+    }
+    const recent = await api.call<LogOutput>('get_activity_log', {});
+    expect(recent.entries.map((e) => e.what)).toEqual(
+      Array.from({ length: 20 }, (_, i) => `TV change ${i + 5}`),
+    );
+    expect(recent.leftOut).toBe(5);
+    expect(recent.groups.flatMap((g) => g.entryIds)).toHaveLength(20);
+    const all = await api.call<LogOutput>('get_activity_log', { limit: 50 });
+    expect(all.entries).toHaveLength(25);
+    expect(all.leftOut).toBe(0);
+    const tools = (await api.client.listTools()).tools;
+    const log = tools.find((t) => t.name === 'get_activity_log')?.inputSchema as {
+      properties: Record<string, { default?: number; maximum?: number }>;
+      required?: string[];
+    };
+    expect(log.properties.limit).toMatchObject({ default: 20, maximum: 50 });
+    expect(log.required ?? []).not.toContain('limit');
+  } finally {
+    await api.client.close();
+    await env.close();
+  }
+});
