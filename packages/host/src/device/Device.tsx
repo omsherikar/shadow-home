@@ -8,7 +8,7 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
-import { MAX_TEXT, spokenText } from '../turn/bounds.ts';
+import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import {
   HomeCard,
@@ -70,8 +70,9 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const working = useRef(false);
   const mic = useRef<{ stop(): void } | null>(null);
 
+  // Kept within what the turn route accepts, so one large result can't refuse every later turn.
   const note = useCallback((entry: Remembered) => {
-    history.current = [...history.current.slice(-40), entry];
+    history.current = fitHistory([...history.current.slice(-40), entry]);
   }, []);
 
   const line = useCallback((who: Line['who'], text: string) => {
