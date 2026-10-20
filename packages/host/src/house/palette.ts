@@ -33,3 +33,9 @@ export const palette = {
   alarm: '#f87171',
   unknown: '#fbbf24',
 } as const;
+
+/** The colour of a device's status light. */
+export function statusColor(status: 'ok' | 'warn' | 'alarm' | 'off' | 'unknown'): string {
+  if (status === 'off') return palette.graphite;
+  return palette[status];
+}
