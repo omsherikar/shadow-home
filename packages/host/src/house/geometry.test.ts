@@ -23,4 +23,14 @@ describe('the walls', () => {
       }
     }
   });
+
+  test('the back walls stand full height and the rest are cut to show the rooms', () => {
+    const north = onLine('x', 0);
+    const front = onLine('x', 9);
+    expect(north.length).toBeGreaterThan(0);
+    expect(north.every((p) => p.tall && p.top <= layout.wallHeight)).toBe(true);
+    expect(Math.max(...north.map((p) => p.top))).toBe(layout.wallHeight);
+    expect(front.every((p) => !p.tall && p.top === layout.cutHeight)).toBe(true);
+    expect(onLine('z', 15.5).every((p) => p.tall)).toBe(true);
+  });
 });
