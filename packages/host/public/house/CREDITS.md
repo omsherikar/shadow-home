@@ -49,3 +49,11 @@ re-encoded as WebP at 1024 px.
 | `wood_floor_diff.webp`, `wood_floor_nor_gl.webp`, `wood_floor_arm.webp` | [Wood Floor](https://polyhaven.com/a/wood_floor) | Dimitrios Savva | 125 KB |
 | `floor_tiles_06_diff.webp`, `floor_tiles_06_nor_gl.webp`, `floor_tiles_06_arm.webp` | [Floor Tiles 06](https://polyhaven.com/a/floor_tiles_06) | Rob Tuytel | 78 KB |
 | `concrete_floor_worn_001_diff.webp`, `concrete_floor_worn_001_nor_gl.webp`, `concrete_floor_worn_001_arm.webp` | [Concrete Floor Worn 001](https://polyhaven.com/a/concrete_floor_worn_001) | Dimitrios Savva, Rico Cilliers | 111 KB |
+
+## Environment light (`env/`)
+
+The 1k HDR file, unchanged, used only to light the scene; the sky itself is drawn in code.
+
+| File | Asset | Authors | Size |
+| --- | --- | --- | --- |
+| `belfast_sunset_puresky_1k.hdr` | [Belfast Sunset (Pure Sky)](https://polyhaven.com/a/belfast_sunset_puresky) | Dimitrios Savva, Greg Zaal, Jarod Guest | 1162 KB |
