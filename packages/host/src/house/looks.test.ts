@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { type LiveDevice, lookOf } from './looks.ts';
+import { type LiveDevice, lookOf, mix } from './looks.ts';
 
 const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
   id: 'd',
@@ -64,5 +64,14 @@ describe('how a device looks', () => {
 
   test('a device the home doesn’t report is drawn dark', () => {
     expect(lookOf(undefined)).toEqual({ glow: 0, status: 'off', open: false });
+  });
+});
+
+describe('the light outside', () => {
+  test('colours mix part way, end to end', () => {
+    expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
+    expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
+    expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');
+    expect(mix('#000000', '#ffffff', 2)).toBe('#ffffff');
   });
 });
