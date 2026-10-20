@@ -58,6 +58,8 @@ function Shape(props: {
       return <SmokeAlarm look={look} />;
     case 'floor_lamp':
       return <FloorLamp look={look} />;
+    case 'pendant_light':
+      return <Pendant look={look} drop={props.wallHeight - props.placement.y} />;
   }
 }
 
@@ -325,6 +327,18 @@ function FloorLamp({ look }: { look: Look }) {
         <meshStandardMaterial color={palette.graphite} roughness={0.4} metalness={0.4} />
       </mesh>
       <Shade look={look} radius={[0.15, 0.21]} height={0.3} y={1.52} power={18} />
+    </group>
+  );
+}
+
+function Pendant({ look, drop }: { look: Look; drop: number }) {
+  return (
+    <group>
+      <mesh position={[0, drop / 2, 0]}>
+        <cylinderGeometry args={[0.005, 0.005, drop, 6]} />
+        <meshStandardMaterial color={palette.graphite} />
+      </mesh>
+      <Shade look={look} radius={[0.05, 0.24]} height={0.2} y={0} power={16} />
     </group>
   );
 }
