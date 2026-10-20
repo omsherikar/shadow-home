@@ -68,6 +68,8 @@ function Shape(props: {
       return <PorchLight look={look} />;
     case 'space_heater':
       return <SpaceHeater look={look} />;
+    case 'chest_freezer':
+      return <ChestFreezer look={look} />;
   }
 }
 
@@ -426,6 +428,19 @@ function SpaceHeater({ look }: { look: Look }) {
       {on ? (
         <pointLight position={[0, 0.25, 0.4]} color={palette.heat} intensity={3} distance={3} />
       ) : null}
+    </group>
+  );
+}
+
+function ChestFreezer({ look }: { look: Look }) {
+  return (
+    <group>
+      <Ivory size={[1.1, 0.82, 0.65]} position={[0, 0.41, 0]} />
+      <mesh position={[0, 0.84, 0]} castShadow>
+        <boxGeometry args={[1.12, 0.05, 0.67]} />
+        <meshStandardMaterial color={palette.ivory} roughness={0.4} />
+      </mesh>
+      <Led look={look.glow > 0 ? look : { ...look, status: 'off' }} position={[0.45, 0.72, 0.33]} />
     </group>
   );
 }
