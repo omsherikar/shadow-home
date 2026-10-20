@@ -19,4 +19,11 @@ describe("when the device's voice is refused", () => {
     await speak('Done: lights off.');
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  test('a 503 (no voice, or the instance has spoken enough): the browser for the session', async () => {
+    const { speak, fetch } = await voiceAnswering(503, 429);
+    await speak('Done: TV off.');
+    await speak('Done: lights off.');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
 });
