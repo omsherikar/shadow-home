@@ -15,4 +15,10 @@ describe('the house layout', () => {
     const placed = layout.devices.map((d) => d.device).sort();
     expect(placed).toEqual(home.devices.map((d) => d.id).sort());
   });
+
+  test('its rooms are the demo home’s rooms, with their names', () => {
+    expect(layout.rooms.map((r) => [r.id, r.name]).sort()).toEqual(
+      home.rooms.map((r) => [r.id, r.name]).sort(),
+    );
+  });
 });
