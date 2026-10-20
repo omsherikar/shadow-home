@@ -14,6 +14,8 @@ ENV NODE_ENV=production PORT=8080 HOSTNAME=0.0.0.0
 WORKDIR /app
 COPY --from=build --chown=node:node /repo/packages/host/.next/standalone ./
 COPY --from=build --chown=node:node /repo/packages/host/.next/static ./packages/host/.next/static
+# Next's standalone server doesn't carry public/: the 3D house's models, textures and light.
+COPY --from=build --chown=node:node /repo/packages/host/public ./packages/host/public
 # Every turn reads the demo script (its lines and recorded plans) from ../../fixtures.
 COPY --from=build --chown=node:node /repo/fixtures/demo-script.json ./fixtures/demo-script.json
 WORKDIR /app/packages/host
