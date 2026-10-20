@@ -495,6 +495,19 @@ describe('a zone’s temperature against a house rule', () => {
     expect(s.cards[0]).toMatchObject({ id: 'R3', breaks: 'Breaks Fri 11:10 PM' });
   });
 
+  test('broken only in a colder or warmer run, the break is unsure, not blocked', () => {
+    const p = preview('UNPROVEN', 'T4', {
+      diff: [heaterOff],
+      violations: [r3('pessimistic')],
+      horizon: { start: NOW, end: MIDNIGHT },
+    });
+    const s = previewScreen(p, names, { traces: { 'plan-1': freezes }, rules });
+    expect(s.temperature?.breaks?.tone).toBe('unsure');
+    expect(s.temperature?.curves).toHaveLength(1);
+    expect(s.temperature?.curves[0]?.label).toBeUndefined();
+    expect(s.temperature?.summary).toBe('Garage temperature. May drop below 4 °C at Fri 11:10 PM.');
+  });
+
   test('the temperatures come from the result’s _meta, and anything malformed is left out', () => {
     expect(
       temperaturesFrom({
