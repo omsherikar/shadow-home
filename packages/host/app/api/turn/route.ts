@@ -1,4 +1,4 @@
-import { hourlyLimit, perHour } from '@/limit.ts';
+import { hourlyCaps, perHour } from '@/limit.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
 import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
@@ -9,6 +9,7 @@ import { turnRequest } from '@/turn/request.ts';
 import { runTurn } from '@/turn/run.ts';
 import { scriptedModel } from '@/turn/scripted.ts';
 import type { Names, TurnRequest } from '@/turn/types.ts';
+import { visitorOf } from '@/visitor.ts';
 
 function namesOf(home: HomeBrief): Names {
   return {
@@ -22,8 +23,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Each live turn spends model calls on the owner's key; the site is public, so this instance takes
-// at most LIVE_TURNS_PER_HOUR (default 60). Scripted and demo turns cost nothing and don't count.
-const liveTurns = hourlyLimit(perHour('LIVE_TURNS_PER_HOUR', 60));
+// at most LIVE_TURNS_PER_HOUR (default 60), and each visitor at most LIVE_TURNS_PER_VISITOR_HOUR
+// (default 20), so one script can't use the hour up for everyone. A turn either refuses counts
+// against neither. Scripted and demo turns cost nothing and don't count.
+const liveTurns = hourlyCaps(
+  perHour('LIVE_TURNS_PER_HOUR', 60),
+  perHour('LIVE_TURNS_PER_VISITOR_HOUR', 20),
+);
 
 /** Ready to talk. Health checks (and browser tests) call it, which also compiles the route in dev. */
 export function GET(): Response {
@@ -41,7 +47,7 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = turnRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad turn request' }, { status: 400 });
   const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
-  if (!scripted && !liveTurns()) {
+  if (!scripted && liveTurns(visitorOf(request)) !== 'ok') {
     return Response.json({
       say: "I've had a lot of requests this hour. Try again later.",
       calls: [],
