@@ -3,7 +3,7 @@ import type { Plan, PlanAction } from '@shadow-home/twin';
 import { loadHome, loadPlan } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import { RUN_NAMES } from './simulate.ts';
-import { check } from './verdict.ts';
+import { check, type Reason } from './verdict.ts';
 
 const root = join(import.meta.dirname, '../../..');
 const home = loadHome(join(root, 'fixtures/demo-home.json'));
@@ -87,6 +87,23 @@ describe('the weekend away plan', () => {
     }
     // It travels with every preview to the screen, so it stays small.
     expect(JSON.stringify(temps).length).toBeLessThan(8_000);
+  });
+
+  test('the garage trace crosses 4 °C where R3 says the pipes freeze', () => {
+    const r3 = result.reasons.find(
+      (r): r is Extract<Reason, { kind: 'violation' }> => r.kind === 'violation' && r.rule === 'R3',
+    );
+    const firstAt = Date.parse(r3?.firstAt ?? '');
+    const start = Date.parse(result.temperatures?.start ?? '');
+    const garage = result.temperatures?.zonesC.nominal.garage ?? [];
+    const at = (i: number) => start + i * 15 * 60_000;
+    const before = garage.filter((_, i) => at(i) < firstAt);
+    const after = garage.filter((_, i) => at(i) >= firstAt);
+    expect(before.length).toBeGreaterThan(0);
+    expect(Math.min(...before)).toBeGreaterThanOrEqual(4);
+    expect(after[0]).toBeLessThan(4);
+    // Sat 10:30 PM reads 4.0 °C, R3 breaks at 10:37 PM, and 10:45 PM reads 3.9 °C.
+    expect([before.at(-1), after[0]]).toEqual([4, 3.9]);
   });
 
   test('includes the lint and hygiene results', () => {
