@@ -21,4 +21,10 @@ describe('the content security policy', () => {
     expect(policy).not.toContain('unsafe-eval');
     expect(policy).not.toContain('ws:');
   });
+
+  test("in development, Next's evaluated code and its reload websocket are allowed too", () => {
+    const policy = contentSecurityPolicy(true);
+    expect(sourcesFor(policy, 'script-src')).toContain("'unsafe-eval'");
+    expect(sourcesFor(policy, 'connect-src')).toContain('ws:');
+  });
 });
