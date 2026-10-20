@@ -360,3 +360,7 @@ h2 {
   font-size: 22px;
   font-weight: 700;
 }
+
+.temps .outside {
+  fill: color-mix(in srgb, var(--rule) 7%, transparent);
+}
