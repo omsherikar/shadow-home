@@ -55,6 +55,11 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
   // Undoing unlocks the front door again, so the undo itself needs a yes (T2).
   const yes = v.getByRole('button', { name: /Yes, undo it\s*Say “yes”/ });
   await expect(yes).toBeVisible();
+  // It puts the garage heater back, so the garage is drawn again: holding, nothing marked.
+  const held = v.getByRole('img', { name: 'Garage temperature' });
+  await expect(held).toBeVisible();
+  await expect(held.locator('.curve.held')).toHaveCount(1);
+  await expect(held.locator('.break')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/weekend-undo.png' });
 
   // The tap is that yes: the view approves with the token only the screen has, then commits.
