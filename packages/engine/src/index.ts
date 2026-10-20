@@ -24,7 +24,15 @@ export {
   ruleAtoms,
   ruleDevices,
 } from './rules.ts';
-export { type Change, RUN_NAMES, type RunName, type SimResult, simulate } from './simulate.ts';
+export {
+  type Change,
+  RUN_NAMES,
+  type RunName,
+  type SimResult,
+  type SimTrace,
+  simulate,
+  TRACE_STEP_MINUTES,
+} from './simulate.ts';
 export { planSummary, SPEECH_LIMITS, type Speech, speech, wordCount } from './speech.ts';
 export { confirmationTier, type Tier, type TierResult } from './tier.ts';
 export { untrustedSensors } from './trust.ts';
