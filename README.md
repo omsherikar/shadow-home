@@ -147,7 +147,7 @@ Design decisions, with the reasons and what was measured: [docs/decisions.md](do
 | `packages/rules` | House rules in five templates; the plain-words compiler |
 | `packages/server` | MCP server: 7 tools, MCP App resources, stores, Cloud Run and Lambda entries |
 | `packages/views` | MCP App views: diff and timeline |
-| `packages/host` | The simulated Echo Show: Next.js, the voice loop, the voice |
+| `packages/host` | The simulated Echo Show: Next.js, the voice loop, the voice, and the 3D house beside it |
 | `packages/infra` | Server bundles and the AWS CDK stack |
 | `scripts/gcp` | The Google Cloud deploy |
 | `bench/` | ShadowBench: plans, labels, adapters, runner |
