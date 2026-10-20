@@ -22,6 +22,7 @@ const reversibility = z.enum(['holdable', 'compensable', 'irreversible']);
 // ShadowBench request runs to 183 characters, the demo's new rule to 67, a plan ID to under 120,
 // an undo or approval token to 43, a device ID to 25 and a member ID to 4.
 const member = z.string().max(40).describe('Household member ID, e.g. "om"');
+const planIdIn = z.string().min(1).max(200);
 
 /** A person's words, with something left once control characters are gone (see plainText). */
 function words(max: number, description: string) {
@@ -161,7 +162,7 @@ const logChange = z.object({
 });
 
 export const commitInput = z.object({
-  planId: z.string().min(1),
+  planId: planIdIn,
   confirmed: z
     .boolean()
     .optional()
@@ -328,7 +329,7 @@ export const addRuleOutput = z.object({
 export type AddRuleOutput = z.infer<typeof addRuleOutput>;
 
 export const approveInput = z.object({
-  planId: z.string().min(1),
+  planId: planIdIn,
   approvalToken: z
     .string()
     .min(1)
