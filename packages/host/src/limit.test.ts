@@ -121,4 +121,15 @@ describe('a cap for everyone and one for each visitor, together', () => {
     expect(turn('b')).toBe('ok');
     expect(turn('c')).toBe('instance');
   });
+
+  test('amounts, as for speech by the character', () => {
+    const chars = hourlyCaps(100, 60, { now: () => 0 });
+    expect([chars('a', 50), chars('a', 20), chars('b', 50), chars('b', 10)]).toEqual([
+      'ok',
+      'visitor',
+      'ok',
+      'instance',
+    ]);
+    expect(chars('b', 0)).toBe('visitor');
+  });
 });
