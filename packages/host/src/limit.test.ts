@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { hourlyBudget, hourlyLimit } from './limit.ts';
+import { hourlyBudget, hourlyLimit, perVisitor } from './limit.ts';
 
 const HOUR = 60 * 60 * 1000;
 const MINUTE = 60 * 1000;
@@ -55,5 +55,18 @@ describe('an hourly budget', () => {
     expect(spend(10)).toBe(true);
     for (const amount of [0, -5, Number.NaN]) expect(spend(amount)).toBe(false);
     expect(spend(1)).toBe(false);
+  });
+});
+
+describe('a budget for each visitor', () => {
+  test('each visitor spends their own, by the use or by the amount', () => {
+    let t = 0;
+    const turn = perVisitor(2, { now: () => t });
+    expect([turn('a'), turn('a'), turn('a')]).toEqual([true, true, false]);
+    expect(turn('b')).toBe(true);
+    t = HOUR;
+    expect(turn('a')).toBe(true);
+    const chars = perVisitor(100, { now: () => 0 });
+    expect([chars('a', 80), chars('a', 30), chars('b', 30)]).toEqual([true, false, true]);
   });
 });
