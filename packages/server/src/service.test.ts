@@ -168,6 +168,32 @@ describe('checking the house as someone leaves', () => {
     expect(c).toMatchObject({ status: 'committed', speech: { headline: 'Done: 4 changes.' } });
     expect(c.applied).toHaveLength(4);
   });
+
+  test("an UNPROVEN check with nothing to change asks nothing, and says it couldn't confirm the house", async () => {
+    // Ready to leave, but the front door lock's battery is too low to trust that it's locked.
+    const home = structuredClone(fixture);
+    for (const d of home.devices) {
+      if (d.id === 'front_door_lock') {
+        d.state.lockState = 'LOCKED';
+        if (d.sensor) d.sensor.batteryPercent = 9;
+      }
+      if (['light_living', 'light_kitchen', 'light_bedroom_sam'].includes(d.id))
+        d.state.onOff = false;
+    }
+    const { service } = setup('2027-01-15T17:45:00', home);
+    const p = await headingOut(service);
+    expect(p).toMatchObject({ verdict: 'UNPROVEN', tier: 'T4', repair: null, safePart: null });
+    expect(p.speech.ask).toBeUndefined();
+    const log = (await service.getActivityLog({})).entries;
+    expect(await service.commitPlan({ planId: p.planId })).toEqual({
+      status: 'committed',
+      planId: p.planId,
+      speech: { headline: "Nothing to change, but I couldn't confirm the house is safe." },
+      applied: [],
+      held: [],
+    });
+    expect((await service.getActivityLog({})).entries).toEqual(log);
+  });
 });
 
 describe('undo', () => {
