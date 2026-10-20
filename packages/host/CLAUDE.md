@@ -16,6 +16,12 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - Non-route code lives in src/: turn/ (the model loop and the scripted model), screen/ (the
   sandboxed view frame and AppBridge), device/ (the Echo Show page), house/ (the 3D house) and
   stage/ (the page around them: split or house-only, the demo controls' drawer).
+- The 3D house (three.js through React Three Fiber) loads in the browser only (`next/dynamic`,
+  `ssr: false`) and draws get_home_state; it never simulates. Its layout (src/house/layout.ts) is
+  made by hand for fixtures/demo-home.json. Assets live in public/house: CC0 from Poly Haven only,
+  each listed in CREDITS.md, textures WebP and meshes quantized, never Draco, meshopt or KTX2 (their
+  decoders need WebAssembly). Nothing loads from another origin. Without WebGL the page is the
+  device alone, as before.
 - Render MCP App views in a sandboxed iframe through @modelcontextprotocol/ext-apps/app-bridge.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
