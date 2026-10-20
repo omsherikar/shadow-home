@@ -2,7 +2,7 @@
 
 import type { DevicePlacement, DeviceShape, HouseLayout } from './layout.ts';
 import { type LiveHome, type Look, lookOf } from './looks.ts';
-import { palette } from './palette.ts';
+import { palette, statusColor } from './palette.ts';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 
@@ -46,7 +46,34 @@ function Shape(props: {
       return <CoffeeMaker look={look} />;
     case 'dishwasher':
       return <Dishwasher look={look} />;
+    case 'latch_sensor':
+    case 'contact_sensor':
+      return <ContactSensor look={look} />;
   }
+}
+
+/** A small status light. */
+function Led({ look, position }: { look: Look; position: [number, number, number] }) {
+  const lit = look.status !== 'off';
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[0.014, 12, 8]} />
+      <meshStandardMaterial
+        color={statusColor(look.status)}
+        emissive={statusColor(look.status)}
+        emissiveIntensity={lit ? 4 : 0}
+      />
+    </mesh>
+  );
+}
+
+function Ivory(props: { size: [number, number, number]; position: [number, number, number] }) {
+  return (
+    <mesh position={props.position} castShadow receiveShadow>
+      <boxGeometry args={props.size} />
+      <meshStandardMaterial color={palette.ivory} roughness={0.45} />
+    </mesh>
+  );
 }
 
 /** A round wall thermostat whose ring glows warm while it heats. */
@@ -172,6 +199,18 @@ function Dishwasher({ look }: { look: Look }) {
           emissiveIntensity={on ? 1.8 : 0}
         />
       </mesh>
+    </group>
+  );
+}
+
+/** Two small blocks, apart when the door or window they watch is open. */
+function ContactSensor({ look }: { look: Look }) {
+  const gap = look.open ? 0.07 : 0.008;
+  return (
+    <group>
+      <Ivory size={[0.06, 0.03, 0.022]} position={[-0.03 - gap / 2, 0, 0.011]} />
+      <Ivory size={[0.03, 0.03, 0.022]} position={[0.015 + gap / 2, 0, 0.011]} />
+      <Led look={look} position={[-0.03 - gap / 2, 0, 0.026]} />
     </group>
   );
 }
