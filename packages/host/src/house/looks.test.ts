@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { type LiveDevice, lookOf, mix } from './looks.ts';
+import { daylight, type LiveDevice, lookOf, mix } from './looks.ts';
 
 const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
   id: 'd',
@@ -68,6 +68,14 @@ describe('how a device looks', () => {
 });
 
 describe('the light outside', () => {
+  const at = (hhmm: string) => daylight(`2027-01-15T${hhmm}:00-06:00`);
+
+  test('noon is brighter than dusk, and dusk than midnight', () => {
+    expect(at('12:30').key).toBeGreaterThan(at('17:45').key);
+    expect(at('17:45').key).toBeGreaterThan(at('23:30').key);
+    expect(at('12:30').sky).toBeGreaterThan(at('23:30').sky);
+  });
+
   test('colours mix part way, end to end', () => {
     expect(mix('#000000', '#ffffff', 0)).toBe('#000000');
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
