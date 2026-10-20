@@ -39,3 +39,47 @@
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   backdrop-filter: blur(18px) saturate(140%);
 }
+
+.house-card {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 16px 22px 14px;
+}
+
+.house-name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.house-time {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.house-zones {
+  display: flex;
+  gap: 22px;
+  margin: 12px 0 0;
+}
+
+.house-zones div {
+  display: flex;
+  flex-direction: column;
+}
+
+.house-zones dt {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.house-zones dd {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
