@@ -303,7 +303,8 @@ const planValue = values(z.string().max(100));
 
 const setSchema = z
   .record(z.string().max(100), planValue)
-  .refine((s) => Object.keys(s).length > 0, 'set must change at least one attribute');
+  .refine((s) => Object.keys(s).length > 0, 'set must change at least one attribute')
+  .refine((s) => Object.keys(s).length <= 20, 'set changes at most 20 attributes');
 
 export const planActionSchema = z.union([
   z.strictObject({ device: planName, set: setSchema, at: isoDateTime.optional() }),
