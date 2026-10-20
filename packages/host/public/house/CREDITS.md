@@ -38,3 +38,14 @@ plain panel either side) before shrinking, so the model shows no brand.
 | `plastic_crate_02.glb` | [Plastic Crate 02](https://polyhaven.com/a/plastic_crate_02) | Fabi_G | 512 px WebP | 180 KB |
 | `old_tyre.glb` | [Old Tyre](https://polyhaven.com/a/old_tyre) | MP | 512 px WebP | 151 KB |
 | `wooden_ladder.glb` | [Wooden Ladder](https://polyhaven.com/a/wooden_ladder) | Miroslav Turura | 512 px WebP | 223 KB |
+
+## Floor textures (`textures/`)
+
+Colour, normal (OpenGL) and ambient occlusion, roughness and metal maps from the 1k sets,
+re-encoded as WebP at 1024 px.
+
+| Files | Asset | Authors | Size |
+| --- | --- | --- | --- |
+| `wood_floor_diff.webp`, `wood_floor_nor_gl.webp`, `wood_floor_arm.webp` | [Wood Floor](https://polyhaven.com/a/wood_floor) | Dimitrios Savva | 125 KB |
+| `floor_tiles_06_diff.webp`, `floor_tiles_06_nor_gl.webp`, `floor_tiles_06_arm.webp` | [Floor Tiles 06](https://polyhaven.com/a/floor_tiles_06) | Rob Tuytel | 78 KB |
+| `concrete_floor_worn_001_diff.webp`, `concrete_floor_worn_001_nor_gl.webp`, `concrete_floor_worn_001_arm.webp` | [Concrete Floor Worn 001](https://polyhaven.com/a/concrete_floor_worn_001) | Dimitrios Savva, Rico Cilliers | 111 KB |
