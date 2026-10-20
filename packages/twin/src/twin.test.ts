@@ -277,6 +277,8 @@ describe('clusters', () => {
 describe('plan schema', () => {
   const planDir = join(root, 'bench/plans');
   const long = 'x'.repeat(101);
+  const attrs = (n: number) =>
+    Object.fromEntries(Array.from({ length: n }, (_, i) => [`a${i}`, true]));
   const files = readdirSync(planDir).filter((f) => f.endsWith('.json'));
 
   test.each(files)('bench plan %s parses', (file) => {
@@ -309,6 +311,7 @@ describe('plan schema', () => {
     ['an attribute past 100 characters', { device: 'plug_tv', set: { [long]: false } }],
     ['a value past 100 characters', { device: 'front_door_lock', set: { lockState: long } }],
     ['a mode past 100 characters', { mode: long }],
+    ['more than 20 attributes', { device: 'plug_tv', set: attrs(21) }],
   ])('rejects an action with %s', (_name, action) => {
     expect(planActionSchema.safeParse(action).success).toBe(false);
   });
