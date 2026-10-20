@@ -44,6 +44,8 @@ function Shape(props: {
       return <Tv look={look} />;
     case 'coffee_maker':
       return <CoffeeMaker look={look} />;
+    case 'dishwasher':
+      return <Dishwasher look={look} />;
   }
 }
 
@@ -150,6 +152,26 @@ function CoffeeMaker({ look }: { look: Look }) {
       {on ? (
         <pointLight position={[0, 0.3, 0.2]} color={palette.heat} intensity={1} distance={1.5} />
       ) : null}
+    </group>
+  );
+}
+
+function Dishwasher({ look }: { look: Look }) {
+  const on = look.glow > 0;
+  return (
+    <group>
+      <mesh position={[0, 0.43, 0]} castShadow receiveShadow>
+        <boxGeometry args={[0.59, 0.86, 0.58]} />
+        <meshStandardMaterial color={palette.steel} roughness={0.35} metalness={0.6} />
+      </mesh>
+      <mesh position={[0, 0.8, 0.292]}>
+        <boxGeometry args={[0.55, 0.07, 0.01]} />
+        <meshStandardMaterial
+          color={palette.graphite}
+          emissive={palette.screen}
+          emissiveIntensity={on ? 1.8 : 0}
+        />
+      </mesh>
     </group>
   );
 }
