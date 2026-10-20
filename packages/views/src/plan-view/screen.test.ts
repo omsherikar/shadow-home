@@ -19,6 +19,7 @@ import {
   type TemperatureTrace,
   type Tier,
   type Verdict,
+  type Violation,
 } from './types.ts';
 
 const NOW = '2027-01-15T21:30:00-06:00';
@@ -30,6 +31,7 @@ const names: Names = {
     light_bedroom_main: { name: 'Main bedroom lamp', room: 'Main bedroom' },
     light_bedroom_sam: { name: "Sam's room light", room: "Sam's room" },
     plug_garage_freezer: { name: 'Garage freezer', room: 'Garage' },
+    garage_thermostat: { name: 'Garage heater thermostat', room: 'Garage' },
     back_door_lock: { name: 'Back door lock', room: 'Kitchen' },
     dishwasher: { name: 'Dishwasher', room: 'Kitchen' },
     dishwasher_latch: { name: 'Dishwasher door latch', room: 'Kitchen' },
@@ -388,6 +390,7 @@ describe('after a commit and for an undo', () => {
 
 describe('a zone’s temperature against a house rule', () => {
   const MIDNIGHT = '2027-01-16T00:00:00-06:00';
+  const BREAKS = '2027-01-15T23:10:00-06:00';
   /** Hourly samples from NOW; the last is at the end of the horizon, half an hour after the third. */
   const trace = (nominal: number[], pessimistic: number[], optimistic: number[]) =>
     ({
@@ -402,6 +405,7 @@ describe('a zone’s temperature against a house rule', () => {
       },
     }) satisfies TemperatureTrace;
   const freezes = trace([6, 5, 3.5, 2], [6, 4.5, 3, 1.5], [6, 5.5, 4.5, 3]);
+  const holds = trace([6, 5.2, 5, 5], [6, 5, 4.8, 4.9], [6, 5.5, 5.2, 5.1]);
   const rules: Temperatures['rules'] = {
     R3: {
       zone: 'garage',
@@ -411,6 +415,85 @@ describe('a zone’s temperature against a house rule', () => {
       heatedBy: ['garage_thermostat', 'plug_garage_freezer'],
     },
   };
+  const r3 = (run: string): Violation => ({
+    rule: 'R3',
+    text: "Don't let the garage pipes freeze.",
+    author: 'om',
+    priority: 'device-protection',
+    run,
+    firstAt: BREAKS,
+    cause: {
+      at: NOW,
+      source: 'plan',
+      actionIndex: 0,
+      device: 'garage_thermostat',
+      attr: 'systemMode',
+      from: 'heat',
+      to: 'off',
+    },
+  });
+  const heaterOff = row('garage_thermostat', 'systemMode', 'heat', 'off');
+  const blocked = preview('UNSAFE', 'T3', {
+    diff: [heaterOff],
+    violations: [r3('nominal')],
+    horizon: { start: NOW, end: MIDNIGHT },
+    repair: {
+      planId: 'fixed-1',
+      verdict: 'SAFE',
+      tier: 'T1',
+      diff: [row('garage_thermostat', 'heatingSetpointC', 9, 5)],
+      changes: [
+        {
+          rule: 'R3',
+          kind: 'nearest_value',
+          actionIndex: 0,
+          target: 'garage_thermostat',
+          description: 'garage_thermostat heat at 5 °C instead of off',
+        },
+      ],
+    },
+  });
+  const both: Temperatures = { traces: { 'plan-1': freezes, 'fixed-1': holds }, rules };
+
+  test('where the plan breaks it, the curve crosses the line where the rule breaks, beside the fix that holds', () => {
+    const s = previewScreen(blocked, names, both);
+    expect(s.timeline).toBeUndefined();
+    expect(s.temperature).toMatchObject({
+      zone: 'Garage',
+      rule: 'R3',
+      minC: 4,
+      maxC: null,
+      startMs: Date.parse(NOW),
+      endMs: Date.parse(MIDNIGHT),
+      breaks: { atMs: Date.parse(BREAKS), atC: 4, label: 'Fri 11:10 PM', tone: 'blocked' },
+      summary:
+        'Garage temperature. Your plan: drops below 4 °C at Fri 11:10 PM. With 1 fix: stays above 4 °C.',
+    });
+    const [plan, fixed] = s.temperature?.curves ?? [];
+    expect([plan?.label, plan?.holds, fixed?.label, fixed?.holds]).toEqual([
+      'Your plan',
+      false,
+      'With 1 fix',
+      true,
+    ]);
+    // Every step after the start, except the last sample, which is at the end of the horizon.
+    expect(plan?.atMs).toEqual(
+      [
+        '2027-01-15T21:30:00-06:00',
+        '2027-01-15T22:30:00-06:00',
+        '2027-01-15T23:30:00-06:00',
+        MIDNIGHT,
+      ].map(Date.parse),
+    );
+    // The band is the three runs' spread; the chart has room for all of it and the rule's line.
+    expect(plan?.nominalC).toEqual([6, 5, 3.5, 2]);
+    expect(plan?.lowC).toEqual([6, 4.5, 3, 1.5]);
+    expect(plan?.highC).toEqual([6, 5.5, 4.5, 3]);
+    expect(s.temperature?.fromC).toBeLessThan(1.5);
+    expect(s.temperature?.toC).toBeGreaterThan(6);
+    // The cards still say each break.
+    expect(s.cards[0]).toMatchObject({ id: 'R3', breaks: 'Breaks Fri 11:10 PM' });
+  });
 
   test('the temperatures come from the result’s _meta, and anything malformed is left out', () => {
     expect(
