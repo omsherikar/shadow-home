@@ -34,15 +34,25 @@ export function visibleToModel(meta: Record<string, unknown> | undefined): boole
   return !Array.isArray(visibility) || visibility.includes('model');
 }
 
+/**
+ * Connect for one turn. Setting up (connecting, the tool list, the home) waits no longer than
+ * what's left before the turn's `deadline` (ms since the epoch); each tool call has its own
+ * timeout, so one the model started in time finishes.
+ */
 export async function connectTools(
-  options: { url?: string; timeoutMs?: number; ruleTimeoutMs?: number } = {},
+  options: { url?: string; timeoutMs?: number; ruleTimeoutMs?: number; deadline?: number } = {},
 ): Promise<Tools> {
   const timeout = { timeout: options.timeoutMs ?? MCP_TIMEOUT_MS };
   const ruleTimeout = { timeout: options.ruleTimeoutMs ?? RULE_TIMEOUT_MS };
+  const deadline = options.deadline;
+  const setup = () =>
+    deadline === undefined
+      ? timeout
+      : { timeout: Math.max(1, Math.min(timeout.timeout, deadline - Date.now())) };
   const client = new Client({ name: 'shadow-home-host', version: '0.1.0' });
   const transport = new StreamableHTTPClientTransport(new URL(options.url ?? MCP_SERVER_URL));
-  await client.connect(transport, timeout);
-  const { tools } = await client.listTools(undefined, timeout);
+  await client.connect(transport, setup());
+  const { tools } = await client.listTools(undefined, setup());
   const views = new Map<string, string>();
   for (const t of tools) {
     const uri = (t._meta?.ui as { resourceUri?: unknown } | undefined)?.resourceUri;
@@ -62,7 +72,7 @@ export async function connectTools(
       })),
     ...(instructions ? { instructions } : {}),
     async homeBrief() {
-      const r = await client.callTool({ name: 'get_home_state', arguments: {} }, timeout);
+      const r = await client.callTool({ name: 'get_home_state', arguments: {} }, setup());
       return r.structuredContent as unknown as HomeBrief;
     },
     close: () => client.close(),
