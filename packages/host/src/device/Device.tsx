@@ -9,17 +9,11 @@ import {
 } from '@modelcontextprotocol/client';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
+import type { LiveHome } from '../house/looks.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
-import {
-  HomeCard,
-  type HomeState,
-  LogCard,
-  type LogState,
-  RuleCard,
-  type RuleState,
-} from './cards.tsx';
+import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
@@ -53,7 +47,7 @@ export interface DeviceProps {
 export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [client, setClient] = useState<Client | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [home, setHome] = useState<HomeState | null>(null);
+  const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
   const [heard, setHeard] = useState('');
   const [said, setSaid] = useState('');
@@ -98,7 +92,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
 
   const refreshHome = useCallback(async (c: Client) => {
     const r = await c.callTool({ name: 'get_home_state', arguments: {} });
-    setHome((r.structuredContent as HomeState | undefined) ?? null);
+    setHome((r.structuredContent as LiveHome | undefined) ?? null);
   }, []);
 
   const reply = useCallback(
