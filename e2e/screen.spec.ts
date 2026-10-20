@@ -52,6 +52,30 @@ async function say(page: Page, text: string) {
 
 test.describe.configure({ mode: 'serial' });
 
+test('the house is drawn beside the device, and house-only mode is remembered', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const house = page.getByRole('region', { name: 'The house' });
+  const device = page.getByRole('region', { name: 'The device' });
+  await expect(house.locator('canvas')).toBeVisible();
+  await expect(house.getByRole('heading', { name: 'Cedar Hollow' })).toBeVisible();
+  await expect(house.locator('.room-label', { hasText: 'Garage' })).toBeVisible();
+  await expect(house.getByText(/^Friday, \d+:\d\d PM$/)).toBeVisible();
+  await expect(device.getByText('Home mode')).toBeVisible();
+  await page.screenshot({ path: 'test-results/house-split.png' });
+
+  await house.getByRole('button', { name: 'House only' }).click();
+  await expect(device).toBeHidden();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Show the device' })).toBeVisible();
+  await expect(device).toBeHidden();
+  await page.screenshot({ path: 'test-results/house-only.png' });
+
+  await page.getByRole('button', { name: 'Show the device' }).click();
+  await expect(device.getByText('Home mode')).toBeVisible();
+});
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
