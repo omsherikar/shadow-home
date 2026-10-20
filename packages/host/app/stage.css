@@ -252,3 +252,9 @@
 .stage.house-only .device-panel {
   display: none;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbar.on {
+    animation: none;
+  }
+}
