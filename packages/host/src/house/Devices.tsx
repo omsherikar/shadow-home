@@ -66,6 +66,8 @@ function Shape(props: {
       return <DeskLamp look={look} />;
     case 'porch_light':
       return <PorchLight look={look} />;
+    case 'space_heater':
+      return <SpaceHeater look={look} />;
   }
 }
 
@@ -402,6 +404,27 @@ function PorchLight({ look }: { look: Look }) {
           intensity={10 * look.glow}
           distance={6}
         />
+      ) : null}
+    </group>
+  );
+}
+
+/** A fan heater whose grille glows while it runs. */
+function SpaceHeater({ look }: { look: Look }) {
+  const on = look.glow > 0;
+  return (
+    <group>
+      <Ivory size={[0.3, 0.42, 0.2]} position={[0, 0.21, 0]} />
+      <mesh position={[0, 0.23, 0.101]}>
+        <planeGeometry args={[0.22, 0.26]} />
+        <meshStandardMaterial
+          color={palette.graphite}
+          emissive={palette.heat}
+          emissiveIntensity={on ? 3 : 0}
+        />
+      </mesh>
+      {on ? (
+        <pointLight position={[0, 0.25, 0.4]} color={palette.heat} intensity={3} distance={3} />
       ) : null}
     </group>
   );
