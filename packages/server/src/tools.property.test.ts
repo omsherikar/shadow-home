@@ -6,6 +6,7 @@
 import { join } from 'node:path';
 import { SPEECH_LIMITS, wordCount } from '@shadow-home/engine';
 import { loadHome } from '@shadow-home/twin/node';
+import fc from 'fast-check';
 import type { Hono } from 'hono';
 import { expect } from 'vitest';
 import type { z } from 'zod';
@@ -23,6 +24,7 @@ import {
 } from './schemas.ts';
 import { ShadowHomeService } from './service.ts';
 import { memoryStore } from './store.ts';
+import { plainText } from './text.ts';
 import { isoAt } from './time.ts';
 import { APPROVAL_META_KEY } from './view.ts';
 
@@ -253,4 +255,179 @@ function examples(tool: Tool, known: Known): unknown[] {
     case 'approve_plan':
       return known.planIds.map((id) => ({ planId: id, approvalToken: known.tokens[id] ?? '' }));
   }
+}
+
+// ---- What else gets sent ----
+
+/** Values that tend to break things: prototype names, blank and control text, odd numbers. */
+const nasty = fc.constantFrom<unknown>(
+  '',
+  ' ',
+  '\u0000',
+  '\n\t',
+  '__proto__',
+  'constructor',
+  'toString',
+  'hasOwnProperty',
+  'last',
+  'nobody',
+  'everyone',
+  'LOCKED',
+  '\ud800',
+  String.fromCodePoint(0x202e),
+  'x'.repeat(301),
+  0,
+  -1,
+  0.5,
+  1e308,
+  -1e308,
+  2 ** 53 + 2,
+  true,
+  false,
+  null,
+  [],
+  {},
+);
+const junk = fc.oneof(nasty, fc.jsonValue({ maxDepth: 2 }));
+
+// Plans the input schema accepts, with odd contents: names the home doesn't have, prototype names,
+// values of the wrong type or out of range, times days away or in years 0 and 9999, and words with
+// control characters in them. These reach the tools' own code and the engine.
+
+const time = fc.oneof(
+  { weight: 8, arbitrary: fc.integer({ min: -3 * 24 * 60, max: 8 * 24 * 60 }).map(at) },
+  {
+    weight: 1,
+    arbitrary: fc.constantFrom(
+      '0000-01-01T00:00:00Z',
+      '9999-12-31T23:59:59-23:59',
+      '2027-01-15T18:00:00.123456789+05:30',
+    ),
+  },
+);
+const NAMES = [
+  ...home.devices.map((d) => d.id),
+  ...Object.keys(home.groups),
+  ...home.routines.map((r) => r.id),
+  ...home.rooms.flatMap((r) => [r.id, r.name]),
+  'home',
+  'away',
+];
+const PROTO = ['__proto__', 'constructor', 'toString', 'hasOwnProperty'];
+const name = fc.oneof(
+  { weight: 6, arbitrary: fc.constantFrom(...NAMES) },
+  { weight: 1, arbitrary: fc.constantFrom(...PROTO) },
+  { weight: 1, arbitrary: fc.string({ minLength: 1, maxLength: 100 }) },
+);
+const ATTRS = [
+  ...new Set(
+    home.devices.flatMap((d) => [...Object.keys(d.capabilities), ...Object.keys(d.state)]),
+  ),
+];
+const attr = fc.oneof(
+  { weight: 6, arbitrary: fc.constantFrom(...ATTRS) },
+  { weight: 1, arbitrary: fc.constantFrom(...PROTO) },
+  { weight: 1, arbitrary: fc.string({ maxLength: 100 }) },
+);
+const value = fc.oneof(
+  fc.boolean(),
+  fc.integer({ min: -50, max: 150 }),
+  fc.double({ noNaN: true, noDefaultInfinity: true }),
+  fc.constantFrom('LOCKED', 'UNLOCKED', 'heat', 'off', 'cool', 'auto', 'on'),
+  fc.string({ maxLength: 100 }),
+);
+const member = fc.oneof(
+  { weight: 6, arbitrary: fc.constantFrom('om', 'maya', 'sam') },
+  { weight: 1, arbitrary: fc.string({ minLength: 1, maxLength: 40 }) },
+);
+const words = fc.oneof(
+  fc.constantFrom(...PREVIEWS.map((p) => p.intent), ...home.rules.map((r) => r.text)),
+  fc.string({ minLength: 1, maxLength: 300 }),
+  fc.string({ unit: 'binary', minLength: 1, maxLength: 40 }),
+);
+
+const set = fc.dictionary(attr, value, { minKeys: 1, maxKeys: 3 });
+const action = fc.oneof(
+  fc.record({ device: name, set, at: time }, { requiredKeys: ['device', 'set'] }),
+  fc.record({ group: name, set, at: time }, { requiredKeys: ['group', 'set'] }),
+  fc.record({ routine: name, pauseUntil: time }),
+  fc.record({ mode: name, at: time }, { requiredKeys: ['mode'] }),
+);
+const presence = fc.oneof(
+  fc.constantFrom('nobody', 'everyone'),
+  fc.record({ home: fc.array(member, { maxLength: 3 }) }),
+);
+const plan = fc.record(
+  {
+    actions: fc.array(action, { minLength: 1, maxLength: 4 }),
+    intent: words.filter((w) => plainText(w) !== ''),
+    requestedBy: member,
+    presenceSchedule: fc.array(fc.record({ from: time, to: time, presence }), { maxLength: 3 }),
+    planEnd: time,
+  },
+  { requiredKeys: ['actions', 'intent'] },
+);
+
+// Arguments the input schema refuses: a valid example with a value replaced (by junk, or by a
+// value meant for another field), a key left out, or a key it doesn't expect; or anything at all.
+
+/** One change to a valid example. */
+interface Edit {
+  pick: number;
+  kind: 'replace' | 'drop' | 'add';
+  to: unknown;
+}
+const edit: fc.Arbitrary<Edit> = fc.record({
+  pick: fc.nat(),
+  kind: fc.constantFrom('replace', 'drop', 'add'),
+  to: fc.oneof(name, attr, value, time, member, words, junk),
+});
+
+type Parent = Record<string, unknown> | unknown[];
+
+/** `base` with each edit made at some place in it (the whole of it, or any value inside). */
+function edited(base: unknown, edits: Edit[]): unknown {
+  let out = structuredClone(base);
+  for (const { pick, kind, to } of edits) {
+    const spots: { parent: Parent | null; key: string }[] = [{ parent: null, key: '' }];
+    const walk = (v: unknown) => {
+      if (!v || typeof v !== 'object') return;
+      for (const [key, child] of Object.entries(v)) {
+        spots.push({ parent: v as Parent, key });
+        walk(child);
+      }
+    };
+    walk(out);
+    const { parent, key } = spots[pick % spots.length] ?? { parent: null, key: '' };
+    const target = parent ? (parent as Record<string, unknown>)[key] : out;
+    if (kind === 'add' && target && typeof target === 'object' && !Array.isArray(target)) {
+      (target as Record<string, unknown>).extra = to;
+    } else if (!parent) out = to;
+    else if (kind === 'drop' && !Array.isArray(parent)) delete parent[key];
+    else (parent as Record<string, unknown>)[key] = to;
+  }
+  return out;
+}
+
+/** A valid example for the tool, with a few edits. */
+const editedFrom = (valid: unknown[], most: number) =>
+  fc
+    .tuple(fc.constantFrom(...valid), fc.array(edit, { minLength: 1, maxLength: most }))
+    .map(([base, edits]) => edited(base, edits));
+
+/** Arguments for a tool: anything at all, an edited example, or (for a preview) a built plan. */
+function argsFor(tool: Tool, known: Known): fc.Arbitrary<unknown> {
+  const anything = fc.oneof(
+    fc.constant(undefined),
+    fc.jsonValue({ maxDepth: 3 }),
+    fc.dictionary(fc.string(), junk, { maxKeys: 4 }),
+  );
+  const near = editedFrom(examples(tool, known), 3);
+  return tool === 'preview_plan'
+    ? fc.oneof(
+        { weight: 1, arbitrary: anything },
+        { weight: 2, arbitrary: near },
+        { weight: 3, arbitrary: plan },
+      )
+    : fc.oneof({ weight: 1, arbitrary: anything }, { weight: 3, arbitrary: near });
 }
