@@ -370,3 +370,16 @@ h2 {
   stroke-width: 1.5;
   stroke-dasharray: 7 6;
 }
+
+.temps .band {
+  fill: color-mix(in srgb, var(--soft) 14%, transparent);
+}
+
+.temps .band.held {
+  fill: color-mix(in srgb, var(--safe) 16%, transparent);
+}
+
+.temps .band.blocked,
+.temps .band.unsure {
+  fill: color-mix(in srgb, var(--rule) 28%, transparent);
+}
