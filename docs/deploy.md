@@ -46,8 +46,12 @@ Also set a monthly spend limit in the Anthropic console, and keep an eye on Elev
 `npm run deploy` (scripts/gcp/deploy.ts) sets up, in one project and region (default
 `us-central1`):
 
-- **MCP server:** Cloud Run service `shadow-home-mcp`, public, 1 vCPU, at most 4 instances. Its
-  state is in Firestore (the `homes` collection) and its plan-ID key in Secret Manager.
+- **MCP server:** Cloud Run service `shadow-home-mcp`, public, 1 vCPU, at most 4 instances, each
+  taking at most 2 requests at once, so 8 in all (`docs/decisions.md`, 101). Past that, Cloud Run
+  holds a request for an instance to free or start, for 10 seconds or 3.5 times an instance's
+  start-up time, whichever is longer, then answers 429; if judging traffic ever reaches it, raise
+  `--max-instances` in scripts/gcp/deploy.ts (which also raises the worst hour of rule compiles
+  above). Its state is in Firestore (the `homes` collection) and its plan-ID key in Secret Manager.
 - **Echo Show host:** Cloud Run service `shadow-home-host`, public, at most 2 instances, pointed at
   the server's `/mcp`.
 - **Secrets:** `shadow-home-plan-key` (made once and kept), `shadow-home-anthropic-key`,
