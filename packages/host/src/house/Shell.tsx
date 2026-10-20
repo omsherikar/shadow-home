@@ -3,12 +3,16 @@
 import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
-import { groundBounds, houseBounds, type WallPiece, wallPieces } from './geometry.ts';
-import type { HouseLayout, Room } from './layout.ts';
+import { groundBounds, houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
+import type { HouseLayout, Opening, Room } from './layout.ts';
+import { type LiveHome, lookOf } from './looks.ts';
 import { palette } from './palette.ts';
 
+const deg = (d: number) => (d * Math.PI) / 180;
+
 /** The house without its furniture and devices: ground, floors, walls, doors and built pieces. */
-export function Shell({ layout }: { layout: HouseLayout }) {
+export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | null }) {
+  const device = (id: string | undefined) => home?.devices.find((d) => d.id === id);
   return (
     <>
       <Grounds layout={layout} />
@@ -16,6 +20,14 @@ export function Shell({ layout }: { layout: HouseLayout }) {
         <Floor key={r.id} room={r} layout={layout} />
       ))}
       <Walls layout={layout} />
+      {layout.openings.map((o) => (
+        <OpeningFill
+          key={`${o.from.x},${o.from.z}`}
+          opening={o}
+          wallHeight={wallHeightAt(layout, o)}
+          open={lookOf(device(o.device)).open}
+        />
+      ))}
     </>
   );
 }
@@ -177,5 +189,65 @@ function WallBox(props: {
         </mesh>
       ) : null}
     </group>
+  );
+}
+
+/** What fills a gap in a wall: a door leaf, the garage door, or a window that opens. */
+function OpeningFill(props: { opening: Opening; wallHeight: number; open: boolean }) {
+  const o = props.opening;
+  if (o.kind === 'doorway') return null;
+  const alongX = o.from.z === o.to.z;
+  const span = alongX ? Math.abs(o.to.x - o.from.x) : Math.abs(o.to.z - o.from.z);
+  const cx = (o.from.x + o.to.x) / 2;
+  const cz = (o.from.z + o.to.z) / 2;
+  const turn = alongX ? 0 : Math.PI / 2;
+  if (o.kind === 'window') {
+    const height = o.top - o.bottom;
+    // Hinged at the top; an open window swings out.
+    return (
+      <group position={[cx, o.top, cz]} rotation-y={turn}>
+        <group rotation-x={props.open ? deg(-24) : 0}>
+          <mesh position={[0, -height / 2, 0]}>
+            <boxGeometry args={[span - 0.04, height - 0.04, 0.02]} />
+            <meshStandardMaterial
+              color={palette.glass}
+              transparent
+              opacity={0.35}
+              roughness={0.05}
+              metalness={0.1}
+            />
+          </mesh>
+          <Frame width={span} height={height} />
+        </group>
+      </group>
+    );
+  }
+  const height = Math.min(o.top, props.wallHeight);
+  const color = o.kind === 'garage_door' ? palette.garageDoor : palette.frontDoor;
+  return (
+    <mesh position={[cx, height / 2, cz]} rotation-y={turn} castShadow receiveShadow>
+      <boxGeometry args={[span - 0.03, height, 0.05]} />
+      <meshStandardMaterial color={color} roughness={0.6} />
+    </mesh>
+  );
+}
+
+function Frame({ width, height }: { width: number; height: number }) {
+  const bar = 0.04;
+  const bars: [number, number, number, number][] = [
+    [0, -bar / 2, width, bar],
+    [0, -height + bar / 2, width, bar],
+    [-width / 2 + bar / 2, -height / 2, bar, height],
+    [width / 2 - bar / 2, -height / 2, bar, height],
+  ];
+  return (
+    <>
+      {bars.map(([x, y, w, h]) => (
+        <mesh key={`${x},${y}`} position={[x, y, 0]} castShadow>
+          <boxGeometry args={[w, h, 0.05]} />
+          <meshStandardMaterial color={palette.ivory} roughness={0.5} />
+        </mesh>
+      ))}
+    </>
   );
 }
