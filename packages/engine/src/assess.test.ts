@@ -449,3 +449,23 @@ describe('speech', () => {
     if (a.repaired) expect(a.repaired.check.verdict).not.toBe('UNSAFE');
   });
 });
+
+describe('leaving, with nothing to change', () => {
+  // "I'm heading out": nobody home from now for four hours, and no actions.
+  const leaving = (stateOverrides?: Plan['context']['stateOverrides']): Plan => ({
+    context: {
+      now: NOW,
+      presenceSchedule: [{ from: NOW, to: '2027-01-15T21:45:00-06:00', presence: 'nobody' }],
+      ...(stateOverrides ? { stateOverrides } : {}),
+    },
+    actions: [],
+  });
+
+  test('goes through every stage: lint and hygiene find nothing, and three runs look 12 h ahead', () => {
+    const r = check(home, leaving());
+    expect(r.lint.ok).toBe(true);
+    expect(r.hygiene).toEqual([]);
+    expect(r.horizon).toEqual({ start: NOW, end: '2027-01-16T05:45:00-06:00' });
+    expect(Object.keys(r.runs ?? {})).toEqual(['nominal', 'pessimistic', 'optimistic']);
+  });
+});
