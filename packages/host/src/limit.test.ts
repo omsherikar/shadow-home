@@ -49,4 +49,11 @@ describe('an hourly budget', () => {
     expect([spend.fits(4), spend.fits(5), spend.fits()]).toEqual([true, false, true]);
     expect(spend(4)).toBe(true);
   });
+
+  test('an amount that is not a positive number is refused, and adds nothing back', () => {
+    const spend = hourlyBudget(10, () => 0);
+    expect(spend(10)).toBe(true);
+    for (const amount of [0, -5, Number.NaN]) expect(spend(amount)).toBe(false);
+    expect(spend(1)).toBe(false);
+  });
 });
