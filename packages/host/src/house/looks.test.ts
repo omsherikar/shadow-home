@@ -19,4 +19,15 @@ describe('how a device looks', () => {
     expect(lookOf(device('plug', { onOff: true })).glow).toBe(1);
     expect(lookOf(device('appliance', { onOff: false })).glow).toBe(0);
   });
+
+  test('a lock shows open in amber when unlocked', () => {
+    expect(lookOf(device('lock', { lockState: 'LOCKED' }))).toMatchObject({
+      status: 'ok',
+      open: false,
+    });
+    expect(lookOf(device('lock', { lockState: 'UNLOCKED' }))).toMatchObject({
+      status: 'warn',
+      open: true,
+    });
+  });
 });
