@@ -4,8 +4,10 @@
 // the tool's output schema and its speech fits the limits. The SDK turns anything a tool's handler
 // throws into an error result too, so the only error result that passes is the input refusal.
 import { join } from 'node:path';
+import { SPEECH_LIMITS, wordCount } from '@shadow-home/engine';
 import { loadHome } from '@shadow-home/twin/node';
 import type { Hono } from 'hono';
+import { expect } from 'vitest';
 import type { z } from 'zod';
 import { createApp } from './app.ts';
 import { type ManualClock, manualClock } from './clock.ts';
@@ -91,4 +93,48 @@ async function send(app: Hono, era: Era, name: Tool, args: unknown): Promise<Rep
   const sse = res.headers.get('content-type')?.startsWith('text/event-stream');
   const json = sse ? /^data: (.*)$/m.exec(text)?.[1] : text;
   return { status: res.status, ...(JSON.parse(json ?? '{}') as Omit<Reply, 'status'>) };
+}
+
+/** Every `speech` in a result, wherever it sits (a commit's fresh preview, an undo's preview). */
+function speeches(value: unknown, out: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (Array.isArray(value)) for (const v of value) speeches(v, out);
+  else if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      if (k === 'speech' && v && typeof v === 'object') out.push(v as Record<string, unknown>);
+      else speeches(v, out);
+    }
+  }
+  return out;
+}
+
+/**
+ * The server answered as it should: the arguments refused with a message, or a result that
+ * matches the tool's output schema and speaks within the limits. Says which. Arguments that aren't
+ * an object are refused as an invalid request; any other protocol error (a request the server
+ * couldn't read, or a result that breaks the wire schema) fails.
+ */
+function expectAnswered(name: Tool, reply: Reply): 'refused' | 'answered' {
+  const shown = JSON.stringify(reply).slice(0, 2000);
+  expect(reply.status, shown).toBe(200);
+  if (reply.error) {
+    expect(reply.error.code, shown).toBe(-32602);
+    expect(reply.error.message, shown).toMatch(/^Invalid tools\/call request: \S/);
+    return 'refused';
+  }
+  const result = reply.result;
+  expect(result, shown).toBeDefined();
+  if (result?.isError) {
+    expect(result.content?.[0]?.text, shown).toMatch(/^Input validation error: \S/);
+    return 'refused';
+  }
+  const parsed = OUTPUTS[name].safeParse(result?.structuredContent);
+  expect(parsed.error, shown).toBeUndefined();
+  for (const s of speeches(result?.structuredContent)) {
+    const words = (field: 'headline' | 'reason' | 'ask') =>
+      typeof s[field] === 'string' ? wordCount(s[field]) : 0;
+    expect(words('headline'), shown).toBeLessThanOrEqual(SPEECH_LIMITS.headline);
+    expect(words('reason'), shown).toBeLessThanOrEqual(SPEECH_LIMITS.reason);
+    expect(words('ask'), shown).toBeLessThanOrEqual(SPEECH_LIMITS.ask);
+  }
+  return 'answered';
 }
