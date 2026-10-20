@@ -468,4 +468,29 @@ describe('leaving, with nothing to change', () => {
     expect(r.horizon).toEqual({ start: NOW, end: '2027-01-16T05:45:00-06:00' });
     expect(Object.keys(r.runs ?? {})).toEqual(['nominal', 'pessimistic', 'optimistic']);
   });
+
+  test('is UNSAFE when the house breaks a nobody-home rule, and the fix adds each missing step', () => {
+    const a = assess(home, leaving(), { requestedBy: 'om' });
+    expect(a.check.verdict).toBe('UNSAFE');
+    expect(a.tier.tier).toBe('T3');
+    expect(a.check.reasons.map((r) => r.kind === 'violation' && r.rule)).toEqual(['R4', 'R10']);
+    expect(a.diff).toEqual([]);
+    expect(a.repaired?.detail.repairs).toEqual([
+      {
+        rule: 'R4',
+        kind: 'add_action',
+        target: 'front_door_lock',
+        description: 'lock front_door_lock',
+      },
+      ...['light_living', 'light_kitchen', 'light_bedroom_sam'].map((device) => ({
+        rule: 'R10',
+        kind: 'add_action',
+        target: device,
+        description: `turn ${device} off`,
+      })),
+    ]);
+    expect(a.repaired?.check.verdict).toBe('SAFE');
+    expect(a.repaired?.tier.tier).toBe('T0');
+    expect(a.offered).toBe('repair');
+  });
 });
