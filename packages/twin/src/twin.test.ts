@@ -10,6 +10,7 @@ import {
   homeSchema,
   planActionSchema,
   planSchema,
+  presenceSpecSchema,
   type Value,
 } from './schema.ts';
 import { validateHome } from './validate.ts';
@@ -314,6 +315,21 @@ describe('plan schema', () => {
     ['more than 20 attributes', { device: 'plug_tv', set: attrs(21) }],
   ])('rejects an action with %s', (_name, action) => {
     expect(planActionSchema.safeParse(action).success).toBe(false);
+  });
+
+  test('names and values up to 100 characters, 20 attributes and 20 people home are accepted', () => {
+    const name = 'x'.repeat(100);
+    for (const action of [
+      { device: name, set: { [name]: name } },
+      { group: name, set: attrs(20) },
+      { routine: name, pauseUntil: '2027-01-16T08:00:00-06:00' },
+      { mode: name },
+    ]) {
+      expect(planActionSchema.safeParse(action).success).toBe(true);
+    }
+    expect(presenceSpecSchema.safeParse({ home: Array(20).fill(name) }).success).toBe(true);
+    expect(presenceSpecSchema.safeParse({ home: Array(21).fill('om') }).success).toBe(false);
+    expect(presenceSpecSchema.safeParse({ home: [long] }).success).toBe(false);
   });
 });
 
