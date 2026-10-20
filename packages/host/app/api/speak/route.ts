@@ -6,7 +6,11 @@ import { synthesize } from '@/turn/providers.ts';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const speakRequest = z.object({ text: z.string().min(1).max(1500) });
+// What the device says is the server's speech fields (a headline, a reason and a question: at most
+// 65 words) or the model's one short sentence. The longest real line, across every ShadowBench
+// plan and the demo, is 172 characters (32 words); 600 holds 65 words of about 9 characters each.
+// A longer line is refused, and the browser speaks it instead.
+const speakRequest = z.object({ text: z.string().min(1).max(600) });
 
 // Speech is paid by the character; past SPEECH_PER_HOUR (default 120) on this instance the browser
 // speaks instead.
