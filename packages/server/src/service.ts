@@ -699,6 +699,14 @@ export class ShadowHomeService {
     return this.gather(result, (d) => d.traces);
   }
 
+  /**
+   * The home's temperature rules, by rule ID, for every preview in a tool result: what the screen
+   * draws the traces against, from the home each preview was checked on.
+   */
+  temperatureRules(result: unknown): Record<string, TemperatureRule> {
+    return this.gather(result, (d) => d.rules);
+  }
+
   private gather<T>(result: unknown, pick: (d: Drawing) => Record<string, T>): Record<string, T> {
     const found: Record<string, T> = {};
     const visit = (value: unknown): void => {
