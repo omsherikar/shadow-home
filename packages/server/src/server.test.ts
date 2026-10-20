@@ -3,7 +3,14 @@ import { join } from 'node:path';
 import { type ServerType, serve } from '@hono/node-server';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import { loadHome } from '@shadow-home/twin/node';
-import { APPROVAL_META_KEY, NAMES_META_KEY, type Names, planScreen } from '@shadow-home/views';
+import {
+  APPROVAL_META_KEY,
+  NAMES_META_KEY,
+  type Names,
+  planScreen,
+  TEMPERATURES_META_KEY,
+  type TemperatureTrace,
+} from '@shadow-home/views';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from './app.ts';
 import { type ManualClock, manualClock } from './clock.ts';
@@ -587,3 +594,36 @@ test('the activity log gives the 20 most recent entries unless asked for more', 
     await env.close();
   }
 });
+
+describe.each(['legacy', 'modern'] as const)(
+  'the twin’s temperatures over the %s protocol',
+  (era) => {
+    let env: Awaited<ReturnType<typeof start>>;
+    let api: Awaited<ReturnType<typeof connect>>;
+    beforeAll(async () => {
+      env = await start();
+      api = await connect(env.url, era);
+    });
+    afterAll(async () => {
+      await api.client.close();
+      await env.close();
+    });
+
+    test('gets the twin’s temperatures for the plan and its fix in _meta, outside what the model reads', async () => {
+      const r = await api.client.callTool({ name: 'preview_plan', arguments: weekend });
+      const preview = r.structuredContent as PreviewOutput;
+      const traces = r._meta?.[TEMPERATURES_META_KEY] as Record<string, TemperatureTrace>;
+      const repairId = preview.repair?.planId ?? '';
+      expect(Object.keys(traces).sort()).toEqual([preview.planId, repairId].sort());
+      expect(traces[preview.planId]).toMatchObject({ ...preview.horizon, stepMinutes: 15 });
+      // The plan's garage freezes on Saturday night; with the fixes it never drops below 4 °C.
+      expect(Math.min(...(traces[preview.planId]?.zonesC.nominal.garage ?? []))).toBeLessThan(4);
+      for (const run of ['nominal', 'pessimistic', 'optimistic'] as const) {
+        const garage = traces[repairId]?.zonesC[run].garage ?? [Number.NaN];
+        expect(Math.min(...garage), run).toBeGreaterThanOrEqual(4);
+      }
+      expect(JSON.stringify(r.structuredContent)).not.toContain('zonesC');
+      expect(JSON.stringify(r.content)).not.toContain('zonesC');
+    });
+  },
+);
