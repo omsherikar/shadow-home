@@ -87,4 +87,15 @@ describe('a budget for each visitor', () => {
     expect(turn('a')).toBe(false);
     expect(turn('c')).toBe(true);
   });
+
+  test('a visitor idle for an hour is forgotten, since their budget is whole again', () => {
+    let t = 0;
+    const turn = perVisitor(1, { now: () => t });
+    turn('a');
+    turn('b');
+    expect(turn.visitors).toBe(2);
+    t = HOUR;
+    turn('c');
+    expect(turn.visitors).toBe(1);
+  });
 });
