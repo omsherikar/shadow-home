@@ -1,5 +1,5 @@
-import { describe, expect, test } from 'vitest';
-import { runTurn, TurnDeadlineError } from './run.ts';
+import { afterEach, describe, expect, test } from 'vitest';
+import { runTurn, TurnDeadlineError, within } from './run.ts';
 
 const never = () => new Promise<never>(() => {});
 const committed = {
@@ -70,5 +70,23 @@ describe('a turn that runs out of time', () => {
     );
     expect(steps).toBe(1);
     expect(turn).toMatchObject({ say: 'Done: TV off.' });
+  });
+});
+
+describe('a call left behind at the deadline', () => {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown) => unhandled.push(reason);
+  afterEach(() => {
+    process.off('unhandledRejection', record);
+  });
+
+  test('failing later is never an unhandled rejection, which would be logged whole', async () => {
+    process.on('unhandledRejection', record);
+    const failsLater = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('a message that quotes the conversation')), 10),
+    );
+    await expect(within(failsLater, 0)).rejects.toBeInstanceOf(TurnDeadlineError);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(unhandled).toEqual([]);
   });
 });
