@@ -1,4 +1,5 @@
 import { hourlyCaps, perHour } from '@/limit.ts';
+import { log } from '@/log.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
 import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
@@ -44,6 +45,8 @@ export function GET(): Response {
  */
 export async function POST(request: Request): Promise<Response> {
   if (fromOtherSite(request)) return OTHER_SITE();
+  const started = Date.now();
+  const { headers } = request;
   const parsed = turnRequest.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: 'Bad turn request' }, { status: 400 });
   const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
@@ -71,10 +74,23 @@ export async function POST(request: Request): Promise<Response> {
           ...(tools.instructions ? { serverInstructions: tools.instructions } : {}),
         });
     const turn = await runTurn(model, tools, request);
+    log('INFO', 'turn', { scripted, calls: turn.calls.length, ms: Date.now() - started }, headers);
     return Response.json(turn);
   } catch (e) {
-    // The person still hears something; the reason goes to the server log.
-    console.error('turn:', e instanceof Error ? e.message : e);
+    // The person still hears something. The log gets the error's name, code and status, not its
+    // message, which can carry parts of the conversation.
+    const { code, status } = (e ?? {}) as { code?: unknown; status?: unknown };
+    log(
+      'ERROR',
+      'turn failed',
+      {
+        error: e instanceof Error ? e.name : 'Error',
+        code: typeof code === 'string' ? code : undefined,
+        status: typeof status === 'number' ? status : undefined,
+        ms: Date.now() - started,
+      },
+      headers,
+    );
     return Response.json({
       say: "Sorry, I can't reach my assistant model right now.",
       calls: [],
