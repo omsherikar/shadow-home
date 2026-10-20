@@ -289,4 +289,18 @@ describe('the temperature trace', () => {
       expect(zoneTempC.garage?.[i]).toBe(frame?.zoneTempC.garage);
     });
   });
+
+  test('a last step off the 15-minute grid is sampled too', () => {
+    const startMs = t('2027-01-15T17:45:00');
+    const horizon = { startMs, endMs: startMs + 40 * 60_000, unknowns: [] };
+    const { trace } = simulate(home, p001, 'nominal', horizon, () => {});
+    expect(trace.atMs.map(iso)).toEqual([
+      '2027-01-15T17:45:00-06:00',
+      '2027-01-15T18:00:00-06:00',
+      '2027-01-15T18:15:00-06:00',
+      '2027-01-15T18:25:00-06:00',
+    ]);
+    expect(trace.outdoorC).toHaveLength(4);
+    expect(trace.zoneTempC.garage).toHaveLength(4);
+  });
 });
