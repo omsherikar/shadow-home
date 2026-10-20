@@ -275,4 +275,16 @@ describe('words people typed', () => {
     const log = await service.getActivityLog({ groupBy: 'none' });
     expect(log.entries.find((e) => e.source === 'plan')?.what).toBe('TV off, please[2J now');
   });
+
+  test('who asked is kept the same way, and found by their plain ID', async () => {
+    const { service } = setup('2027-01-15T17:45:00');
+    const p = await service.previewPlan({
+      intent: 'TV off',
+      requestedBy: '\u0000om\n',
+      actions: [{ device: 'plug_tv', set: { onOff: false } }],
+    });
+    expect((await service.commitPlan({ planId: p.planId })).status).toBe('committed');
+    const log = await service.getActivityLog({ groupBy: 'none', person: 'om' });
+    expect(log.entries.find((e) => e.source === 'plan')?.who).toBe('om');
+  });
 });
