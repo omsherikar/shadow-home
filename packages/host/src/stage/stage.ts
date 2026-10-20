@@ -65,3 +65,14 @@ export function chipFor(
   }
   return undefined;
 }
+
+/** "Friday, 5:45 PM" from the home's ISO time, read as the home's own clock. */
+export function dayAndTime(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
+  if (!m) return '';
+  const [y, mo, d, h, mi] = m.slice(1).map(Number) as [number, number, number, number, number];
+  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][
+    new Date(Date.UTC(y, mo - 1, d)).getUTCDay()
+  ];
+  return `${day}, ${h % 12 || 12}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
