@@ -25,3 +25,12 @@ export function writeLayout(storage: Pick<Storage, 'setItem'> | null, layout: La
     // Nothing to do: the choice still holds for this visit.
   }
 }
+
+/** The browser's local storage, or null where reading it throws. */
+export function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
