@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { hourlyLimit, perHour } from '@/limit.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { loadBeats } from '@/turn/beats.ts';
@@ -6,6 +5,7 @@ import { bedrockModel, type HomeBrief } from '@/turn/bedrock.ts';
 import { sceneTimeFor } from '@/turn/demo-clock.ts';
 import { connectTools } from '@/turn/mcp.ts';
 import { liveModel } from '@/turn/providers.ts';
+import { turnRequest } from '@/turn/request.ts';
 import { runTurn } from '@/turn/run.ts';
 import { scriptedModel } from '@/turn/scripted.ts';
 import type { Names, TurnRequest } from '@/turn/types.ts';
@@ -24,24 +24,6 @@ export const dynamic = 'force-dynamic';
 // Each live turn spends model calls on the owner's key; the site is public, so this instance takes
 // at most LIVE_TURNS_PER_HOUR (default 60). Scripted and demo turns cost nothing and don't count.
 const liveTurns = hourlyLimit(perHour('LIVE_TURNS_PER_HOUR', 60));
-
-const turnRequest = z.object({
-  text: z.string().min(1).max(500),
-  history: z
-    .array(
-      z.object({
-        name: z.string(),
-        arguments: z.record(z.string(), z.unknown()),
-        structuredContent: z.record(z.string(), z.unknown()).optional(),
-        by: z.literal('screen').optional(),
-      }),
-    )
-    .max(50),
-  names: z
-    .custom<Names>((v) => v === undefined || (typeof v === 'object' && v !== null))
-    .optional(),
-  screen: z.string().max(2000).optional(),
-});
 
 /** Ready to talk. Health checks (and browser tests) call it, which also compiles the route in dev. */
 export function GET(): Response {
