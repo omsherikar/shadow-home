@@ -12,6 +12,7 @@ import type { DemoStep } from '../demo/steps.ts';
 import type { LiveHome } from '../house/looks.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import { Stage } from '../stage/Stage.tsx';
+import { type Chip, chipFor } from '../stage/stage.ts';
 import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
@@ -50,6 +51,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [problem, setProblem] = useState<string | null>(null);
   const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
+  const [chip, setChip] = useState<Chip | null>(null);
   const [heard, setHeard] = useState('');
   const [said, setSaid] = useState('');
   const [busy, setBusy] = useState(false);
@@ -87,6 +89,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       });
       const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
       if (fresh) names.current = fresh;
+      const verdict = chipFor(call.name, sc);
+      if (verdict) setChip(verdict);
     },
     [note],
   );
@@ -249,6 +253,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     history.current = [];
     screenNote.current = undefined;
     setTranscript([]);
+    setChip(null);
     setScreen({ kind: 'home' });
     if (client) await refreshHome(client);
     for (const step of demo) {
@@ -271,7 +276,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       heard={heard}
       said={said}
       busy={busy}
-      chip={null}
+      chip={chip}
       device={
         <div className="device">
           <div className="camera" aria-hidden="true" />
