@@ -276,6 +276,7 @@ describe('clusters', () => {
 
 describe('plan schema', () => {
   const planDir = join(root, 'bench/plans');
+  const long = 'x'.repeat(101);
   const files = readdirSync(planDir).filter((f) => f.endsWith('.json'));
 
   test.each(files)('bench plan %s parses', (file) => {
@@ -302,6 +303,10 @@ describe('plan schema', () => {
     ],
     ['a routine without pauseUntil', { routine: 'coffee_at_7' }],
     ['an unknown key', { device: 'plug_tv', set: { onOff: false }, when: 'later' }],
+    ['a device ID past 100 characters', { device: long, set: { onOff: false } }],
+    ['a group past 100 characters', { group: long, set: { onOff: false } }],
+    ['a routine past 100 characters', { routine: long, pauseUntil: '2027-01-16T08:00:00-06:00' }],
+    ['a mode past 100 characters', { mode: long }],
   ])('rejects an action with %s', (_name, action) => {
     expect(planActionSchema.safeParse(action).success).toBe(false);
   });
