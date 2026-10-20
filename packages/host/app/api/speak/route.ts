@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { hourlyCaps, perHour } from '@/limit.ts';
+import { log } from '@/log.ts';
 import { fromOtherSite, OTHER_SITE } from '@/origin.ts';
 import { synthesize } from '@/turn/providers.ts';
 import { visitorOf } from '@/visitor.ts';
@@ -39,11 +40,15 @@ export async function POST(request: Request): Promise<Response> {
   if (refused === 'instance') {
     return Response.json({ error: 'The voice is resting' }, { status: 503 });
   }
+  const started = Date.now();
   try {
     const audio = await synthesize(text);
+    log('INFO', 'spoke', { chars: text.length, ms: Date.now() - started }, request.headers);
     return new Response(Buffer.from(audio), { headers: { 'content-type': 'audio/mpeg' } });
   } catch (e) {
-    console.error('speak:', e instanceof Error ? e.message : e);
+    // The voice's own reasons (no key, a refusal, no audio, too slow); never the words.
+    const error = e instanceof Error ? { error: e.name, reason: e.message } : { error: 'Error' };
+    log('ERROR', 'speech failed', { ...error, ms: Date.now() - started }, request.headers);
     return Response.json({ error: 'The voice is not available' }, { status: 503 });
   }
 }
