@@ -99,6 +99,27 @@ test('without WebGL the house steps aside and the device works as before', async
   await page.screenshot({ path: 'test-results/no-webgl.png' });
 });
 
+// The house's code (three.js and the scene) arrives in its own chunk after the page, then its
+// models; either can fail on a flaky network or across a deploy.
+for (const [what, url] of [
+  ['its code', /src_house_House_tsx/],
+  ['its models', /\/house\/models\//],
+] as const) {
+  test(`if the house can't load ${what}, the device carries on alone`, async ({ page }) => {
+    let blocked = 0;
+    await page.route(url, (route) => {
+      blocked += 1;
+      return route.abort();
+    });
+    await page.goto('/');
+    await expect(page.getByText('Home mode')).toBeVisible();
+    await expect(page.getByRole('region', { name: 'The house' })).toHaveCount(0);
+    expect(blocked).toBeGreaterThan(0);
+    await page.getByRole('button', { name: WEEKEND }).click();
+    await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  });
+}
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
