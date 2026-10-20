@@ -3,7 +3,14 @@ import { computeHorizon } from './horizon.ts';
 import { type HygieneFinding, hygiene } from './hygiene.ts';
 import { type LintCode, type LintResult, lint } from './lint.ts';
 import { createRuleTracker, pushesTowardViolation, type RuleOutcome, ruleAtoms } from './rules.ts';
-import { type Change, RUN_NAMES, type RunName, type SimTrace, simulate } from './simulate.ts';
+import {
+  type Change,
+  RUN_NAMES,
+  type RunName,
+  type SimTrace,
+  simulate,
+  TRACE_STEP_MINUTES,
+} from './simulate.ts';
 import { formatIso, offsetMinutes } from './time.ts';
 import { untrustedSensors } from './trust.ts';
 
@@ -268,7 +275,27 @@ export function check(home: Home, plan: Plan): CheckResult {
     horizon: horizonOut,
     timeline: results.nominal.changes.map(entry),
     runs,
+    temperatures: {
+      ...horizonOut,
+      stepMinutes: TRACE_STEP_MINUTES,
+      outdoorC: results.nominal.trace.outdoorC.map(round1),
+      zonesC: Object.fromEntries(
+        RUN_NAMES.map((run) => [
+          run,
+          Object.fromEntries(
+            Object.entries(results[run].trace.zoneTempC).map(([z, temps]) => [
+              z,
+              temps.map(round1),
+            ]),
+          ),
+        ]),
+      ) as TemperatureTrace['zonesC'],
+    },
   };
+}
+
+function round1(x: number): number {
+  return Math.round(x * 10) / 10;
 }
 
 function round2(x: number): number {
