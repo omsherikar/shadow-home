@@ -23,6 +23,8 @@ const reversibility = z.enum(['holdable', 'compensable', 'irreversible']);
 // an undo or approval token to 43, a device ID to 25 and a member ID to 4.
 const member = z.string().max(40).describe('Household member ID, e.g. "om"');
 const planIdIn = z.string().min(1).max(200);
+/** A device ID, or a room's ID or name. */
+const idIn = z.string().max(100);
 
 /** A person's words, with something left once control characters are gone (see plainText). */
 function words(max: number, description: string) {
@@ -199,7 +201,7 @@ export type CommitOutput = z.infer<typeof commitOutput>;
 
 export const undoInput = z.object({
   token: z.string().min(1).max(100).describe('An undo token from commit_plan, or "last"'),
-  devices: z.array(z.string()).optional().describe('Only put these back ("undo the thermostat")'),
+  devices: z.array(idIn).max(50).optional().describe('Only put these back ("undo the thermostat")'),
 });
 
 export const undoOutput = z.object({
