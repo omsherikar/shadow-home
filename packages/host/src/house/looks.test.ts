@@ -30,4 +30,9 @@ describe('how a device looks', () => {
       open: true,
     });
   });
+
+  test('a window or door sensor shows open', () => {
+    expect(lookOf(device('contact_sensor', { contact: 'open' })).open).toBe(true);
+    expect(lookOf(device('contact_sensor', { contact: 'closed' })).open).toBe(false);
+  });
 });
