@@ -9,11 +9,14 @@ const id = z.string().min(1);
 
 // Each branch is described so JSON Schema keeps them as anyOf branches; a bare union becomes a
 // `type` array, which some tool-calling clients can't read.
-export const valueSchema = z.union([
-  z.boolean().describe('On/off and other flags'),
-  z.number().describe("A number in the capability's unit"),
-  z.string().describe('An enum value, such as "LOCKED" or "heat"'),
-]);
+function values(text: z.ZodString) {
+  return z.union([
+    z.boolean().describe('On/off and other flags'),
+    z.number().describe("A number in the capability's unit"),
+    text.describe('An enum value, such as "LOCKED" or "heat"'),
+  ]);
+}
+export const valueSchema = values(z.string());
 export type Value = z.infer<typeof valueSchema>;
 
 // ---- Conditions (shared by rules, routines and plans) ----
