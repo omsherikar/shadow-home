@@ -4,6 +4,7 @@ import type { CompiledRule } from '@shadow-home/twin';
 import { loadHome } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import { manualClock } from './clock.ts';
+import { withDeadline } from './compiler.ts';
 import { initialState } from './live-home.ts';
 import { ShadowHomeService } from './service.ts';
 import { memoryStore } from './store.ts';
@@ -173,6 +174,29 @@ describe('a house rule in plain words', () => {
     expect(heard).toEqual([says]);
     const added = (await store.loadState()).home.rules.find((x) => x.id === r.ruleId);
     expect(added).toMatchObject(says);
+  });
+
+  test('a compile past its deadline fails, and the rule its compilers agree on later is never added', async () => {
+    const store = memoryStore(initialState(home));
+    let finished = false;
+    const slow: Compile = async () => {
+      await new Promise((r) => setTimeout(r, 60));
+      finished = true;
+      return { rule: porch, unsupported: null };
+    };
+    const service = new ShadowHomeService({
+      store,
+      clock: manualClock(Date.parse('2027-01-15T17:45:00-06:00')),
+      secret: 'unit',
+      compileRule: withDeadline((input) => compileRule(input, [slow, slow, slow]), 10),
+    });
+    expect(await service.addHouseRule(says)).toMatchObject({
+      status: 'needs_compiler',
+      speech: { headline: "I couldn't work out that rule just now." },
+    });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(finished).toBe(true);
+    expect((await store.loadState()).home.rules).toHaveLength(home.rules.length);
   });
 
   test('without a compiler, words alone wait for one', async () => {
