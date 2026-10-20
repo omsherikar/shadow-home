@@ -26,7 +26,7 @@ jobs:
           nohup docker run -d --name firestore -p 8080:8080
           gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
           gcloud emulators firestore start --host-port=0.0.0.0:8080 > /tmp/firestore.log 2>&1 &
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -54,7 +54,7 @@ jobs:
       PLAYWRIGHT_CHROMIUM: '1'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: npm
