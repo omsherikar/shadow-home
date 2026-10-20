@@ -106,12 +106,21 @@ export interface Screen {
   controls: Control[];
 }
 
-/** What to draw for a tool result's structured content, or null if it isn't one of ours. */
-export function screenFor(content: unknown, names?: Names): Screen | null {
+/**
+ * What to draw for a tool result's structured content, or null if it isn't one of ours. The
+ * temperatures come from the same result's `_meta`.
+ */
+export function screenFor(
+  content: unknown,
+  names?: Names,
+  temps: Temperatures = NO_TEMPERATURES,
+): Screen | null {
   if (!content || typeof content !== 'object') return null;
-  if ('cannotUndo' in content) return undoScreen(content as Undo, names);
-  if ('applied' in content) return commitScreen(content as Commit, names);
-  if ('verdict' in content && 'diff' in content) return previewScreen(content as Preview, names);
+  if ('cannotUndo' in content) return undoScreen(content as Undo, names, temps);
+  if ('applied' in content) return commitScreen(content as Commit, names, temps);
+  if ('verdict' in content && 'diff' in content) {
+    return previewScreen(content as Preview, names, temps);
+  }
   return null;
 }
 
