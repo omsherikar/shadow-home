@@ -428,3 +428,13 @@ h2 {
   font-size: 19px;
   font-weight: 700;
 }
+
+.temps .end {
+  fill: var(--soft);
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.temps .end.held {
+  fill: var(--safe);
+}
