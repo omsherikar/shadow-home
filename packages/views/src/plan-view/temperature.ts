@@ -1,4 +1,26 @@
-import type { TemperatureRule, TemperatureTrace } from './types.ts';
+import { z } from 'zod';
+import {
+  TEMPERATURE_RULES_META_KEY,
+  TEMPERATURES_META_KEY,
+  type TemperatureRule,
+  type TemperatureTrace,
+} from './types.ts';
+
+const zones = z.record(z.string(), z.array(z.number()));
+const traceSchema = z.object({
+  start: z.string(),
+  end: z.string(),
+  stepMinutes: z.number().positive(),
+  outdoorC: z.array(z.number()),
+  zonesC: z.object({ nominal: zones, pessimistic: zones, optimistic: zones }),
+});
+const ruleSchema = z.object({
+  zone: z.string(),
+  zoneName: z.string(),
+  minC: z.number().nullable(),
+  maxC: z.number().nullable(),
+  heatedBy: z.array(z.string()),
+});
 
 /** What a tool result's `_meta` gives for drawing temperatures: traces by plan ID, and the rules. */
 export interface Temperatures {
@@ -7,3 +29,10 @@ export interface Temperatures {
 }
 
 export const NO_TEMPERATURES: Temperatures = { traces: {}, rules: {} };
+
+/** The temperatures in a result's `_meta`. Anything malformed is left out, and the screen falls back. */
+export function temperaturesFrom(meta: Record<string, unknown> | undefined): Temperatures {
+  const traces = z.record(z.string(), traceSchema).safeParse(meta?.[TEMPERATURES_META_KEY]);
+  const rules = z.record(z.string(), ruleSchema).safeParse(meta?.[TEMPERATURE_RULES_META_KEY]);
+  return { traces: traces.success ? traces.data : {}, rules: rules.success ? rules.data : {} };
+}
