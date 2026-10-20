@@ -25,12 +25,37 @@ export function compilerFromEnv(
     ...(provider === 'bedrock' && bedrockConfig ? { clientConfig: bedrockConfig } : {}),
   });
   return capped(
-    (input) => compileRule(input, compilers),
+    withDeadline((input) => compileRule(input, compilers)),
     hourlyLimit(perHour('RULE_COMPILES_PER_HOUR', 10)),
   );
 }
 
 type Compile = NonNullable<ServiceOptions['compileRule']>;
+
+/**
+ * How long a rule compile may take. The three compiles run at once and usually take 5 to 9 s
+ * (decision 79); one model call may take 20 s and retry once. The host waits 45 s for
+ * add_house_rule, so it always hears this answer.
+ */
+export const COMPILE_DEADLINE_MS = 40_000;
+
+/**
+ * A compiler that gives up after `ms`. The outcome is a failed compile, as when a model can't be
+ * reached, so the person hears "I couldn't work out that rule just now" and no rule is added. The
+ * compiles still running are left behind, and what they decide is never used.
+ */
+export function withDeadline(compile: Compile, ms = COMPILE_DEADLINE_MS): Compile {
+  return (input) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<CompileOutcome>((resolve) => {
+      timer = setTimeout(
+        () => resolve({ status: 'failed', problems: [`No answer within ${ms / 1000} s.`] }),
+        ms,
+      );
+    });
+    return Promise.race([compile(input), late]).finally(() => clearTimeout(timer));
+  };
+}
 
 /**
  * A compiler that refuses once the hour's allowance is used, without calling any model. The
