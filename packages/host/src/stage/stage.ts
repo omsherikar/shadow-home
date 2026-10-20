@@ -16,3 +16,12 @@ export function readLayout(storage: Pick<Storage, 'getItem'> | null): Layout {
     return 'split';
   }
 }
+
+/** Remember the choice; if storage refuses, it lasts until the page reloads. */
+export function writeLayout(storage: Pick<Storage, 'setItem'> | null, layout: Layout): void {
+  try {
+    storage?.setItem(LAYOUT_KEY, layout);
+  } catch {
+    // Nothing to do: the choice still holds for this visit.
+  }
+}
