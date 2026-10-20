@@ -539,4 +539,16 @@ describe('leaving, with nothing to change', () => {
     expect(a.safePart).toBeNull();
     expect(a.speech).toEqual({ headline: "You're all set: nothing needs changing before you go." });
   });
+
+  test("can't confirm a lock whose battery is low, and asks nothing: there is nothing to run", () => {
+    const lowLock = { state: { lockState: 'LOCKED' }, sensor: { batteryPercent: 9 } };
+    const a = assess(home, leaving({ ...ready, front_door_lock: lowLock }));
+    expect(a.check.verdict).toBe('UNPROVEN');
+    expect(a.tier.tier).toBe('T4');
+    expect(a.speech).toEqual({
+      headline: "Before you go: I can't confirm the house will be safe.",
+      reason: `Front door lock battery is at 9%, so I can't check "Front door locked when nobody's home".`,
+    });
+    expectSpeechWithinLimits(a.speech);
+  });
 });
