@@ -508,6 +508,20 @@ describe('a zone’s temperature against a house rule', () => {
     expect(s.temperature?.summary).toBe('Garage temperature. May drop below 4 °C at Fri 11:10 PM.');
   });
 
+  test('a safe plan that changes what heats the zone shows the curve holding, with nothing to mark', () => {
+    const p = preview('SAFE', 'T1', {
+      diff: [row('garage_thermostat', 'heatingSetpointC', 9, 5)],
+      horizon: { start: NOW, end: MIDNIGHT },
+    });
+    const s = previewScreen(p, names, { traces: { 'plan-1': holds }, rules });
+    expect(s.temperature).toMatchObject({
+      zone: 'Garage',
+      summary: 'Garage temperature. Stays above 4 °C.',
+    });
+    expect(s.temperature?.breaks).toBeUndefined();
+    expect(s.temperature?.curves.map((c) => c.holds)).toEqual([true]);
+  });
+
   test('the temperatures come from the result’s _meta, and anything malformed is left out', () => {
     expect(
       temperaturesFrom({
