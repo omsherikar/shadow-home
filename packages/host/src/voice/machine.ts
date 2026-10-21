@@ -15,6 +15,8 @@ export type Mode = 'off' | 'idle' | 'awake' | 'thinking' | 'speaking' | 'answer'
 
 export interface HandsFree {
   mode: Mode;
+  /** A turn is running; her voice may start and stop within it. */
+  turn: boolean;
   /** Counts each wait that has a timer, so a timer from an earlier one changes nothing. */
   epoch: number;
 }
@@ -24,7 +26,8 @@ export type HandsFreeEvent =
   | { type: 'off' }
   /** A final transcript from the microphone. */
   | { type: 'heard'; text: string }
-  | { type: 'timeout'; epoch: number };
+  | { type: 'timeout'; epoch: number }
+  | { type: 'turn-started' };
 
 export type Effect =
   | { kind: 'send'; text: string }
@@ -34,7 +37,7 @@ export type Effect =
 /** How long she waits for a request after "Alexa", or for an answer to her question. */
 export const LISTEN_MS = 8000;
 
-export const OFF: HandsFree = { mode: 'off', epoch: 0 };
+export const OFF: HandsFree = { mode: 'off', turn: false, epoch: 0 };
 
 /** Whether the microphone should be listening in this mode: never while she thinks or speaks. */
 export function hears(mode: Mode): boolean {
@@ -60,7 +63,7 @@ function waitFor(state: HandsFree, mode: 'awake' | 'answer', earcon: boolean): S
 /** Send what was asked: a turn starts. */
 function send(state: HandsFree, text: string): Step {
   return {
-    state: { ...state, mode: 'thinking' },
+    state: { ...state, mode: 'thinking', turn: true },
     effects: [{ kind: 'send', text }],
   };
 }
@@ -90,5 +93,7 @@ export function next(state: HandsFree, event: HandsFreeEvent): Step {
         return stay(state);
       }
       return stay({ ...state, mode: 'idle' });
+    case 'turn-started':
+      return stay({ ...state, mode: 'thinking', turn: true });
   }
 }
