@@ -288,6 +288,8 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
   await tap(page, v.getByRole('button', { name: /Do it with 4 fixes/ }));
   await expect(v.getByText('DONE', { exact: true })).toBeVisible();
   await expect(said(page)).toContainText('Done');
+  // The house leaves the shadow twin for the real house, as it now is.
+  await expect(playing(page)).toHaveAttribute('data-playing', 'no');
   await page.screenshot({ path: 'test-results/weekend-done.png' });
 
   await tap(page, v.getByRole('button', { name: /^Undo/ }));
