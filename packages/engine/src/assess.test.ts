@@ -612,4 +612,12 @@ describe("away mode without saying who's away", () => {
     expect(a.safePart).toBeNull();
     expect(a.offered).toBeNull();
   });
+
+  test('an empty presence schedule says no more than none', () => {
+    const p: Plan = { context: { now: NOW, presenceSchedule: [] }, actions: [{ mode: 'away' }] };
+    const a = assess(home, p, { requestedBy: 'om' });
+    expect(a.check.verdict).toBe('UNPROVEN');
+    expect(a.tier.tier).toBe('T5');
+    expect(a.speech).toEqual(WHO_IS_AWAY);
+  });
 });
