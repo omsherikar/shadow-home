@@ -513,3 +513,59 @@ export function showLength(runs: Run[], timing: ShowTiming): number {
     0,
   );
 }
+
+/** A new house rule's sample day: the hours it guards, on the device it guards. */
+export interface Guard {
+  device: string;
+  /** Minutes after midnight, home time; `to` before `from` runs past midnight. */
+  windows: { from: number; to: number }[];
+  /** The rule read back, as the server words it. */
+  words: string;
+}
+
+const addedSchema = z.object({ status: z.literal('added'), readBack: z.string().optional() });
+const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const hoursSchema = z.object({ from: clockTime, to: clockTime });
+/** Deeper than any compiled rule nests; a call that goes further shows nothing. */
+const RULE_DEPTH = 32;
+
+/**
+ * What a new house rule guards, from the compiled rule the call carried (the demo's rules come
+ * compiled): the device it names and the times of day it applies. Plain words, compiled on the
+ * server, carry no rule in the call, so there is nothing to show; nor is there for a result or a
+ * rule the house can't read.
+ */
+export function guardFrom(
+  tool: string,
+  args: Record<string, unknown>,
+  structured: Record<string, unknown> | undefined,
+): Guard | null {
+  if (tool !== 'add_house_rule') return null;
+  const added = addedSchema.safeParse(structured);
+  if (!added.success) return null;
+  const devices: string[] = [];
+  const windows: Guard['windows'] = [];
+  let tooDeep = false;
+  const walk = (v: unknown, depth: number) => {
+    if (depth > RULE_DEPTH) tooDeep = true;
+    else if (Array.isArray(v)) for (const x of v) walk(x, depth + 1);
+    else if (v && typeof v === 'object') {
+      const o = v as Record<string, unknown>;
+      if (typeof o.device === 'string') devices.push(o.device);
+      const hours = hoursSchema.safeParse(o.time);
+      if (hours.success) {
+        windows.push({ from: minuteOfDay(hours.data.from), to: minuteOfDay(hours.data.to) });
+      }
+      for (const x of Object.values(o)) walk(x, depth + 1);
+    }
+  };
+  walk(args.rule, 0);
+  const device = devices[0];
+  if (tooDeep || !device || windows.length === 0) return null;
+  return { device, windows, words: added.data.readBack ?? '' };
+}
+
+function minuteOfDay(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h ?? 0) * 60 + (m ?? 0);
+}
