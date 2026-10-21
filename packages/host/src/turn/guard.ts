@@ -194,6 +194,13 @@ export function filterFacts(input: {
 /** Why a sentence can't be said in its turn, or null when it can. */
 export function dropReason(sentence: string, facts: FilterFacts): Dropped | null {
   const said = lower(sentence).trim();
+  if (
+    /[*#`_|[\]{}<>]|https?:|www\./.test(said) ||
+    /^\s*(?:[-•]|\d+[.)])\s/.test(said) ||
+    /\p{Extended_Pictographic}/u.test(said)
+  ) {
+    return 'plain';
+  }
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time).
   let text = said.replace(/[.!?]+$/, '');
   for (const name of facts.names) text = text.split(name).join(' ');
