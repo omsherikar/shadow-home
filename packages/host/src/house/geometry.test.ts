@@ -106,4 +106,10 @@ describe('what a card covers', () => {
     expect(overlaps({ left: 120, top: 120, right: 180, bottom: 140 }, card)).toBe(true);
     expect(overlaps(card, { left: 0, top: 0, right: 500, bottom: 500 })).toBe(true);
   });
+
+  test('is not what lies beside it or only touches its edge', () => {
+    expect(overlaps({ left: 350, top: 120, right: 420, bottom: 140 }, card)).toBe(false);
+    expect(overlaps({ left: 120, top: 200, right: 180, bottom: 230 }, card)).toBe(false);
+    expect(overlaps({ left: 0, top: 0, right: 90, bottom: 90 }, card)).toBe(false);
+  });
 });
