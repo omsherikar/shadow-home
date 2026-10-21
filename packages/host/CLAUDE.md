@@ -5,8 +5,7 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 ## Rules for this package
 
 - Stay on Next.js 15.5: Amplify Hosting documents SSR support only for Next.js 12–15.
-- Route handlers use the Node runtime (`export const runtime = 'nodejs'`). No Edge runtime,
-  no streamed responses (Amplify doesn't support them).
+- Route handlers use the Node runtime (`export const runtime = 'nodejs'`). No Edge runtime.
 - app/api/turn/route.ts: one conversational turn. A Converse-shaped model loop (Claude Haiku-class)
   with the MCP client from @modelcontextprotocol/client, pointed at MCP_SERVER_URL. It runs on the
   Anthropic API (src/turn/anthropic.ts translates), or on Bedrock with MODEL_PROVIDER=bedrock.
