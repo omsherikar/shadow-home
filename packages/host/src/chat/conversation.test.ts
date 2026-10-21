@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ToolCall } from '../turn/types.ts';
-import { ask, detailsFor } from './conversation.ts';
+import { ask, detailsFor, type Message, withEvent } from './conversation.ts';
 
 const call = (name: string, structuredContent: Record<string, unknown>, isError = false) =>
   ({ name, arguments: {}, result: { content: [], structuredContent, isError } }) as ToolCall;
@@ -16,6 +16,15 @@ const preview = (extra: Record<string, unknown>) => ({
 });
 
 describe('an answer as it streams', () => {
+  const start = (): Message => {
+    const [, alexa] = ask([], 't1', "I'm away for the weekend", {
+      text: "I'm away for the weekend",
+      history: [],
+    });
+    if (!alexa) throw new Error('no answer');
+    return alexa;
+  };
+
   test('starts thinking, keeping the exact request to retry', () => {
     const request = {
       text: 'Yes.',
@@ -27,6 +36,18 @@ describe('an answer as it streams', () => {
       { id: 't1-you', who: 'you', text: 'Run the safer plan' },
       { id: 't1-alexa', who: 'alexa', text: '', phase: 'thinking', steps: [], request },
     ]);
+  });
+
+  test('words add up as they arrive; a step shows working, then done in place', () => {
+    let m = withEvent(start(), { type: 'text', delta: 'Let me ' }, 0);
+    m = withEvent(m, { type: 'text', delta: 'check.' }, 0);
+    expect(m).toMatchObject({ text: 'Let me check.', phase: 'talking' });
+    const step = { type: 'step', id: 's1', tool: 'preview_plan', label: 'Checking' } as const;
+    m = withEvent(m, { ...step, state: 'running' }, 0);
+    expect(m.phase).toBe('working');
+    expect(m.steps).toEqual([{ id: 's1', label: 'Checking', state: 'running' }]);
+    m = withEvent(m, { ...step, state: 'done' }, 0);
+    expect(m.steps).toEqual([{ id: 's1', label: 'Checking', state: 'done' }]);
   });
 });
 
