@@ -37,6 +37,51 @@
   pointer-events: auto;
 }
 
+.timeline-controls {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeline-play {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--glass-edge);
+  border-radius: 50%;
+  background: rgb(255 240 220 / 12%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.timeline-speeds {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+}
+
+.timeline-speeds button {
+  padding: 5px 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.timeline-speeds button[aria-pressed="true"] {
+  background: rgb(255 240 220 / 18%);
+  color: var(--ink);
+}
+
 .timeline-clock {
   flex: 0 0 auto;
   min-width: 96px;
