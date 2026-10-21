@@ -735,6 +735,15 @@ export class ShadowHomeService {
     return this.gather(result, (d) => d.rules);
   }
 
+  /**
+   * What the screen needs to replay every preview in a tool result, by plan ID: who the check took
+   * to be home, for the plan and its repair; and for the repair, what it changes over time and the
+   * rules it still breaks, from the check that gave its verdict.
+   */
+  replays(result: unknown): Record<string, Replay> {
+    return this.gather(result, (d) => d.replays);
+  }
+
   private gather<T>(result: unknown, pick: (d: Drawing) => Record<string, T>): Record<string, T> {
     const found: Record<string, T> = {};
     const visit = (value: unknown): void => {
