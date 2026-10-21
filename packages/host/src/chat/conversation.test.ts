@@ -301,4 +301,9 @@ describe('the conversation across a reload', () => {
     expect(kept.messages.at(-1)?.id).toBe(`m${KEEP_MESSAGES + 9}`);
     expect(kept.messages.every((m) => m.text.length <= 1200)).toBe(true);
   });
+
+  test('a request kept for a retry is never saved', () => {
+    const answer: Message = { ...done('a', 'Hi.'), request: { text: 'hi', history: [] } };
+    expect(toKeep([answer], []).messages[0]).not.toHaveProperty('request');
+  });
 });
