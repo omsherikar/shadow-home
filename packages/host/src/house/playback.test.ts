@@ -180,4 +180,33 @@ describe('runs from a tool result', () => {
       expect(runsFrom('preview_plan', result, screen), why).toEqual([]);
     }
   });
+
+  test('what the twin can’t establish shows at the sensor, when the plan first acts', () => {
+    const unproven = {
+      ...preview,
+      verdict: 'UNPROVEN',
+      violations: [],
+      unknowns: ['dishwasher_latch: battery 4% is under 15%'],
+      timeline: [
+        {
+          at: '2027-01-16T02:00:00-06:00',
+          source: 'plan',
+          device: 'dishwasher',
+          attr: 'onOff',
+          from: false,
+          to: true,
+        },
+      ],
+      repair: null,
+    };
+    const [run] = runsFrom('preview_plan', unproven, planOnly);
+    expect(run?.breaks).toEqual([
+      {
+        kind: 'unknown',
+        atMs: at('2027-01-16T02:00:00'),
+        text: 'dishwasher_latch: battery 4% is under 15%',
+        device: 'dishwasher_latch',
+      },
+    ]);
+  });
 });
