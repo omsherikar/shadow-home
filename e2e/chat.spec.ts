@@ -148,3 +148,18 @@ test('Stop drops what was already on its way: no plan drawn, no answer, nothing 
   await page.evaluate(() => (window as unknown as { releaseTurn(): void }).releaseTurn());
   await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
 });
+
+test('a follow-up answers her question: the safer plan runs, then Undo is offered', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Run the safer plan', exact: true }).click();
+  // The suggestion is gone once used; focus is back in the text box, not lost to the page.
+  await expect(composer(page)).toBeFocused();
+  await expect(conversation(page).locator('li.you').last()).toHaveText(/Run the safer plan/);
+  await expect(view(page).getByText('Done', { exact: true })).toBeVisible();
+  await expect(lastAnswer(page).locator('.said')).toHaveText('Done: 10 changes.');
+  await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeVisible();
+});
