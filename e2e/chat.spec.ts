@@ -1,4 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
+import { tap } from './tap.ts';
 
 const WEEKEND = "I'm away for the weekend, set the house to away.";
 const CHECKING = "Checking the plan on your home's twin";
@@ -309,4 +310,23 @@ test("a later turn sets the plan on screen aside, so its buttons can't act on it
   await expect(lastAnswer(page).locator('.said')).toHaveText(
     /^Blocked: that breaks 4 house rules\./,
   );
+});
+
+test('a tap after a reload adds its own line, with no key the chat already has', async ({
+  page,
+}) => {
+  const repeated: string[] = [];
+  page.on('console', (m) => {
+    if (/same key/i.test(m.text())) repeated.push(m.text());
+  });
+  for (let visit = 0; visit < 2; visit++) {
+    if (visit === 0) await page.goto('/');
+    else await page.reload();
+    await page.getByRole('button', { name: WEEKEND }).click();
+    await tap(page, view(page).getByRole('button', { name: /^Cancel/ }));
+    await expect(conversation(page).locator('li.you .said', { hasText: /^Cancel$/ })).toHaveCount(
+      visit + 1,
+    );
+  }
+  expect(repeated).toEqual([]);
 });
