@@ -158,4 +158,27 @@ describe('a turn over HTTP', () => {
     );
     expect(elsewhere.status).toBe(403);
   });
+
+  test('a client that goes away stops the turn: no tool call starts after it', async () => {
+    const left = new AbortController();
+    const ran: string[] = [];
+    let release: () => void = () => {};
+    const tools: Tools = {
+      ...fakeTools(ran),
+      // The home arrives only after the person has gone.
+      homeBrief: () =>
+        new Promise((r) => {
+          release = () => r(home);
+        }),
+    };
+    const response = await respondToTurn(
+      turnRequest({ text: WEEKEND, history: [] }, STREAM, left.signal),
+      scriptedRoute(tools),
+    );
+    left.abort();
+    release();
+    const text = await new Response(response.body).text();
+    expect(text).not.toContain('event:');
+    expect(ran).toEqual([]);
+  });
 });
