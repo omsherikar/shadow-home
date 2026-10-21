@@ -84,6 +84,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [problem, setProblem] = useState<string | null>(null);
   const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
+  // A later turn set the plan on screen aside: its buttons no longer answer anything.
+  const [stale, setStale] = useState(false);
   const [houseRequest, setHouseRequest] = useState<HouseRequest | null>(null);
   const [homeBroken, setHomeBroken] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -113,6 +115,16 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const restored = useRef(false);
   // Stop pressed while the demo plays: it ends after the line it's on.
   const demoStopped = useRef(false);
+
+  /**
+   * Set the plan on screen aside, or bring it back. Set aside, it stays readable but acts on
+   * nothing: the view is inert to the pointer and the keyboard, and any tool call it makes is
+   * refused before it reaches the server.
+   */
+  const setAside = useCallback((on: boolean) => {
+    setStale(on);
+    host.current?.setAside(on);
+  }, []);
 
   // During a turn the house waits for the screen: what it's asked to play goes to it once the plan
   // view has the result, so drawing the house never holds up the device.
@@ -299,29 +311,33 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   }, [client, note, remember, refreshHome, ask, voice]);
 
   /** Put a call's result on screen: its view, or the host's own card for the log and new rules. */
-  const show = useCallback(async (call: ToolCall) => {
-    if (call.resourceUri && host.current) {
-      setScreen({ kind: 'view' });
-      await host.current.show({
-        resourceUri: call.resourceUri,
-        arguments: call.arguments,
-        result: call.result as CallToolResult,
-      });
-      return true;
-    }
-    const sc = call.result.structuredContent as unknown;
-    // A failed call has nothing to draw; the answer says what went wrong.
-    if (!sc || call.result.isError) return false;
-    if (call.name === 'get_activity_log') {
-      setScreen({ kind: 'log', log: sc as LogState });
-      return true;
-    }
-    if (call.name === 'add_house_rule') {
-      setScreen({ kind: 'rule', rule: sc as RuleState });
-      return true;
-    }
-    return false;
-  }, []);
+  const show = useCallback(
+    async (call: ToolCall) => {
+      if (call.resourceUri && host.current) {
+        setScreen({ kind: 'view' });
+        setAside(false);
+        await host.current.show({
+          resourceUri: call.resourceUri,
+          arguments: call.arguments,
+          result: call.result as CallToolResult,
+        });
+        return true;
+      }
+      const sc = call.result.structuredContent as unknown;
+      // A failed call has nothing to draw; the answer says what went wrong.
+      if (!sc || call.result.isError) return false;
+      if (call.name === 'get_activity_log') {
+        setScreen({ kind: 'log', log: sc as LogState });
+        return true;
+      }
+      if (call.name === 'add_house_rule') {
+        setScreen({ kind: 'rule', rule: sc as RuleState });
+        return true;
+      }
+      return false;
+    },
+    [setAside],
+  );
 
   /**
    * One turn: the request goes to the assistant, and what comes back shows as it happens. Each
@@ -363,6 +379,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       // What she's doing, from the stream: a step running, then writing, until it ends.
       const running = new Set<string>();
       let wrote = false;
+      let drew = false;
       let answer: string | null = null;
       let failure: string | null = null;
       const take = async (call: ToolCall) => {
@@ -371,6 +388,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         calls.push(call);
         remember(call);
         if (await show(call)) {
+          drew = true;
           // The screen has it: the house may play what it was asked, then waits for the next.
           release();
           holding.current = true;
@@ -419,6 +437,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         screenNote.current = request.screen;
       }
       if (gone()) return;
+      // A plan still on screen from before a turn that led somewhere else is now set aside.
+      if (heard && !drew) setAside(true);
       if (answer !== null) {
         setFollowUps(followUpsFor(calls));
         note({ name: 'said', arguments: { text: answer } });
@@ -428,7 +448,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       if (answer !== null) await voice(answer);
       else if (failure) await voice(failure);
     },
-    [client, note, refreshHome, remember, show, ask, release, voice],
+    [client, note, refreshHome, remember, show, ask, release, voice, setAside],
   );
 
   /** A turn for words the person said, typed or tapped: `label` is what they tapped. */
@@ -498,10 +518,11 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     setMessages([]);
     setFollowUps([]);
     setNotice(null);
+    setAside(false);
     forgetConversation(browserStorage());
     ask({ play: null });
     setScreen({ kind: 'home' });
-  }, [ask, stop]);
+  }, [ask, stop, setAside]);
 
   /** The whole demo, start to finish: a fresh home, then every line in order. */
   const playDemo = useCallback(async () => {
@@ -546,7 +567,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
                 <button
                   type="button"
                   className="home-button"
-                  onClick={() => setScreen({ kind: 'home' })}
+                  onClick={() => {
+                    setScreen({ kind: 'home' });
+                    setAside(false);
+                  }}
                 >
                   Home screen
                 </button>
@@ -554,7 +578,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
               <span>{home ? homeClock(home.now) : ''}</span>
             </div>
             <div className="content">
-              <div ref={viewBox} className="view" hidden={screen.kind !== 'view'} />
+              <div
+                ref={viewBox}
+                className="view"
+                hidden={screen.kind !== 'view'}
+                inert={screen.kind === 'view' && stale}
+              />
+              {screen.kind === 'view' && stale ? (
+                <div className="stale-cover">
+                  <p>This plan was set aside. Ask again to act on it.</p>
+                </div>
+              ) : null}
               {screen.kind === 'home' ? <HomeCard home={home} problem={problem} /> : null}
               {screen.kind === 'log' ? <LogCard log={screen.log} names={names.current} /> : null}
               {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
