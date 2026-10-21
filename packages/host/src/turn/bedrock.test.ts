@@ -602,6 +602,16 @@ describe('while a blocked check is open, and after its fix is committed', () => 
       say: "Done: the weekend plan, with 4 fixes. The garage would freeze. That's Om's rule.",
     });
   });
+
+  test('a greeting after the fix is small talk: the check is closed', async () => {
+    expect(
+      await reply(
+        'Good morning! How are you?',
+        fixed,
+        "Good morning! I'm doing well, thank you for asking.",
+      ),
+    ).toEqual({ say: "Good morning! I'm doing well, thank you for asking." });
+  });
 });
 
 describe('the demo', () => {
