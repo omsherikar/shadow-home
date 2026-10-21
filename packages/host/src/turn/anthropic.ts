@@ -159,11 +159,19 @@ export function fromReply(reply: Anthropic.Message): ConverseCommandOutput {
     return [];
   });
   const { input_tokens: inputTokens, output_tokens: outputTokens } = reply.usage;
+  const cacheRead = reply.usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = reply.usage.cache_creation_input_tokens ?? 0;
   return {
     $metadata: {},
     output: { message: { role: 'assistant', content } },
     stopReason: (reply.stop_reason ?? 'end_turn') as ConverseCommandOutput['stopReason'],
-    usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens },
+    usage: {
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + cacheRead + cacheWrite + outputTokens,
+      ...(cacheRead ? { cacheReadInputTokens: cacheRead } : {}),
+      ...(cacheWrite ? { cacheWriteInputTokens: cacheWrite } : {}),
+    },
     metrics: { latencyMs: 0 },
   };
 }
