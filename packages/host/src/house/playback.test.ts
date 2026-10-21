@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { houseLayout as layout } from './layout.ts';
 import type { LiveDevice } from './looks.ts';
 import {
   carriesPreview,
@@ -8,6 +9,7 @@ import {
   presenceAt,
   REPLAY_META_KEY,
   type Run,
+  roomOf,
   runsFrom,
   schedule,
   TEMPERATURES_META_KEY,
@@ -333,5 +335,12 @@ describe('drawing it', () => {
     expect(temperatureColor(30)).toBe('#ec8a3c');
     const red = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
     expect(red(temperatureColor(20))).toBeGreaterThan(red(temperatureColor(4)));
+  });
+
+  test('a device is in the room the layout puts it in; the porch light in the nearest', () => {
+    expect(roomOf(layout, 'plug_garage_freezer')).toBe('garage');
+    expect(roomOf(layout, 'plug_coffee_maker')).toBe('kitchen');
+    expect(roomOf(layout, 'light_porch')).toBe('living_room');
+    expect(roomOf(layout, 'no_such_device')).toBeUndefined();
   });
 });
