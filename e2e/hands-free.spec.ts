@@ -298,3 +298,24 @@ test('while she listens for an answer, the text box still takes typing, and typi
   await expect.poll(() => sent).toEqual([WEEKEND, 'no']);
   await expect(pill(page)).toContainText('Listening for “Alexa”');
 });
+
+test('when the browser holds her voice back, she offers a tap to hear her, and opens no window', async ({
+  page,
+}) => {
+  await fakeMic(page);
+  await stubSpeech(page);
+  await page.addInitScript(() => {
+    HTMLMediaElement.prototype.play = () =>
+      Promise.reject(new DOMException('play() needs a tap', 'NotAllowedError'));
+  });
+  const sent = turnsSent(page);
+  await page.goto('/?speak=1');
+  await pill(page).click();
+  await hear(page, `Alexa, ${WEEKEND}`);
+  await expect(page.getByRole('button', { name: 'Tap to hear Alexa' })).toBeVisible();
+  // Her question wasn't heard, so nothing listens for its answer.
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await hear(page, 'yes');
+  await page.waitForTimeout(1000);
+  expect(sent).toEqual([WEEKEND]);
+});
