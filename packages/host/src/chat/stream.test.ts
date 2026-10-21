@@ -98,6 +98,22 @@ describe('reading the event stream', () => {
     ]);
   });
 
+  test('skips events it does not know, and data that is not what its type carries', () => {
+    const events = eventParser().push(
+      [
+        'event: progress\ndata: {"percent":50}\n',
+        'event: text\ndata: not json\n',
+        'event: step\ndata: {"id":"s1","tool":"preview_plan","label":"x","state":"thinking"}\n',
+        'event: call\ndata: {"call":{"name":"undo"}}\n',
+        'data: {"delta":"no type"}\n',
+        'event: text\n',
+        'event: text\ndata: {"delta":"kept"}\n',
+        '',
+      ].join('\n'),
+    );
+    expect(events).toEqual([{ type: 'text', delta: 'kept' }]);
+  });
+
   test('reads an error, with and without when to try again', () => {
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":120000}')).toEqual(
       { type: 'error', message: 'Busy', retryable: true, retryAfterMs: 120000 },
