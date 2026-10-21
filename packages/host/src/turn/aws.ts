@@ -25,10 +25,15 @@ const config = () => {
 let bedrock: BedrockRuntimeClient | undefined;
 let polly: PollyClient | undefined;
 
+/**
+ * Converse on Bedrock, unstreamed: it tells `onEvent` nothing, so a turn's words go out in one
+ * piece when it ends. `signal` aborts the request.
+ */
 export function bedrockConverse(): Converse {
   bedrock ??= new BedrockRuntimeClient(config());
   const client = bedrock;
-  return (input) => client.send(new ConverseCommand(input));
+  return (input, options) =>
+    client.send(new ConverseCommand(input), { abortSignal: options?.signal });
 }
 
 /** Speech as MP3 from Polly's neural engine. Throws if Polly isn't available to the account. */
