@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { Recognition, RecognitionResult } from '../device/voice.ts';
-import { continuousListener, RESUME_MS, restartDelay } from './listener.ts';
+import { continuousListener, GAVE_UP, GIVE_UP_AFTER, RESUME_MS, restartDelay } from './listener.ts';
 
 /** A stand-in for the browser's speech recognition, recording each session it starts. */
 function fakeRecognition() {
@@ -108,6 +108,22 @@ describe('the microphone, listening without a break', () => {
       ['network', false],
       ['network', false],
     ]);
+  });
+
+  test('when recognition keeps failing, it stops trying after a few times, and says so', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    for (let i = 0; i < GIVE_UP_AFTER; i++) {
+      vi.advanceTimersByTime(2000);
+      l.sessions.at(-1)?.fail('network');
+      vi.advanceTimersByTime(restartDelay(i + 1));
+    }
+    expect(l.sessions).toHaveLength(GIVE_UP_AFTER);
+    expect(l.errors.at(-1)).toEqual([GAVE_UP, true]);
+    // Nothing more, however long it waits.
+    vi.advanceTimersByTime(60_000);
+    expect(l.sessions).toHaveLength(GIVE_UP_AFTER);
   });
 
   test('a refused microphone stops it for good, and says so', () => {
