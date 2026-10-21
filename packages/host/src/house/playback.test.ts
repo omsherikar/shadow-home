@@ -118,4 +118,13 @@ describe('runs from a tool result', () => {
       { fromMs: at('2027-01-17T14:00:00'), toMs: Date.parse(SUN), who: { home: ['om'] } },
     ]);
   });
+
+  test('without who the check took to be home, nothing plays: the house doesn’t guess', () => {
+    expect(runsFrom('preview_plan', preview, {})).toEqual([]);
+    expect(
+      runsFrom('preview_plan', preview, {
+        [REPLAY_META_KEY]: { fixed: meta[REPLAY_META_KEY].fixed },
+      }),
+    ).toEqual([]);
+  });
 });
