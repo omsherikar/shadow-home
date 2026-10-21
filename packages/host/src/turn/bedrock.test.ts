@@ -193,7 +193,7 @@ describe('the Bedrock model', () => {
     }
   });
 
-  test("after a check, a greeting, thanks or a no is plain conversation, not a question about the check: its own words, as long as they don't talk about the check", async () => {
+  test('while a check is open, a greeting, thanks or a no is plain conversation held to the verdict lists, with pleasantries allowed whole', async () => {
     const history: Remembered[] = [
       {
         name: 'preview_plan',
@@ -213,6 +213,12 @@ describe('the Bedrock model', () => {
       return bedrockModel({ converse, tools, home }).next(input({ text: heard, history }));
     };
     expect(await reply('Good morning!', 'Good morning!')).toEqual({ say: 'Good morning!' });
+    expect(await reply('Good morning!', "Good morning! It's fine.")).toEqual({
+      say: 'Good morning!',
+    });
+    expect(await reply('Thanks.', "You're welcome. It's fine, nothing to worry about.")).toEqual({
+      say: "You're welcome.",
+    });
     expect(await reply('Thanks.', "You're welcome, the plan is safe.")).toEqual({
       say: NOT_SURE,
     });
