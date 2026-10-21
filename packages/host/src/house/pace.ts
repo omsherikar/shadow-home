@@ -41,25 +41,30 @@ export function drawsInSoftware(renderer: string): boolean {
   return /swiftshader|llvmpipe|softpipe|lavapipe|software|basic render/i.test(renderer);
 }
 
-const KEY = 'shadow-home/pace';
-let known: Pace | undefined;
-
-/** The pace found earlier in this session, or `unsure` before the first playback. */
-export function sessionPace(): Pace {
-  if (known) return known;
-  try {
-    const stored = sessionStorage.getItem(KEY);
-    known = stored === 'animate' || stored === 'still' ? stored : 'unsure';
-  } catch {
-    known = 'unsure';
-  }
-  return known;
+/**
+ * How far one playback has got in finding its pace: the gaps between its frames so far, and what
+ * they say. Every playback starts afresh, so one slow start (a shader being built, a recording
+ * starting) costs only that playback its sweep.
+ */
+export interface Judging {
+  gapsMs: number[];
+  pace: Pace;
 }
 
-/** Keeps the pace for the rest of the session, so every later playback starts with it. */
-export function rememberPace(pace: Exclude<Pace, 'unsure'>): void {
-  known = pace;
-  try {
-    sessionStorage.setItem(KEY, pace);
-  } catch {}
+export const NEW_PLAYBACK: Judging = { gapsMs: [], pace: 'unsure' };
+
+/** One more frame of a playback. Once its pace is found, later frames don't change it. */
+export function judge(judging: Judging, gapMs: number): Judging {
+  if (judging.pace !== 'unsure') return judging;
+  const gapsMs = [...judging.gapsMs, gapMs];
+  return { gapsMs, pace: paceFrom(gapsMs) };
+}
+
+/**
+ * Whether a playback shows where each run ends instead of sweeping: always with less motion asked
+ * for or on software WebGL (known from the renderer's name on every load), and otherwise when its
+ * own first frames were too slow.
+ */
+export function showsEnds(pace: Pace, still: boolean, software: boolean): boolean {
+  return still || software || pace === 'still';
 }

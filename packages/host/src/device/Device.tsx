@@ -10,7 +10,6 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
-import { sessionPace } from '../house/pace.ts';
 import {
   carriesPreview,
   guardFrom,
@@ -350,8 +349,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     for (const step of demo) {
       await say(step.line);
       // Out loud (the recorded demo), each plan finishes playing in the house before the next line.
-      const still =
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches || sessionPace() === 'still';
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const left = silent || still ? 0 : showEnds.current - performance.now();
       await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS + Math.max(0, left)));
     }

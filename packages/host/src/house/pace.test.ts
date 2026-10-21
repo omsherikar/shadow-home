@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { drawsInSoftware, paceFrom, SLOW_FRAME_MS } from './pace.ts';
+import {
+  drawsInSoftware,
+  type Judging,
+  judge,
+  NEW_PLAYBACK,
+  paceFrom,
+  SLOW_FRAME_MS,
+  showsEnds,
+} from './pace.ts';
 
 describe('the pace of a playback', () => {
   test('a GPU at the display’s refresh plays it, whatever its first frame cost', () => {
@@ -53,5 +61,36 @@ describe('a renderer that draws on the CPU', () => {
       drawsInSoftware('ANGLE (Intel, Intel(R) UHD Graphics 620 Direct3D11 vs_5_0 ps_5_0)'),
     ).toBe(false);
     expect(drawsInSoftware('WebKit WebGL')).toBe(false);
+  });
+});
+
+describe('each playback finds its own pace', () => {
+  const played = (gapsMs: number[]): Judging => gapsMs.reduce(judge, NEW_PLAYBACK);
+
+  test('a slow first playback, then a fast second one: the second sweeps', () => {
+    // A stall at the start (a shader built, a recording starting) costs the first its sweep.
+    const first = played([30, 900, 1200, 16, 17]);
+    expect(showsEnds(first.pace, false, false)).toBe(true);
+    // Nothing carries over: the next playback is judged on its own frames.
+    const second = played([30, 17, 16, 17]);
+    expect(showsEnds(second.pace, false, false)).toBe(false);
+  });
+
+  test('once found, later frames don’t change it', () => {
+    const fast = played([30, 17, 16, 17]);
+    expect(fast.pace).toBe('animate');
+    expect(judge(fast, 5000)).toBe(fast);
+    expect(played([30, 17, 16, 17, 5000, 5000, 5000]).pace).toBe('animate');
+  });
+
+  test('software WebGL always shows where each run ends, however fast its frames', () => {
+    for (const pace of ['unsure', 'animate', 'still'] as const) {
+      expect(showsEnds(pace, false, true)).toBe(true);
+    }
+    expect(showsEnds(played([16, 16, 16, 16]).pace, false, true)).toBe(true);
+  });
+
+  test('so does less motion asked for', () => {
+    expect(showsEnds('animate', true, false)).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { type CSSProperties, memo, useCallback, useEffect, useMemo, useRef, useS
 import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
 import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../house/looks.ts';
-import { type Pace, paceFrom, rememberPace, sessionPace } from '../house/pace.ts';
+import { judge, NEW_PLAYBACK, type Pace, showsEnds } from '../house/pace.ts';
 import {
   type Break,
   changesBy,
@@ -104,16 +104,11 @@ export const HousePanel = memo(function HousePanel(props: {
   const [begun, setBegun] = useState(false);
   const [only, setOnly] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
-  // Whether this machine draws the house fast enough to sweep through a plan; found in the first
-  // playback, then kept for the session. Read after mounting: the server has no session.
+  // Whether this playback's frames come fast enough to sweep through the plan: found from its
+  // first frames, afresh for every playback.
   const [pace, setPace] = useState<Pace>('unsure');
-  useEffect(() => setPace(sessionPace()), []);
-  // Software WebGL is too slow to sweep: no need to spend frames finding out.
-  useEffect(() => {
-    if (!lean || sessionPace() !== 'unsure') return;
-    rememberPace('still');
-    setPace('still');
-  }, [lean]);
+  const paceNow = useRef(pace);
+  paceNow.current = pace;
   const started = useRef(0);
   const homeNow = useRef(home);
   homeNow.current = home;
@@ -138,6 +133,7 @@ export const HousePanel = memo(function HousePanel(props: {
     });
     setOnly(undefined);
     setElapsed(0);
+    setPace('unsure');
     const begin = () => {
       started.current = performance.now();
       setBegun(true);
@@ -150,9 +146,9 @@ export const HousePanel = memo(function HousePanel(props: {
     return () => clearTimeout(id);
   }, [requestId]);
 
-  // With less motion, or where frames are too slow to sweep, each run is shown where it ends: the
-  // plan first, then whichever is chosen.
-  const calm = still || pace === 'still';
+  // With less motion, on software WebGL, or where this playback's frames are too slow to sweep,
+  // each run is shown where it ends: the plan first, then whichever is chosen.
+  const calm = showsEnds(pace, still, lean);
   const shown = calm ? (only ?? 0) : only;
   const m =
     show && begun
@@ -161,24 +157,21 @@ export const HousePanel = memo(function HousePanel(props: {
   // Waiting to begin isn't done: nothing about the show is on the house or its card yet.
   const done = show ? (m?.done ?? false) : true;
 
-  // The clock runs while a show plays, then stops. Until the pace is known, the gaps between the
-  // first frames decide it; a machine too slow to sweep goes straight to where the run ends.
+  // The clock runs while a show plays, then stops. Until this playback's pace is known, the gaps
+  // between its first frames decide it; too slow, and it goes straight to where the run ends.
   useEffect(() => {
     if (!show || !begun || calm || done) return;
-    let judging = sessionPace() === 'unsure';
-    const gaps: number[] = [];
+    let judging = paceNow.current === 'unsure' ? NEW_PLAYBACK : undefined;
     let last = performance.now();
     let frame = requestAnimationFrame(function tick() {
       const now = performance.now();
       if (judging) {
-        gaps.push(now - last);
+        judging = judge(judging, now - last);
         last = now;
-        const found = paceFrom(gaps);
-        if (found !== 'unsure') {
-          judging = false;
-          rememberPace(found);
-          setPace(found);
-          if (found === 'still') return;
+        if (judging.pace !== 'unsure') {
+          setPace(judging.pace);
+          if (judging.pace === 'still') return;
+          judging = undefined;
         }
       }
       setElapsed(now - started.current);
