@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
+import type { LiveDevice } from './looks.ts';
 import {
   carriesPreview,
+  changesBy,
+  devicesAt,
   playhead,
   REPLAY_META_KEY,
   type Run,
@@ -263,5 +266,31 @@ describe('the schedule', () => {
     expect(shared.segments.filter((seg) => seg.hold).map((seg) => seg.hold?.length)).toEqual([
       2, 1,
     ]);
+  });
+});
+
+describe('the house at a moment', () => {
+  const start: LiveDevice[] = [
+    { id: 'plug_garage_freezer', kind: 'plug', state: { onOff: true } },
+    { id: 'plug_coffee_maker', kind: 'plug', state: { onOff: false } },
+  ];
+  const [run] = runsFrom('preview_plan', preview, meta) as [Run];
+
+  test('devices start as they were and change at their times; mode changes touch no device', () => {
+    const state = (local: string) =>
+      Object.fromEntries(
+        devicesAt(start, run.changes, at(local)).map((d) => [d.id, d.state.onOff]),
+      );
+    expect(devicesAt(start, run.changes, run.startMs - 1)).toEqual(start);
+    expect(state('2027-01-15T17:45:00')).toEqual({
+      plug_garage_freezer: false,
+      plug_coffee_maker: false,
+    });
+    expect(state('2027-01-16T07:00:00')).toEqual({
+      plug_garage_freezer: false,
+      plug_coffee_maker: true,
+    });
+    expect(changesBy(run.changes, at('2027-01-16T06:59:00'))).toBe(2);
+    expect(changesBy(run.changes, at('2027-01-16T07:00:00'))).toBe(3);
   });
 });
