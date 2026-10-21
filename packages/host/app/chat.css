@@ -64,6 +64,28 @@
   cursor: pointer;
 }
 
+.hands-free[aria-pressed="true"] {
+  border-color: rgb(103 232 249 / 55%);
+  background: rgb(103 232 249 / 10%);
+}
+
+.hf-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+}
+
+.hands-free[aria-pressed="true"] .hf-dot {
+  background: var(--ring);
+}
+
+.hands-free.awake .hf-dot,
+.hands-free.answer .hf-dot {
+  animation: ring-pulse 1.1s ease-in-out infinite;
+}
+
 /* Only the messages give way when the chat is short; its head, suggestions and composer don't. */
 .chat > :not(.chat-scroll) {
   flex-shrink: 0;
@@ -563,6 +585,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hf-dot,
   .ring,
   .dots i,
   .step.running .step-mark,
