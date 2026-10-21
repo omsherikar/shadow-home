@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import { runTurn, TurnDeadlineError, within } from './run.ts';
+import { runTurn, TurnDeadlineError, TurnStoppedError, within } from './run.ts';
 import type { Model } from './types.ts';
 
 const never = () => new Promise<never>(() => {});
@@ -118,5 +118,19 @@ describe('a turn the person stops', () => {
     );
     expect([steps, ran]).toEqual([1, 1]);
     expect(turn).toMatchObject({ say: 'Done: TV off.', calls: [{ name: 'commit_plan' }] });
+  });
+
+  test('stopped before it starts: the model is never asked', async () => {
+    let steps = 0;
+    const model: Model = {
+      async next() {
+        steps += 1;
+        return { say: 'Hi.' };
+      },
+    };
+    await expect(
+      runTurn(model, committed, { text: 'hi', history: [] }, { signal: AbortSignal.abort() }),
+    ).rejects.toBeInstanceOf(TurnStoppedError);
+    expect(steps).toBe(0);
   });
 });
