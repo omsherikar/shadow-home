@@ -114,6 +114,21 @@ describe('reading the event stream', () => {
     expect(events).toEqual([{ type: 'text', delta: 'kept' }]);
   });
 
+  test("reads the turn route's own encoding: keep-alives first, a failed step, then the error", () => {
+    const sent = [
+      ': keep-alive\n\n',
+      `event: step\ndata: ${JSON.stringify({ id: 's1', tool: 'commit_plan', label: 'Making the change', state: 'running' })}\n\n`,
+      ': keep-alive\n\n',
+      `event: step\ndata: ${JSON.stringify({ id: 's1', tool: 'commit_plan', label: 'Making the change', state: 'failed' })}\n\n`,
+      `event: error\ndata: ${JSON.stringify({ message: 'Sorry, something went wrong.', retryable: true })}\n\n`,
+    ].join('');
+    expect(eventParser().push(sent)).toEqual([
+      { type: 'step', id: 's1', tool: 'commit_plan', label: 'Making the change', state: 'running' },
+      { type: 'step', id: 's1', tool: 'commit_plan', label: 'Making the change', state: 'failed' },
+      { type: 'error', message: 'Sorry, something went wrong.', retryable: true },
+    ]);
+  });
+
   test('reads an error, with and without when to try again', () => {
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":120000}')).toEqual(
       { type: 'error', message: 'Busy', retryable: true, retryAfterMs: 120000 },
