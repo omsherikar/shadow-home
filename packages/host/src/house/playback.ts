@@ -4,7 +4,7 @@
  * trace); the house never simulates anything itself.
  */
 import { z } from 'zod';
-import { type LiveDevice, type Value, valueSchema } from './looks.ts';
+import { type LiveDevice, mix, type Value, valueSchema } from './looks.ts';
 
 export interface Change {
   atMs: number;
@@ -385,4 +385,22 @@ export function temperaturesAt(trace: Trace, atMs: number): Temperatures {
     bandC[zone] = { low: Math.min(...runs), high: Math.max(...runs) };
   }
   return { outdoorC: at(trace.outdoorC), zonesC, bandC };
+}
+
+/** A room's tint for its temperature: icy blue near freezing, through neutral, to warm orange. */
+export function temperatureColor(c: number): string {
+  const stops: [number, string][] = [
+    [0, '#dff1ff'],
+    [4, '#8cc2ee'],
+    [11, '#c9c2b8'],
+    [17, '#f0b878'],
+    [22, '#ec8a3c'],
+  ];
+  if (c <= (stops[0]?.[0] ?? 0)) return stops[0]?.[1] ?? '#ffffff';
+  for (let i = 1; i < stops.length; i++) {
+    const [c1, hex1] = stops[i] as [number, string];
+    const [c0, hex0] = stops[i - 1] as [number, string];
+    if (c <= c1) return mix(hex0, hex1, (c - c0) / (c1 - c0));
+  }
+  return stops.at(-1)?.[1] ?? '#ffffff';
 }
