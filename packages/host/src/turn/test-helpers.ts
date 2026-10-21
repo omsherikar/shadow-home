@@ -88,3 +88,16 @@ export function fakeApi(...answers: Anthropic.Message[]) {
   };
   return { api, sent, signals };
 }
+
+/** A streamed turn's events in order, read to its end, keep-alive comments left out. */
+export async function readEvents(response: Response): Promise<{ event: string; data: unknown }[]> {
+  const text = await response.text();
+  return text
+    .split('\n\n')
+    .filter((chunk) => chunk !== '' && !chunk.startsWith(':'))
+    .map((chunk) => {
+      const event = /^event: (.*)$/m.exec(chunk)?.[1] ?? '';
+      const data = /^data: (.*)$/m.exec(chunk)?.[1] ?? 'null';
+      return { event, data: JSON.parse(data) as unknown };
+    });
+}
