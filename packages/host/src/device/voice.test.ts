@@ -184,4 +184,17 @@ describe('a clip that never finishes properly still counts as finished', () => {
     await flush();
     expect(result).toBe(true);
   });
+
+  test('a clip that never comes gives way after 12 s, and the answer still ends', async () => {
+    const { speak, CLIP_WAIT_MS } = await voiceWithAudio(true);
+    let result: boolean | undefined;
+    void speak('Shall I fix it?').then((r) => {
+      result = r;
+    });
+    await vi.advanceTimersByTimeAsync(CLIP_WAIT_MS - 1);
+    expect(result).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    // Here the browser has no voice of its own either: over, and not heard.
+    expect(result).toBe(false);
+  });
 });
