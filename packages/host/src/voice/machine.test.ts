@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { type Effect, type HandsFree, type HandsFreeEvent, hears, next, OFF } from './machine.ts';
+import {
+  type Effect,
+  type HandsFree,
+  type HandsFreeEvent,
+  hears,
+  LISTEN_MS,
+  next,
+  OFF,
+} from './machine.ts';
 
 /** Runs events from a state, gathering every effect along the way. */
 function run(events: HandsFreeEvent[], from: HandsFree = OFF) {
@@ -30,6 +38,18 @@ describe('waking', () => {
     const { state, effects } = run([on, heard("Alexa, I'm away for the weekend")]);
     expect(sends(effects)).toEqual(["I'm away for the weekend"]);
     expect(state.mode).toBe('thinking');
+  });
+
+  test('"Alexa" alone plays the earcon and listens for the request, which needs no wake word', () => {
+    const woke = run([on, heard('Alexa')]);
+    expect(woke.state.mode).toBe('awake');
+    expect(woke.effects).toEqual([
+      { kind: 'earcon' },
+      { kind: 'timer', epoch: woke.state.epoch, ms: LISTEN_MS },
+    ]);
+    const asked = run([heard('what did you change while I was away')], woke.state);
+    expect(sends(asked.effects)).toEqual(['what did you change while I was away']);
+    expect(asked.state.mode).toBe('thinking');
   });
 
   test('speech without the wake word is ignored and never sent', () => {
