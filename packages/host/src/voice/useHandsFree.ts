@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { recognitionCtor } from '../device/voice.ts';
+import { recognitionCtor, speech } from '../device/voice.ts';
 import { earcon, readyEarcon } from './earcon.ts';
 import { continuousListener, GAVE_UP, type Listener } from './listener.ts';
 import { type HandsFree, type HandsFreeEvent, hears, next, OFF } from './machine.ts';
@@ -113,6 +113,9 @@ export function useHandsFree(options: {
     else listener.current?.pause();
     if (state.mode !== 'awake' && state.mode !== 'answer') setHeard('');
   }, [state, visible]);
+
+  // Her voice, as the speech queue reports it: nothing is heard while she speaks.
+  useEffect(() => speech.watch((on) => dispatch({ type: 'speaking', on })), [dispatch]);
 
   const turnOn = useCallback(() => {
     if (!recognitionCtor()) {
