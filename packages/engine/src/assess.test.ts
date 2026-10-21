@@ -639,4 +639,30 @@ describe("away mode without saying who's away", () => {
     expect(a.safePart).toBeNull();
     expect(a.offered).toBeNull();
   });
+
+  test('a plan that breaks a rule stays UNSAFE and lists the unknown; with no fix it can confirm, it asks who', () => {
+    // The weekend plan as a model might draft it from "set the house to away", with no schedule.
+    const a = assess(home, plan(bench('P001').actions), { requestedBy: 'om' });
+    expect(a.check.verdict).toBe('UNSAFE');
+    expect(a.tier.tier).toBe('T3');
+    expect(a.check.reasons.flatMap((r) => (r.kind === 'violation' ? [r.rule] : []))).toEqual([
+      'R1',
+      'R2',
+    ]);
+    expect(a.check.reasons.at(-1)).toEqual({ kind: 'unknown', message: AWAY_UNSTATED });
+    expect(a.check.unknowns).toEqual([AWAY_UNSTATED]);
+    expect(a.speech).toEqual({
+      headline: 'Blocked: that breaks 2 house rules.',
+      reason: "Never turn off the garage freezer. That's Om's rule.",
+      ask: "Who's away, and until when?",
+    });
+    expectSpeechWithinLimits(a.speech);
+    // The fixes still leave who's away unknown, so the repair is UNPROVEN, refused too, and isn't
+    // offered.
+    expect(a.repaired?.check.verdict).toBe('UNPROVEN');
+    expect(a.repaired?.tier.tier).toBe('T5');
+    expect(a.repaired?.speech).toEqual(WHO_IS_AWAY);
+    expect(a.safePart).toBeNull();
+    expect(a.offered).toBeNull();
+  });
 });
