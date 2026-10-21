@@ -38,6 +38,24 @@ describe('spoken audio', () => {
     expect(spoken).toEqual(['Done.', 'Done!']);
   });
 
+  test('a reply said sentence by sentence counts every sentence, and a sentence said before is free', async () => {
+    const { speak, spoken, charged } = setup();
+    const reply = [
+      'Blocked: that breaks 4 house rules.',
+      "No coffee maker running when nobody's home.",
+      "That's Om's rule.",
+      'Do it with 4 fixes instead?',
+    ];
+    for (const sentence of reply) await speak('a', sentence);
+    expect(spoken).toEqual(reply);
+    expect(charged).toEqual(reply.map((s) => s.length));
+    // The whole reply's characters, less only the spaces between its sentences.
+    expect(charged.reduce((a, b) => a + b, 0)).toBe(reply.join(' ').length - (reply.length - 1));
+    // The same rule in another reply comes from the cache.
+    await speak('a', "That's Om's rule.");
+    expect(charged).toHaveLength(reply.length);
+  });
+
   test('a refusal by the caps is passed on; nothing is spoken or kept', async () => {
     const { speak, spoken } = setup(undefined, 'visitor');
     expect(await speak('a', 'Done.')).toEqual({ refused: 'visitor' });
