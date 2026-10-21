@@ -307,4 +307,25 @@ describe('a turn as it streams', () => {
       [],
     );
   });
+
+  test('stopping early cancels the download', async () => {
+    let cancelled = false;
+    const endless = (async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        pull(c) {
+          c.enqueue(encoder.encode('event: text\ndata: {"delta":"more "}\n\n'));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      return new Response(stream, { headers: { 'content-type': 'text/event-stream' } });
+    }) as unknown as typeof fetch;
+    for await (const e of streamTurn(REQUEST, { fetch: endless })) {
+      expect(e.type).toBe('text');
+      break;
+    }
+    expect(cancelled).toBe(true);
+  });
 });
