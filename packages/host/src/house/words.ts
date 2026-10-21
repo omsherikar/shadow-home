@@ -39,3 +39,17 @@ export function changeWords(c: Change, device: LiveDevice | undefined): string {
       return `${name}: ${c.attr} ${String(c.to)}`;
   }
 }
+
+/** One step of the plan in words: a device, or the lights one action turns off together. */
+export function stepWords(changes: Change[], devices: LiveDevice[] | null): string {
+  const of = (c: Change) => devices?.find((d) => d.id === c.device);
+  const first = changes[0];
+  if (!first) return '';
+  if (changes.length === 1) return changeWords(first, of(first));
+  const lights = changes.every((c) => of(c)?.kind === 'light');
+  if (first.attr === 'onOff') {
+    const what = lights ? 'lights' : 'devices';
+    return `${changes.length} ${what} ${first.to === true ? 'on' : 'off'}`;
+  }
+  return changes.map((c) => changeWords(c, of(c))).join(', ');
+}
