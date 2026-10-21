@@ -756,6 +756,9 @@ describe('acting out the plan', () => {
     ],
   };
   const [run] = runsFrom('preview_plan', weekend, meta) as [Run];
+  const timing = { sweepMs: 8000, holdMs: 1000, stepMs: 400 };
+  const s = schedule(run, timing);
+  const still = s.segments.filter((seg) => seg.fromMs === seg.toMs);
 
   test('each of the plan’s changes is a step; the lights one action turns off go together', () => {
     expect(run.steps.map((st) => st.changes.map((c) => c.device))).toEqual([
@@ -766,5 +769,29 @@ describe('acting out the plan', () => {
       ['light_living', 'light_kitchen'],
       ['front_door_lock'],
     ]);
+  });
+
+  test('before the clock moves, the steps play one at a time, with a stop after each one that breaks a rule', () => {
+    const kinds = still.map((seg) =>
+      seg.hold
+        ? `stop ${seg.hold.map((b) => b.rule).join('+')}`
+        : seg.step
+          ? `step ${seg.step.changes[0]?.device}`
+          : 'settle',
+    );
+    expect(kinds).toEqual([
+      'settle',
+      'step thermostat_main',
+      'step plug_garage_freezer',
+      'stop R1',
+      'step plug_aquarium',
+      'stop R2',
+      'step plug_tv',
+      'step light_living',
+      'step front_door_lock',
+      'stop R3',
+    ]);
+    // All at the plan's own moment, before the clock moves on.
+    expect(still.slice(0, -1).every((seg) => seg.fromMs === run.startMs)).toBe(true);
   });
 });
