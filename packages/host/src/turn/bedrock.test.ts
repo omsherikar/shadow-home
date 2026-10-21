@@ -480,6 +480,35 @@ describe("the live session's turns", () => {
     expect(await reply({ text: 'Yes.', history }, words)).toEqual([{ say: words }]);
   });
 
+  test('a T1 undo the model answers instead of committing is committed for it, once', async () => {
+    const undone = {
+      status: 'preview',
+      speech: { headline: 'Safe: home mode to home.', reason: 'This affects Maya and Sam.' },
+      preview: {
+        ...away,
+        kind: 'undo',
+        planId: 'u1',
+        speech: { headline: 'Safe: home mode to home.' },
+      },
+    };
+    const { converse } = fakeConverse(text("I've put it back."), text("I've put it back."));
+    const model = bedrockModel({ converse, tools, home: house });
+    expect(
+      await model.next(input({ text: 'Undo that.', thisTurn: [call('undo', undone)] })),
+    ).toEqual({
+      call: { name: 'commit_plan', arguments: { planId: 'u1' } },
+    });
+    // A commit that failed (an error, no speech) isn't tried again: the undo's words stand.
+    const failed: ToolCall = {
+      name: 'commit_plan',
+      arguments: { planId: 'u1' },
+      result: { content: [{ type: 'text', text: 'stale' }], isError: true },
+    };
+    expect(
+      await model.next(input({ text: 'Undo that.', thisTurn: [call('undo', undone), failed] })),
+    ).toEqual({ say: 'Safe: home mode to home. This affects Maya and Sam.' });
+  });
+
   test('"Undo that.": a T1 undo is committed like any T1 preview, and a T2 undo says its question', async () => {
     const undone = {
       status: 'preview',
