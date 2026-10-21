@@ -58,14 +58,15 @@ export function hourlyLimit(max: number, now: () => number = Date.now): () => bo
  * An hourly budget for each visitor (any key, such as an address), so one visitor can't spend
  * the hour for everyone. Made-up keys can't grow memory without bound: a visitor idle for an hour
  * is forgotten (their budget is whole again by then), and past `maxVisitors` the longest idle goes
- * first. `fits` says whether a visitor's amount would be spent, without spending it; `visitors`
- * says how many are kept.
+ * first. `fits` says whether a visitor's amount would be spent, without spending it, and
+ * `retryAfter` in how many milliseconds it would be; `visitors` says how many are kept.
  */
 export function perVisitor(
   max: number,
   options: { maxVisitors?: number; now?: () => number } = {},
 ): ((visitor: string, amount?: number) => boolean) & {
   fits(visitor: string, amount?: number): boolean;
+  retryAfter(visitor: string, amount?: number): number;
   readonly visitors: number;
 } {
   const now = options.now ?? Date.now;
@@ -92,9 +93,16 @@ export function perVisitor(
   // Someone not kept has a whole budget.
   const fits = (visitor: string, amount = 1) =>
     kept.get(visitor)?.spend.fits(amount) ?? (amount > 0 && amount <= max);
-  return Object.defineProperty(Object.assign(spend, { fits }), 'visitors', {
+  const retryAfter = (visitor: string, amount = 1) =>
+    kept.get(visitor)?.spend.retryAfter(amount) ??
+    (amount > 0 && amount <= max ? 0 : Number.POSITIVE_INFINITY);
+  return Object.defineProperty(Object.assign(spend, { fits, retryAfter }), 'visitors', {
     get: () => kept.size,
-  }) as typeof spend & { fits: typeof fits; readonly visitors: number };
+  }) as typeof spend & {
+    fits: typeof fits;
+    retryAfter: typeof retryAfter;
+    readonly visitors: number;
+  };
 }
 
 /**
