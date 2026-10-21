@@ -12,6 +12,7 @@ import {
   schedule,
   TEMPERATURES_META_KEY,
   type Trace,
+  temperaturesAt,
 } from './playback.ts';
 
 const at = (local: string) => Date.parse(`${local}-06:00`);
@@ -306,5 +307,20 @@ describe('the house at a moment', () => {
     const some = [{ fromMs: 0, toMs: Number.POSITIVE_INFINITY, who: { home: ['sam'] } }];
     expect(presenceAt(now, some, 1)).toEqual({ om: 'away', maya: 'away', sam: 'home' });
     expect(presenceAt(now, run.presence, Date.parse(SUN))).toEqual(now);
+  });
+
+  test('temperatures follow the trace between samples, with the three runs’ spread', () => {
+    const start15 = Date.parse(FRI);
+    expect(temperaturesAt(trace, start15)).toEqual({
+      outdoorC: 2,
+      zonesC: { house: 20, garage: 9 },
+      bandC: { house: { low: 20, high: 20 }, garage: { low: 9, high: 9 } },
+    });
+    const half = temperaturesAt(trace, start15 + 7.5 * 60_000);
+    expect(half.zonesC.garage).toBeCloseTo(7.5, 6);
+    expect(half.bandC.garage).toEqual({ low: 7, high: 8 });
+    // The last sample is at the end, however long the last gap is.
+    expect(temperaturesAt(trace, Date.parse(SUN)).zonesC.garage).toBe(3);
+    expect(temperaturesAt(trace, Date.parse(SUN) + 1).zonesC.garage).toBe(3);
   });
 });
