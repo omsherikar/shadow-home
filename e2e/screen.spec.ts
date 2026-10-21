@@ -113,7 +113,7 @@ test('without WebGL the house steps aside and the device works as before', async
   await expect(page.getByRole('button', { name: /demo controls/i })).toHaveCount(0);
   await expect(page.getByLabel('Say something to Alexa')).toBeVisible();
   await page.getByRole('button', { name: WEEKEND }).click();
-  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/no-webgl.png' });
 });
 
@@ -134,7 +134,7 @@ for (const [what, url] of [
     await expect(page.getByRole('region', { name: 'The house' })).toHaveCount(0);
     expect(blocked).toBeGreaterThan(0);
     await page.getByRole('button', { name: WEEKEND }).click();
-    await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+    await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   });
 }
 
@@ -212,7 +212,7 @@ test('where frames come slowly, the verdict comes first and the house shows wher
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.getByRole('button', { name: WEEKEND }).click();
   // The verdict is on screen before the house has drawn a frame of the plan.
-  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   const house = page.getByRole('region', { name: 'The house' });
   await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
   await expect(house.locator('.run-chip')).toHaveCount(0);
@@ -254,7 +254,7 @@ test('on software WebGL the house shows where each run ends, however fast its fr
   await openControls(page);
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.getByRole('button', { name: WEEKEND }).click();
-  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   const house = page.getByRole('region', { name: 'The house' });
   // A fifth of a second of frames at a GPU's pace, and it's on the plan's end, with either run to
   // choose. Swept, it would still be on Friday evening.
@@ -401,7 +401,7 @@ test('a home state the page doesn’t expect hides the house, and the device car
   await expect(house.locator('canvas')).toBeVisible();
   await openControls(page);
   await page.getByRole('button', { name: WEEKEND }).click();
-  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   await expect(house).toHaveCount(0);
   // The device keeps the last good home.
   await page.getByRole('button', { name: 'Home screen' }).click();
@@ -433,7 +433,7 @@ test('a replay the house can’t read leaves it showing the home, and the turn c
   await page.getByRole('button', { name: WEEKEND }).click();
   // The plan view and the answer are as they always are.
   const v = view(page);
-  await expect(v.getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Not safe', { exact: true })).toBeVisible();
   await expect(v.getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
   await expect(said(page)).toHaveText(/^Blocked: that breaks 4 house rules\./);
   expect(broken).toBeGreaterThan(0);
@@ -452,7 +452,7 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
   await page.getByRole('button', { name: WEEKEND }).click();
 
   const v = view(page);
-  await expect(v.getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Not safe', { exact: true })).toBeVisible();
   await expect(
     v.getByRole('heading', { name: 'Blocked: that breaks 4 house rules.' }),
   ).toBeVisible();
@@ -477,7 +477,7 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
 
   // A tap is the yes: the repair commits, and the screen offers to undo it.
   await tap(page, v.getByRole('button', { name: /Do it with 4 fixes/ }));
-  await expect(v.getByText('DONE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Done', { exact: true })).toBeVisible();
   await expect(said(page)).toContainText('Done');
   // The house leaves the shadow twin for the real house, as it now is.
   await expect(playing(page)).toHaveAttribute('data-playing', 'no');
@@ -497,7 +497,7 @@ test('a preview_plan call shows the diff and the garage temperature on the scree
 
   // The tap is that yes: the view approves with the token only the screen has, then commits.
   await tap(page, yes);
-  await expect(v.getByText('DONE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Done', { exact: true })).toBeVisible();
   await expect(v.getByText('Front door lock unlocked', { exact: true })).toBeVisible();
 });
 
@@ -507,7 +507,7 @@ test('saying it does what tapping does: a yes by voice commits what the screen a
   await page.goto('/');
   await say(page, DISHWASHER);
   const v = view(page);
-  await expect(v.getByText('UNPROVEN', { exact: true })).toBeVisible();
+  await expect(v.getByText("Can't confirm", { exact: true })).toBeVisible();
   await expect(v.getByRole('button', { name: /Run it anyway\s*Say “yes”/ })).toBeVisible();
   // No temperature rule is involved, so the timeline is drawn instead.
   await expect(v.getByRole('img', { name: 'Timeline' })).toBeVisible();
@@ -515,7 +515,7 @@ test('saying it does what tapping does: a yes by voice commits what the screen a
   await page.screenshot({ path: 'test-results/dishwasher-preview.png' });
 
   await say(page, 'yes');
-  await expect(v.getByText('DONE', { exact: true })).toBeVisible();
+  await expect(v.getByText('Done', { exact: true })).toBeVisible();
   // Held for 2 AM, so it shows as a later change that can still be undone.
   await expect(v.getByRole('heading', { name: 'Scheduled: Dishwasher on.' })).toBeVisible();
   await expect(v.locator('.chip.later', { hasText: 'Dishwasher on' })).toBeVisible();
