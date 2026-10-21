@@ -338,10 +338,7 @@ function brief(h: Remembered): string {
 }
 
 export function systemPrompt(home: HomeBrief, serverInstructions?: string): string {
-  const devices = home.devices
-    .map((d) => `- ${d.id}: ${d.name} (${d.room}); ${Object.keys(d.state).join(', ') || 'sensor'}`)
-    .join('\n');
-  const routines = home.routines.map((r) => `- ${r.id}: ${r.name} at ${r.at}`).join('\n');
+  const { devices, routines } = homeLines(home);
   const offset = /([+-]\d{2}:\d{2})$/.exec(home.now)?.[1] ?? 'Z';
   return `You are Alexa on an Echo Show in the person's home. You change the home only through the Shadow Home tools, and every change is checked before it runs.
 
@@ -362,6 +359,18 @@ Routines:
 ${routines}
 
 ${serverInstructions ?? ''}`.trim();
+}
+
+/** The home's devices and routines as the model is told them. */
+function homeLines(home: HomeBrief): { devices: string; routines: string } {
+  return {
+    devices: home.devices
+      .map(
+        (d) => `- ${d.id}: ${d.name} (${d.room}); ${Object.keys(d.state).join(', ') || 'sensor'}`,
+      )
+      .join('\n'),
+    routines: home.routines.map((r) => `- ${r.id}: ${r.name} at ${r.at}`).join('\n'),
+  };
 }
 
 /** What changes from turn to turn: the home's time and mode, after the cached instructions. */
