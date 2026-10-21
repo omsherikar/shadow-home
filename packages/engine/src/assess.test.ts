@@ -700,4 +700,11 @@ describe("away mode without saying who's away", () => {
     expect(a.repaired?.detail.repairs).toHaveLength(4);
     expect(a.speech.ask).toBe('Do it with 4 fixes instead?');
   });
+
+  test('plans that set home mode, or no mode at all, are checked as before', () => {
+    const toHome = assess(home, plan([{ mode: 'home' }]), { requestedBy: 'om' });
+    expect(toHome.check.verdict).toBe('SAFE');
+    expect(toHome.check.unknowns).toEqual([]);
+    expect(check(home, bench('P003')).unknowns).not.toContain(AWAY_UNSTATED);
+  });
 });
