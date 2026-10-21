@@ -21,6 +21,11 @@ export class TurnDeadlineError extends Error {
   override name = 'TurnDeadlineError';
 }
 
+/** The person stopped the turn (the client went away): nothing more is started. */
+export class TurnStoppedError extends Error {
+  override name = 'TurnStoppedError';
+}
+
 /**
  * One conversational turn: the model picks tool calls until it has something to say. The model's
  * steps share the turn's deadline (ms since the epoch); a step still thinking when it passes is
