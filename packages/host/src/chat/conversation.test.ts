@@ -4,6 +4,7 @@ import {
   ask,
   clockAt,
   detailsFor,
+  followUpsFor,
   type Message,
   problemWords,
   stopped,
@@ -134,6 +135,16 @@ describe('the words for a problem', () => {
     expect(
       problemWords({ message: 'Something went wrong on my side. Try again.', retryable: true }),
     ).toBe('Something went wrong on my side. Try again.');
+  });
+});
+
+describe('what to offer next', () => {
+  test('a blocked plan with a safe fix: the safer plan, why, or not', () => {
+    expect(followUpsFor([WEEKEND])).toEqual([
+      { label: 'Run the safer plan', says: 'Yes.' },
+      { label: 'Why?', says: 'Why?' },
+      { label: "Don't run", says: 'No.' },
+    ]);
   });
 });
 
