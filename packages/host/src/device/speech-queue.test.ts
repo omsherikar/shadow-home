@@ -285,4 +285,15 @@ describe('stopping', () => {
     await v.drain();
     expect(v.played).toHaveLength(1);
   });
+
+  test('a clip still on its way is never played', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.finish('Okay, nothing changed.');
+    await settle();
+    expect(v.asked).toHaveLength(1);
+    speech.clear();
+    await v.drain();
+    expect(v.played).toEqual([]);
+  });
 });
