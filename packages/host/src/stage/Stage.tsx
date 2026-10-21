@@ -53,7 +53,7 @@ export function Stage(props: StageProps) {
   const [phoneHouse, setPhoneHouse] = useState(false);
   const [open, setOpen] = useState(false);
   const fitBox = useRef<HTMLDivElement>(null);
-  const scale = useFit(fitBox);
+  const fit = useFit(fitBox);
   const still = useMedia('(prefers-reduced-motion: reduce)');
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
@@ -127,8 +127,12 @@ export function Stage(props: StageProps) {
           </button>
         ) : null}
         {narrow ? props.strip(show) : null}
-        <div ref={fitBox} className={opened ? 'device-fit opened' : 'device-fit'}>
-          <div className="device-scaled" style={{ '--device-scale': scale } as CSSProperties}>
+        <div
+          ref={fitBox}
+          className={opened ? 'device-fit opened' : 'device-fit'}
+          data-turned={fit.turned ? '' : undefined}
+        >
+          <div className="device-scaled" style={{ '--device-scale': fit.scale } as CSSProperties}>
             {props.device}
           </div>
           {opened ? (
@@ -177,9 +181,12 @@ export function useMedia(query: string): boolean {
   return matches;
 }
 
-/** How far to scale the device down to fit the room it has. */
-function useFit(box: { current: HTMLElement | null }): number {
-  const [scale, setScale] = useState(0.55);
+/**
+ * How far to scale the device down to fit the room it has. Opened on a phone held upright, the
+ * screen turns on its side to fill it, as a person would turn the phone to read it.
+ */
+function useFit(box: { current: HTMLElement | null }): { scale: number; turned: boolean } {
+  const [fit, setFit] = useState({ scale: 0.55, turned: false });
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -187,12 +194,15 @@ function useFit(box: { current: HTMLElement | null }): number {
       const style = getComputedStyle(el);
       const w = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       const h = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-      setScale(Math.max(0.2, Math.min(1, w / DEVICE_WIDTH, h / DEVICE_HEIGHT)));
+      const turned = el.classList.contains('opened') && h > w;
+      const [across, down] = turned ? [h, w] : [w, h];
+      const scale = Math.max(0.2, Math.min(1, across / DEVICE_WIDTH, down / DEVICE_HEIGHT));
+      setFit((f) => (f.scale === scale && f.turned === turned ? f : { scale, turned }));
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
   }, [box]);
-  return scale;
+  return fit;
 }
