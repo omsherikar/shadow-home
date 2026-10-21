@@ -140,6 +140,24 @@ describe('a cap for everyone and one for each visitor, together', () => {
     expect(turn('c')).toBe('instance');
   });
 
+  test('retryAfter says when both caps would allow a turn again', () => {
+    let t = 0;
+    const turn = hourlyCaps(3, 2, { now: () => t });
+    turn('a');
+    t = 10 * MINUTE;
+    turn('a');
+    expect(turn('a')).toBe('visitor');
+    // a's first turn leaves the hour 50 minutes from now.
+    expect(turn.retryAfter('a')).toBe(50 * MINUTE);
+    t = 20 * MINUTE;
+    expect(turn('b')).toBe('ok');
+    expect(turn('c')).toBe('instance');
+    // Everyone's oldest (a's first) leaves 40 minutes from now; c has a whole cap of its own.
+    expect(turn.retryAfter('c')).toBe(40 * MINUTE);
+    expect(turn.retryAfter('a')).toBe(40 * MINUTE);
+    expect(hourlyCaps(0, 2).retryAfter('a')).toBe(Infinity);
+  });
+
   test('amounts, as for speech by the character', () => {
     const chars = hourlyCaps(100, 60, { now: () => 0 });
     expect([chars('a', 50), chars('a', 20), chars('b', 50), chars('b', 10)]).toEqual([
