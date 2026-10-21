@@ -100,12 +100,15 @@ export function speech(
               ? 'Blocked: that breaks a house rule.'
               : `Blocked: that breaks ${broken} house rules.`;
         const fixes = alternatives.repair?.fixes ?? 0;
+        // With who's away unknown no fix can be confirmed, so the question is who's away.
         const ask =
           offered === 'repair'
             ? offer(`Do it with ${count(fixes, 'fix', 'fixes')} instead?`)
             : offered === 'safe_part'
               ? offer('Do just the safe part?')
-              : undefined;
+              : whoIsAwayUnknown(result)
+                ? WHO_IS_AWAY
+                : undefined;
         return { headline, reason: reasonFor(home, plan, top, name), ...(ask ? { ask } : {}) };
       }
       case 'T4':
