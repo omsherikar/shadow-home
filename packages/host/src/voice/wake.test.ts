@@ -17,6 +17,12 @@ describe('the wake word', () => {
     });
   });
 
+  test('alone, it wakes with nothing asked yet', () => {
+    for (const heard of ['Alexa', 'alexa.', ' Alexa? ', 'Alexa Alexa']) {
+      expect(parseWake(heard), heard).toEqual({ woke: true, request: '' });
+    }
+  });
+
   test('anything without it is not for her', () => {
     for (const heard of [
       "I'm away for the weekend",
