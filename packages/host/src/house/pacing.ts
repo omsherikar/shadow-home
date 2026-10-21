@@ -69,3 +69,9 @@ export function paceSlices(
   const k = totalMs / weight;
   return slices.map((s) => ({ ...s, rate: s.rate * k }));
 }
+
+/** Minutes east of UTC for an offset like "-06:00"; anything unreadable is UTC. */
+export function offsetMinutes(offset: string): number {
+  const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
+  return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+}
