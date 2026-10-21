@@ -147,6 +147,17 @@ describe('the microphone, listening without a break', () => {
     expect(l.errors.filter(([e]) => e === GAVE_UP)).toHaveLength(1);
   });
 
+  test('sessions that end at once, with no error, count as failing too', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    for (let i = 0; i < GIVE_UP_AFTER; i++) {
+      l.sessions.at(-1)?.stop();
+      vi.advanceTimersByTime(restartDelay(i + 1));
+    }
+    expect(l.errors).toEqual([[GAVE_UP, true]]);
+  });
+
   test('a refused microphone stops it for good, and says so', () => {
     const l = listening();
     l.listener.resume();
