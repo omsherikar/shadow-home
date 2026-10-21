@@ -164,11 +164,14 @@ function Shadows(props: {
 
 /**
  * The finish: ambient occlusion where things meet, a glow on whatever is lit, and filmic tone
- * mapping. Nothing here needs a worker or WebAssembly.
+ * mapping. Nothing here needs a worker or WebAssembly. On a screen of more than one pixel per
+ * point the picture is already fine-grained, so it skips the extra antialiasing pass, which there
+ * costs as much as the rest of the finish; deciding once keeps it from being rebuilt.
  */
 const Finish = memo(function Finish() {
+  const [multisampling] = useState(() => (window.devicePixelRatio > 1 ? 0 : 4));
   return (
-    <EffectComposer multisampling={4}>
+    <EffectComposer multisampling={multisampling}>
       <N8AO halfRes aoRadius={0.9} distanceFalloff={0.7} intensity={3.6} color="#1b130d" />
       <Bloom mipmapBlur luminanceThreshold={1.6} luminanceSmoothing={0.2} intensity={0.9} />
       <ToneMapping mode={ToneMappingMode.AGX} />
