@@ -378,6 +378,13 @@ describe('the system prompt plans and undoes like a real assistant', () => {
       "- When a check asks who's away and until when, ask the person, then check the plan again with presenceSchedule and planEnd from their answer.",
     );
   });
+
+  test('an undo follows the same commit rule as any preview', () => {
+    expect(lineOf('- To undo')).toContain(
+      'follows the same rule as any other: commit a T0 or T1 undo straight away',
+    );
+    expect(systemPrompt(home)).not.toContain('then wait for a yes before committing the undo');
+  });
 });
 
 describe('the demo', () => {
