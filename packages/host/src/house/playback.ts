@@ -6,7 +6,15 @@
 import { z } from 'zod';
 import type { HouseLayout } from './layout.ts';
 import { type LiveDevice, mix, type Value, valueSchema } from './looks.ts';
-import { offsetMinutes, type PaceSlice, paceSlices } from './pacing.ts';
+import {
+  type Anchor,
+  NEAR_EVENT,
+  NEAR_TWILIGHT,
+  offsetMinutes,
+  type PaceSlice,
+  paceSlices,
+  twilightsBetween,
+} from './pacing.ts';
 
 export interface Change {
   atMs: number;
@@ -368,7 +376,8 @@ export interface Schedule {
 /**
  * How a run plays in real time. It settles for a moment, then acts out the plan's own changes at
  * their time, one at a time, stopping after one that breaks a rule right then. Between them the
- * clock runs, and stops at every other moment a rule breaks (breaks in the same minute share one
+ * clock runs, slower near the moments worth watching and through dusk and dawn, quick through the
+ * quiet hours, and stops at every other moment a rule breaks (breaks in the same minute share one
  * stop).
  */
 export function schedule(run: Run, timing: Timing): Schedule {
@@ -383,7 +392,7 @@ export function schedule(run: Run, timing: Timing): Schedule {
   };
   for (const s of run.steps) stopAt(clamp(s.atMs)).steps.push(s);
   for (const b of run.breaks) stopAt(clamp(b.atMs)).breaks.push(b);
-  const slices = paceSlices(start, end, [], timing.sweepMs);
+  const slices = paceSlices(start, end, anchorsOf(run), timing.sweepMs);
   const done = (step: Step) => Math.max(...step.changes.map((c) => run.changes.indexOf(c) + 1));
   // A moment for the house to turn into the twin before anything changes.
   const segments: Segment[] = [
@@ -431,6 +440,27 @@ function sweep(slices: PaceSlice[], fromMs: number, toMs: number): Segment[] {
     if (b > a) out.push({ realMs: (b - a) * s.rate, fromMs: a, toMs: b });
   }
   return out;
+}
+
+/**
+ * What the clock slows for: the start and the end, every change, every break, everyone leaving or
+ * coming home, and the sky turning at dusk and dawn.
+ */
+function anchorsOf(run: Run): Anchor[] {
+  const events = [
+    run.startMs,
+    run.endMs,
+    ...run.changes.map((c) => c.atMs),
+    ...run.breaks.map((b) => b.atMs),
+    ...run.presence.flatMap((w) => [w.fromMs, w.toMs]),
+  ].filter((t) => t >= run.startMs && t <= run.endMs);
+  return [
+    ...[...new Set(events)].map((atMs) => ({ atMs, ...NEAR_EVENT })),
+    ...twilightsBetween(run.startMs, run.endMs, run.offset).map((atMs) => ({
+      atMs,
+      ...NEAR_TWILIGHT,
+    })),
+  ];
 }
 
 /** Where a run's playback is: the home time, and what it's acting out or stopped on. */
