@@ -87,6 +87,49 @@ describe('a turn, her voice, and the answer', () => {
     expect(effects).toEqual([]);
   });
 
+  test('after a question, once her voice ends, she listens for the answer with no wake word', () => {
+    const { state } = run(
+      [
+        { type: 'speaking', on: true },
+        { type: 'turn-ended', asked: true },
+        { type: 'speaking', on: false },
+      ],
+      asking(),
+    );
+    expect(state.mode).toBe('answer');
+    expect(hears(state.mode)).toBe(true);
+    const answered = run([heard('yes')], state);
+    expect(sends(answered.effects)).toEqual(['yes']);
+  });
+
+  test('the same when her voice ends before the turn does', () => {
+    // A sentence said while the turn still runs is not the end of it.
+    const between = run(
+      [
+        { type: 'speaking', on: true },
+        { type: 'speaking', on: false },
+      ],
+      asking(),
+    );
+    expect(between.state.mode).toBe('thinking');
+    const { state, effects } = run([{ type: 'turn-ended', asked: true }], between.state);
+    expect(state.mode).toBe('answer');
+    expect(effects).toEqual([{ kind: 'timer', epoch: state.epoch, ms: LISTEN_MS }]);
+  });
+
+  test('after an answer that asks nothing, back to listening for "Alexa"', () => {
+    const { state } = run(
+      [
+        { type: 'speaking', on: true },
+        { type: 'turn-ended', asked: false },
+        { type: 'speaking', on: false },
+      ],
+      asking(),
+    );
+    expect(state.mode).toBe('idle');
+    expect(sends(run([heard('yes')], state).effects)).toEqual([]);
+  });
+
   test('a question nobody heard opens no window: the page says it was asked only if it was heard', () => {
     // Silent, or the browser held her voice back: the page ends the turn with asked false.
     const { state } = run([{ type: 'turn-ended', asked: false }], asking());
