@@ -707,4 +707,18 @@ describe("away mode without saying who's away", () => {
     expect(toHome.check.unknowns).toEqual([]);
     expect(check(home, bench('P003')).unknowns).not.toContain(AWAY_UNSTATED);
   });
+
+  test('a rule that forbids the plan outright is still refused for that rule', () => {
+    const a = assess(
+      home,
+      plan([{ device: 'smoke_alarm_kitchen', set: { enabled: false } }, { mode: 'away' }]),
+    );
+    expect(a.check.unknowns).toEqual([AWAY_UNSTATED]);
+    expect(refusingRule(a.check)).toBe('R12');
+    expect(a.tier).toMatchObject({ tier: 'T5', why: 'rule R12 forbids it' });
+    expect(a.speech).toEqual({
+      headline: "I can't do that.",
+      reason: "Smoke alarms can never be turned off. That's Om's rule.",
+    });
+  });
 });
