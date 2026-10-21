@@ -120,7 +120,6 @@ const CENTRE = (() => {
 
 /** The sun by day, the moon by night: the one light that casts shadows. */
 function KeyLight({ light }: { light: Daylight }) {
-  const centre = CENTRE;
   const target = useMemo(() => {
     const o = new Object3D();
     o.position.copy(CENTRE);
@@ -132,7 +131,7 @@ function KeyLight({ light }: { light: Daylight }) {
       <primitive object={target} />
       <directionalLight
         target={target}
-        position={[centre.x + dx * 40, centre.y + dy * 40, centre.z + dz * 40]}
+        position={[CENTRE.x + dx * 40, CENTRE.y + dy * 40, CENTRE.z + dz * 40]}
         color={light.keyColor}
         intensity={light.key}
         castShadow
