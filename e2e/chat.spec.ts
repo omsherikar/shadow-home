@@ -189,3 +189,30 @@ test('Stop drops the turn: nothing it would have shown arrives, and the chat is 
   await expect(page.getByText('Home mode')).toBeVisible();
   await expect(view(page).getByText('Not safe', { exact: true })).toHaveCount(0);
 });
+
+test('an error is plain words with Try again, which sends the same words again', async ({
+  page,
+}) => {
+  let turns = 0;
+  await page.route('**/api/turn', async (route) => {
+    turns += 1;
+    if (turns === 1) {
+      await route.fulfill({ status: 500, json: { error: 'boom' } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  const problem = lastAnswer(page).getByRole('alert');
+  await expect(problem).toHaveText(/Something went wrong on my side\. Try again\./);
+  await expect(problem).not.toContainText('500');
+  await page.screenshot({ path: 'test-results/chat-error.png' });
+  await problem.getByRole('button', { name: 'Try again' }).click();
+  await expect(composer(page)).toBeFocused();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+  expect(turns).toBe(2);
+  // The answer that failed gives way to the one that worked: the request shows once.
+  await expect(conversation(page).locator('li.you', { hasText: WEEKEND })).toHaveCount(1);
+  await expect(conversation(page).getByRole('alert')).toHaveCount(0);
+});
