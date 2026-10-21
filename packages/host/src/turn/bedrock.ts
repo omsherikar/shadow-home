@@ -197,6 +197,33 @@ function turnOf(input: ModelInput): Turn {
   return { context: 'chat', afterPlan: anchor !== undefined };
 }
 
+/**
+ * The last check, while it's still open: a preview, or a commit that still waits, was refused or
+ * went stale, that is the last thing to speak (no newer check has replaced it). One that isn't
+ * SAFE stays open even after a no, since the person still lives with what it found; one that is
+ * SAFE stays open while its question waits. A question about it, or any question, doesn't answer
+ * that question; anything else said or tapped does (a yes, a no, Cancel).
+ */
+function openCheck(history: Remembered[]): Record<string, unknown> | undefined {
+  const at = history.findLastIndex((h) => hasSpeech(h.structuredContent));
+  const last = history[at];
+  const sc = last?.structuredContent;
+  if (!last || !sc) return undefined;
+  if (isPreview(last)) {
+    const plan = (sc.preview ?? sc) as { verdict?: unknown };
+    if (plan.verdict === 'UNSAFE' || plan.verdict === 'UNPROVEN') return sc;
+  }
+  const answered = history.slice(at + 1).some((h) => {
+    if (h.name === 'closed' || h.by === 'screen') return true;
+    const heard = String(h.arguments.text ?? '');
+    return h.name === 'heard' && !isQuestion(heard) && !ASKS_ABOUT.test(normalise(heard));
+  });
+  if (answered) return undefined;
+  if (last.name === 'commit_plan') return sc.status === 'committed' ? undefined : sc;
+  if (!isPreview(last)) return undefined;
+  return (sc.speech as { ask?: unknown } | undefined)?.ask ? sc : undefined;
+}
+
 /** A check's preview: a plan's, or an undo's. */
 function isPreview(h: Remembered): boolean {
   return (
