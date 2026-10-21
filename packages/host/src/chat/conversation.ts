@@ -223,6 +223,17 @@ function forPreview(p: PreviewLike): FollowUp[] {
   }
 }
 
+/**
+ * On a phone the device folds into a strip, which carries the answers to the screen's question
+ * (its buttons); the chat keeps the rest ("Why?").
+ */
+export function splitFollowUps(all: FollowUp[]): { answers: FollowUp[]; rest: FollowUp[] } {
+  return {
+    answers: all.filter((f) => f.says !== WHY.says),
+    rest: all.filter((f) => f.says === WHY.says),
+  };
+}
+
 // The details view
 
 interface ViolationLike {
