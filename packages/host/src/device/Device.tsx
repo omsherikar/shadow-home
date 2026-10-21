@@ -46,7 +46,7 @@ import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts'
 import { useHandsFree } from '../voice/useHandsFree.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { Strip } from './Strip.tsx';
-import { canListen, listenOnce, speak, speech, stopSpeaking } from './voice.ts';
+import { canListen, listenOnce, speak, speech, stopSpeaking, watchHeldBack } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
 
@@ -131,6 +131,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const sayHeard = useRef<(text: string) => void>(() => undefined);
   const handsFree = useHandsFree({ onRequest: (text) => sayHeard.current(text), silent });
   const { turnStarted, turnEnded, stopped: stoppedHandsFree } = handsFree;
+  // What she last said, for "Tap to hear Alexa" when the browser held her voice back.
+  const lastSaid = useRef('');
+  const [heldBack, setHeldBack] = useState(false);
+  useEffect(() => watchHeldBack(() => setHeldBack(true)), []);
 
   /**
    * Set the plan on screen aside, or bring it back. Set aside, it stays readable but acts on
@@ -318,6 +322,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         setFollowUps(followUpsFor(calls));
         if (say) {
           note({ name: 'said', arguments: { text: say } });
+          lastSaid.current = say;
           void voice(say);
         }
       },
@@ -469,6 +474,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       if (answer !== null) {
         setFollowUps(followUpsFor(calls));
         note({ name: 'said', arguments: { text: answer } });
+        lastSaid.current = answer;
       }
       if (client) await refreshHome(client).catch(() => undefined);
       if (gone()) return;
@@ -688,6 +694,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           ready={ready}
           micAvailable={micAvailable}
           notice={notice}
+          action={
+            heldBack
+              ? {
+                  label: 'Tap to hear Alexa',
+                  act: () => {
+                    setHeldBack(false);
+                    if (lastSaid.current) void voice(lastSaid.current);
+                  },
+                }
+              : null
+          }
           onSend={(says, label) => void say(says, label)}
           onMic={() => {
             if (handsFree.state.mode === 'off') return void toggleMic();
