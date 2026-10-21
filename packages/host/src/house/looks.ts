@@ -107,6 +107,11 @@ export interface Daylight {
 const SUNRISE = 7.4;
 const SUNSET = 17.6;
 const NOON_ELEVATION = 30;
+// The sky is halfway between night and day (`day` 0.5) with the sun 2° up.
+const HALF_LIGHT = ((SUNSET - SUNRISE) * Math.asin(2 / NOON_ELEVATION)) / Math.PI;
+
+/** The home hours, dawn and dusk, when the sky is halfway between night and day. */
+export const TWILIGHT_HOURS = [SUNRISE + HALF_LIGHT, SUNSET - HALF_LIGHT] as const;
 
 /** The light outside at a home time ("2027-01-15T17:45:00-06:00", read as the home's clock). */
 export function daylight(iso: string): Daylight {
