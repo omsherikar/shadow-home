@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { ToolCall } from '../turn/types.ts';
 import {
   ask,
+  CONVERSATION_KEY,
   clockAt,
   detailsFor,
   followUpsFor,
@@ -354,6 +355,26 @@ describe('the conversation across a reload', () => {
       saveConversation(storage, back);
     }
     expect(loadConversation(storage).history.length).toBeLessThanOrEqual(KEEP_ENTRIES + 1);
+  });
+
+  test('an answer with more steps and details than kept is cut, not lost', () => {
+    const storage = memory();
+    const long: Message = {
+      ...done('a-alexa', 'Blocked.'),
+      steps: Array.from({ length: 15 }, (_, i) => ({
+        id: `s${i}`,
+        label: 'Checking',
+        state: 'done',
+      })),
+      details: Array.from({ length: 15 }, (_, i) => `R${i}: a rule.`),
+    };
+    saveConversation(storage, { messages: [long], history: [] });
+    const [back] = loadConversation(storage).messages;
+    expect(back?.steps).toHaveLength(12);
+    expect(back?.details).toHaveLength(12);
+    // Saved by an older page without the cuts, it still loads, cut on the way in.
+    storage.items.set(CONVERSATION_KEY, JSON.stringify({ messages: [long], history: [] }));
+    expect(loadConversation(storage).messages[0]?.details).toHaveLength(12);
   });
 
   test('drops the oldest history past its cap', () => {
