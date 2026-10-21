@@ -3,7 +3,7 @@
  * (safe green, coral red, amber), so a status light means the same thing on both screens.
  */
 export const palette = {
-  plaster: '#e9ddca',
+  plaster: '#dccfba',
   cut: '#3a2e25',
   lawn: '#56603f',
   soil: '#2b231d',
