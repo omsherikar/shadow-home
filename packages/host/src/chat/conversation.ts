@@ -301,6 +301,7 @@ export function detailsFor(call: ToolCall, names?: Names): string[] {
 
 // Kept across a reload
 
+export const CONVERSATION_KEY = 'shadow-home/conversation';
 /** The most messages kept, and the longest any one is when kept. */
 export const KEEP_MESSAGES = 40;
 const KEEP_TEXT = 1200;
@@ -332,4 +333,13 @@ export function toKeep(messages: Message[], history: Remembered[]): Kept {
   const h = history.slice(-KEEP_ENTRIES);
   while (h.length > 0 && JSON.stringify(h).length > KEEP_HISTORY) h.shift();
   return { messages: done, history: h };
+}
+
+/** Save the conversation; if storage refuses (a private window, a full quota), it isn't kept. */
+export function saveConversation(storage: Pick<Storage, 'setItem'> | null, k: Kept): void {
+  try {
+    storage?.setItem(CONVERSATION_KEY, JSON.stringify(toKeep(k.messages, k.history)));
+  } catch {
+    // Nothing to do: the conversation still holds until the page reloads.
+  }
 }
