@@ -151,20 +151,54 @@ test('a silent page asks for no voice at all', async ({ page }) => {
   expect(await heard(page)).toEqual([]);
 });
 
-test('Stop silences her at once: nothing more is asked for', async ({ page }) => {
-  // Each clip takes a while to come, as a real voice's would.
+test('Stop silences her at once: nothing more is asked for, and nothing on its way plays', async ({
+  page,
+}) => {
+  // The first clip comes at once; the second is held until the test lets it go, so Stop lands
+  // while it's on its way, however slow the machine.
+  let second = () => {};
+  const secondHeld = new Promise<void>((r) => {
+    second = r;
+  });
+  let asked = 0;
   await page.route('**/api/speak', async (route) => {
-    await new Promise((r) => setTimeout(r, 1500));
+    asked += 1;
+    if (asked === 2) await secondHeld;
     await route
       .fulfill({ status: 200, contentType: 'audio/mpeg', body: Buffer.alloc(0) })
       .catch(() => undefined);
   });
+  // Counts each clip the page starts to play.
+  await page.addInitScript(() => {
+    const w = window as unknown as { plays: number };
+    w.plays = 0;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+      w.plays += 1;
+      return play.call(this);
+    };
+  });
+  const plays = () => page.evaluate(() => (window as unknown as { plays: number }).plays);
   await holdTheEnd(page);
   await page.goto('/?speak=1');
   await page.getByRole('button', { name: WEEKEND }).click();
-  await expect.poll(async () => (await heard(page)).length).toBe(1);
+  // The second sentence is asked for only once the first clip has come: it's now on its way.
+  await expect
+    .poll(async () => (await heard(page)).map((h) => h.text))
+    .toEqual(SENTENCES.slice(0, 2));
+
   await page.getByRole('button', { name: 'Stop' }).click();
+  const answer = page.getByRole('list', { name: 'Conversation' }).locator('li.alexa').last();
+  await expect(answer.getByText('Stopped.')).toBeVisible();
+  // What had been asked for when Stop took effect, and what had played.
+  const atStop = await heard(page);
+  const playedAtStop = await plays();
+  expect(atStop[0]?.text).toBe(SENTENCES[0]);
+
+  // The held clip arrives, and the turn's end is let through: none of it is said or asked for.
+  second();
   await page.evaluate(() => (window as unknown as { releaseDone(): void }).releaseDone());
   await page.waitForTimeout(3000);
-  expect((await heard(page)).map((h) => h.text)).toEqual([SENTENCES[0]]);
+  expect(await heard(page)).toEqual(atStop);
+  expect(await plays()).toBe(playedAtStop);
 });
