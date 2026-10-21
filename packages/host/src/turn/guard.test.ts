@@ -125,7 +125,7 @@ describe('plain conversation: small talk is free, claims about the home are not'
   });
 });
 
-describe('after get_home_state: a number or time only as the result gives it', () => {
+describe("after get_home_state: a device's state only as the result gives it", () => {
   test.each([
     'The front door is locked.',
     'The porch light is on and the TV is off.',
@@ -136,7 +136,11 @@ describe('after get_home_state: a number or time only as the result gives it', (
   });
 
   test.each([
+    ['The front door is unlocked.', 'state'],
+    ['The porch light is off.', 'state'],
+    ['Everything is off.', 'state'],
     ['The living room is at 22 °C.', 'number'],
+    ['It was locked at 9 PM.', 'state'],
     ['The porch light is on now.', 'action'],
     ["The front door is locked, so you're all set.", 'verdict'],
     ['Shall I lock it?', 'question'],
@@ -230,6 +234,10 @@ const home = (
     routines: demo.routines.map((r) => r.name),
     ...over,
   });
+const homeState = {
+  now: '2027-01-15T17:45:00-06:00',
+  devices: demo.devices.map((d) => ({ id: d.id, name: d.name, state: d.state })),
+};
 
 describe('softening a verdict without a verdict word: any negation, scope or judgement', () => {
   test.each([
@@ -323,5 +331,26 @@ describe('plain conversation: no claim about the home, and after a check, no tal
     // The same words with no check waiting are a claim of an action.
     expect(dropReason("Okay, I'll leave everything as it is.", home('chat'))).toBe('action');
     expect(filterReply("Okay, I'll leave everything as it is.", home('anchored')).kept).toEqual([]);
+  });
+});
+
+describe("a read turn: a device's state as the result gives it, for the device it's said of", () => {
+  const read = (heard = '') => home('read', { results: [homeState], heard });
+  test.each([
+    // The demo home's front door is unlocked, its back door locked and closed.
+    ['No, the front door is unlocked.', null],
+    ["The front door isn't locked.", null],
+    ['The back door is locked.', null],
+    ['The back door lock is locked.', null],
+    ['The back door is closed.', null],
+    ['The front door is locked.', 'state'],
+    ['The back door is open.', 'state'],
+    ['The back door is unlocked.', 'state'],
+    ['The TV is unlocked.', 'state'],
+    ['Your doors are secure.', 'state'],
+    ['Yes.', 'fragment'],
+    ['Yes, it is.', 'fragment'],
+  ])('%s', (sentence, why) => {
+    expect(dropReason(sentence, read())).toBe(why);
   });
 });
