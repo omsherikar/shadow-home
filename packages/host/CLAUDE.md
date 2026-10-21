@@ -45,7 +45,8 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   laptop; in AWS, the role's own credentials), AWS_REGION (default us-east-1), BEDROCK_MODEL_ID,
   POLLY_VOICE. Load each SDK only where it's used, so the scripted model starts fast.
 - Deployed on Cloud Run from packages/host/Dockerfile (Next's standalone server; NEXT_OUTPUT=standalone
-  only there), keys from Secret Manager. Amplify Hosting still works (amplify.yml, the stack's
-  HostComputeRoleArn); behind Amplify's proxy the site's host arrives as X-Forwarded-Host.
+  only there), keys from Secret Manager. Amplify Hosting is no longer supported, since turns stream
+  (amplify.yml and the stack's HostComputeRoleArn remain); behind Amplify's proxy the site's host
+  arrives as X-Forwarded-Host.
 - What the device says comes from the server's speech fields when a tool returned them.
 - The screen is read from across a room: at most 5 diff rows, large type, verdict as icon + word + color.
