@@ -46,7 +46,7 @@ export function HomeCard({ home, problem }: { home: HomeState | null; problem: s
           </li>
         ))}
       </ul>
-      <p className="hint">Try one of the requests below.</p>
+      <p className="hint">Ask Alexa to change something, and watch it checked here first.</p>
     </div>
   );
 }
