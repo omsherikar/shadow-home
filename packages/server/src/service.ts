@@ -875,22 +875,7 @@ export class ShadowHomeService {
       speech: a.speech,
       diff: a.diff,
       timeline: a.check.timeline,
-      violations: a.check.reasons.flatMap((r) =>
-        r.kind === 'violation' || r.kind === 'not_robust'
-          ? [
-              {
-                rule: r.rule,
-                text: r.text,
-                author: r.author,
-                priority: r.priority,
-                ...(r.refuse ? { refuse: true } : {}),
-                run: r.run,
-                firstAt: r.firstAt,
-                ...(r.cause ? { cause: r.cause } : {}),
-              },
-            ]
-          : [],
-      ),
+      violations: violationsOf(a.check),
       invalid: a.check.reasons.flatMap((r) =>
         r.kind === 'invalid'
           ? [{ code: r.code, actionIndex: r.actionIndex, message: r.message }]
@@ -1108,6 +1093,26 @@ function nothingLeft(info: UndoInfo): boolean {
     info.pendingModes.length === 0 &&
     info.pauses.length === 0 &&
     !info.mode
+  );
+}
+
+/** The rules a check found broken, in the nominal run or another, as a preview reports them. */
+function violationsOf(check: CheckResult): PreviewOutput['violations'] {
+  return check.reasons.flatMap((r) =>
+    r.kind === 'violation' || r.kind === 'not_robust'
+      ? [
+          {
+            rule: r.rule,
+            text: r.text,
+            author: r.author,
+            priority: r.priority,
+            ...(r.refuse ? { refuse: true } : {}),
+            run: r.run,
+            firstAt: r.firstAt,
+            ...(r.cause ? { cause: r.cause } : {}),
+          },
+        ]
+      : [],
   );
 }
 
