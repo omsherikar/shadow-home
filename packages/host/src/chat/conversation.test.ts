@@ -129,6 +129,12 @@ describe('the words for a problem', () => {
       ),
     ).toBe("I've had a lot of requests this hour. Try again at 3:40 PM.");
   });
+
+  test('anything else is its message as it came', () => {
+    expect(
+      problemWords({ message: 'Something went wrong on my side. Try again.', retryable: true }),
+    ).toBe('Something went wrong on my side. Try again.');
+  });
 });
 
 describe('the details view', () => {
