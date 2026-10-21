@@ -326,7 +326,7 @@ function FloorLamp({ look }: { look: Look }) {
         <cylinderGeometry args={[0.012, 0.012, 1.45, 8]} />
         <meshStandardMaterial color={palette.graphite} roughness={0.4} metalness={0.4} />
       </mesh>
-      <Shade look={look} radius={[0.15, 0.21]} height={0.3} y={1.52} power={18} />
+      <Shade look={look} radius={[0.15, 0.21]} height={0.3} y={1.52} power={34} />
     </group>
   );
 }
@@ -338,7 +338,7 @@ function Pendant({ look, drop }: { look: Look; drop: number }) {
         <cylinderGeometry args={[0.005, 0.005, drop, 6]} />
         <meshStandardMaterial color={palette.graphite} />
       </mesh>
-      <Shade look={look} radius={[0.05, 0.24]} height={0.2} y={0} power={16} />
+      <Shade look={look} radius={[0.05, 0.24]} height={0.2} y={0} power={30} />
     </group>
   );
 }
@@ -350,7 +350,7 @@ function BedsideLamp({ look }: { look: Look }) {
         <cylinderGeometry args={[0.05, 0.07, 0.22, 20]} />
         <meshStandardMaterial color={palette.ivory} roughness={0.3} />
       </mesh>
-      <Shade look={look} radius={[0.1, 0.14]} height={0.17} y={0.3} power={8} />
+      <Shade look={look} radius={[0.1, 0.14]} height={0.17} y={0.3} power={15} />
     </group>
   );
 }
@@ -367,7 +367,7 @@ function DeskLamp({ look }: { look: Look }) {
         <meshStandardMaterial color={palette.graphite} roughness={0.4} />
       </mesh>
       <group position={[0, 0.38, 0.05]} rotation-x={0.5}>
-        <Shade look={look} radius={[0.03, 0.08]} height={0.1} y={0} power={7} />
+        <Shade look={look} radius={[0.03, 0.08]} height={0.1} y={0} power={12} />
       </group>
     </group>
   );
