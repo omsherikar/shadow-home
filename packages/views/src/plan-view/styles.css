@@ -86,7 +86,7 @@ body {
 .badge .word {
   font-size: 0.85em;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .speech h1 {
