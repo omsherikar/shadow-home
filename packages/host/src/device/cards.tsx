@@ -101,7 +101,10 @@ const RULE_STATUS: Record<RuleState['status'], string> = {
   needs_compiler: 'Not added yet',
 };
 
-/** A new house rule: read back in fixed words, what it clashes with and which wins, a test day. */
+/**
+ * A new house rule: read back in fixed words, what it clashes with and which comes first, a test
+ * day. Rule numbers and priorities are in the chat's details.
+ */
 export function RuleCard({ rule }: { rule: RuleState }) {
   return (
     <div className="rule-card">
@@ -121,8 +124,10 @@ export function RuleCard({ rule }: { rule: RuleState }) {
         <ul className="conflicts">
           {rule.conflicts.map((c) => (
             <li key={c.rule}>
-              Clashes with {c.rule}, “{c.text}” ({c.priority}).{' '}
-              <strong>{c.winner === c.rule ? `${c.rule} wins` : 'The new rule wins'}</strong>.
+              Clashes with “{c.text}”{' '}
+              <strong>
+                {c.winner === c.rule ? 'That rule comes first.' : 'The new rule comes first.'}
+              </strong>
             </li>
           ))}
         </ul>
