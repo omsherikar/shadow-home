@@ -379,6 +379,28 @@ describe('plain conversation: no claim about the home, and after a check, no tal
     expect(dropReason("Okay, I'll leave everything as it is.", home('chat'))).toBe('action');
     expect(filterReply("Okay, I'll leave everything as it is.", home('anchored')).kept).toEqual([]);
   });
+
+  test('pleasantries pass whole, even while a check is open; anything added is checked as usual', () => {
+    const open = home('chat', { afterPlan: true, checkOpen: true });
+    for (const sentence of [
+      'Good morning!',
+      'Good afternoon!',
+      'Good evening!',
+      'Good night!',
+      'Hi!',
+      'Hello!',
+      "You're welcome.",
+      'Thank you!',
+      'GOOD MORNING',
+    ]) {
+      expect(dropReason(sentence, open)).toBeNull();
+    }
+    expect(filterReply("Good morning! It's fine.", open)).toEqual({
+      kept: ['Good morning!'],
+      dropped: ['verdict'],
+    });
+    expect(dropReason('Good morning, all good here!', open)).toBe('verdict');
+  });
 });
 
 describe("a read turn: a device's state as the result gives it, for the device it's said of", () => {
