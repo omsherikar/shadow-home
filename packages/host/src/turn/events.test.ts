@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { encodeEvent, KEEP_ALIVE, stepLabel, type TurnEvent } from './events.ts';
+import { encodeEvent, KEEP_ALIVE, stepLabel, type TurnEvent, wantsEvents } from './events.ts';
 
 describe('the turn as Server-Sent Events', () => {
   test('each event is its type and one line of JSON, then a blank line', () => {
@@ -25,5 +25,14 @@ describe('the turn as Server-Sent Events', () => {
     expect(stepLabel('commit_plan')).toBe('Making the change');
     expect(stepLabel('a tool nobody listed')).toBe('Working on it');
     expect(stepLabel('constructor')).toBe('Working on it');
+  });
+
+  test('only a client that asks for an event stream gets one', () => {
+    const asking = (accept?: string) =>
+      new Request('http://localhost/api/turn', accept ? { headers: { accept } } : {});
+    expect(wantsEvents(asking('text/event-stream'))).toBe(true);
+    expect(wantsEvents(asking('text/event-stream, application/json;q=0.5'))).toBe(true);
+    expect(wantsEvents(asking('application/json'))).toBe(false);
+    expect(wantsEvents(asking())).toBe(false);
   });
 });
