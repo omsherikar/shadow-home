@@ -1,6 +1,12 @@
 import type { ConverseCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
-import { anthropicConverse, fromReply, type MessagesApi, toRequest } from './anthropic.ts';
+import {
+  ANTHROPIC_MODEL_ID,
+  anthropicConverse,
+  fromReply,
+  type MessagesApi,
+  toRequest,
+} from './anthropic.ts';
 import { bedrockModel, type HomeBrief, toolSpecs } from './bedrock.ts';
 import { eventsOf, fakeApi, reply } from './test-helpers.ts';
 
@@ -84,6 +90,19 @@ describe('the Anthropic API behind the Converse loop', () => {
       ],
       tool_choice: { type: 'auto' },
     });
+  });
+
+  test('the voice loop’s own model runs without thinking, at the lowest effort; another gets its defaults', () => {
+    const request = (modelId: string) =>
+      toRequest({ modelId, messages: [{ role: 'user', content: [{ text: 'hi' }] }] });
+    expect(request(ANTHROPIC_MODEL_ID)).toMatchObject({
+      model: 'claude-haiku-5-5',
+      thinking: { type: 'disabled' },
+      output_config: { effort: 'low' },
+    });
+    const other = request('claude-sonnet-5-5');
+    expect(other).not.toHaveProperty('thinking');
+    expect(other).not.toHaveProperty('output_config');
   });
 
   test('a reply keeps its words and tool calls, and drops anything else', () => {
