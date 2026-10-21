@@ -249,4 +249,27 @@ describe('a turn as it streams', () => {
     const events = await all(streamTurn(REQUEST, { fetch: offline }));
     expect(events).toEqual([expect.objectContaining({ type: 'error', retryable: true })]);
   });
+
+  test('aborting stops the turn: the request is cancelled and nothing more comes', async () => {
+    const controller = new AbortController();
+    const slow = (async (_url: string, init: RequestInit) => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(encoder.encode('event: text\ndata: {"delta":"Checking"}\n\n'));
+          init.signal?.addEventListener('abort', () =>
+            c.error(new DOMException('aborted', 'AbortError')),
+          );
+        },
+      });
+      return new Response(stream, { headers: { 'content-type': 'text/event-stream' } });
+    }) as unknown as typeof fetch;
+    const events: TurnEvent[] = [];
+    for await (const e of streamTurn(REQUEST, { fetch: slow, signal: controller.signal })) {
+      events.push(e);
+      controller.abort();
+    }
+    // Nothing after the abort, not even an error: the person stopped it.
+    expect(events).toEqual([{ type: 'text', delta: 'Checking' }]);
+  });
 });
