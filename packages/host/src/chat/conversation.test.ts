@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import type { ToolCall } from '../turn/types.ts';
-import { ask, detailsFor, type Message, stopped, withEvent } from './conversation.ts';
+import {
+  ask,
+  clockAt,
+  detailsFor,
+  type Message,
+  problemWords,
+  stopped,
+  withEvent,
+} from './conversation.ts';
 
 const call = (name: string, structuredContent: Record<string, unknown>, isError = false) =>
   ({ name, arguments: {}, result: { content: [], structuredContent, isError } }) as ToolCall;
@@ -103,6 +111,23 @@ describe('an answer as it streams', () => {
       phase: 'stopped',
       steps: [{ id: 's1', state: 'failed' }],
     });
+  });
+});
+
+describe('the words for a problem', () => {
+  test('a limit says the time to come back, in the time zone given', () => {
+    const at = Date.UTC(2026, 9, 21, 22, 40);
+    expect(clockAt(at, 'America/Los_Angeles')).toBe('3:40 PM');
+    expect(
+      problemWords(
+        {
+          message: "I've had a lot of requests this hour. Try again later.",
+          retryable: true,
+          retryAt: at,
+        },
+        'America/Los_Angeles',
+      ),
+    ).toBe("I've had a lot of requests this hour. Try again at 3:40 PM.");
   });
 });
 
