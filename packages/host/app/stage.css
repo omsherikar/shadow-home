@@ -501,6 +501,29 @@
   display: none;
 }
 
+.narrow .device-fit.opened {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  padding: 64px 12px 12px;
+  background: rgb(8 6 5 / 92%);
+}
+
+.close-screen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 9px 18px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: #241d18;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
 .narrow .chat-dock {
   flex: 1 1 auto;
 }
