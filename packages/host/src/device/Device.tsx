@@ -368,7 +368,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           <div className="camera" aria-hidden="true" />
           <div className="screen">
             <div className="status">
-              <span>Shadow Home</span>
+              {screen.kind === 'home' ? (
+                <span>Shadow Home</span>
+              ) : (
+                <button
+                  type="button"
+                  className="home-button"
+                  onClick={() => setScreen({ kind: 'home' })}
+                >
+                  Home screen
+                </button>
+              )}
               <span>{home ? homeClock(home.now) : ''}</span>
             </div>
             <div className="content">
@@ -427,11 +437,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
                 {s}
               </button>
             ))}
-            {screen.kind !== 'home' ? (
-              <button type="button" onClick={() => setScreen({ kind: 'home' })}>
-                Home screen
-              </button>
-            ) : null}
           </div>
           {demoState === 'finished' ? <p className="demo-done">Demo finished.</p> : null}
           {transcript.length > 0 ? (
