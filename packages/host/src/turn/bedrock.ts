@@ -3,6 +3,7 @@ import type {
   ConverseCommandInput,
   ConverseCommandOutput,
   Message,
+  SystemContentBlock,
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
 import { log } from '../log.ts';
@@ -82,6 +83,14 @@ export function bedrockModel(options: {
   const offered = new Set(options.tools.map((t) => t.name));
   const prompt = systemPrompt(options.home, options.serverInstructions);
   const now = homeNow(options.home);
+  // The tools and the prompt are the same on every call, so they're cached (cachePoint, which
+  // anthropic.ts sends as cache_control); the home's time comes after, since it always changes.
+  const system: SystemContentBlock[] = [
+    { text: prompt },
+    { cachePoint: { type: 'default' } },
+    { text: now },
+  ];
+  const tools: Tool[] = [...toolSpecs(options.tools), { cachePoint: { type: 'default' } }];
   return {
     async next(input: ModelInput, step: StepOptions = {}): Promise<ModelStep> {
       let firstTool = true;
@@ -94,9 +103,9 @@ export function bedrockModel(options: {
       const out = await options.converse(
         {
           modelId: options.modelId ?? DEFAULT_MODEL_ID,
-          system: [{ text: prompt }, { text: now }],
+          system,
           messages: conversation(input),
-          toolConfig: { tools: toolSpecs(options.tools), toolChoice: { auto: {} } },
+          toolConfig: { tools, toolChoice: { auto: {} } },
           inferenceConfig: { maxTokens: MAX_TOKENS, temperature: 0 },
         },
         { signal: step.signal, onEvent },
