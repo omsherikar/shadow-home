@@ -129,6 +129,11 @@ describe('status dots', () => {
     expect(t('heat', 9.5)).toEqual({ tone: 'idle', label: 'Set to 9 °C' });
     expect(t('off', 3).tone).toBe('off');
   });
+
+  test('can’t tell when the twin can’t trust the reading, or doesn’t know the device', () => {
+    expect(dotFor(device('lock', { lockState: 'LOCKED' }, false)).tone).toBe('unknown');
+    expect(dotFor(undefined).tone).toBe('unknown');
+  });
 });
 
 describe('the sky', () => {
