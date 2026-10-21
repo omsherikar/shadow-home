@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { daylight, type LiveDevice, lookOf, mix } from './looks.ts';
+import { daylight, type LiveDevice, lookOf, mix, parseLiveHome } from './looks.ts';
 
 const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
   id: 'd',
@@ -101,5 +101,29 @@ describe('the light outside', () => {
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
     expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');
     expect(mix('#000000', '#ffffff', 2)).toBe('#ffffff');
+  });
+});
+
+describe('the home as get_home_state reports it', () => {
+  const home = {
+    now: '2027-01-15T17:45:00-06:00',
+    mode: 'home',
+    stateVersion: 3,
+    presence: { om: 'home' },
+    zones: [{ id: 'garage', name: 'Garage', tempC: 9 }],
+    devices: [
+      { id: 'plug_tv', name: 'TV', room: 'living_room', kind: 'plug', state: { onOff: true } },
+    ],
+    routines: [],
+  };
+
+  test('keeps what the page reads and drops the rest', () => {
+    expect(parseLiveHome(home)).toEqual({
+      now: home.now,
+      mode: 'home',
+      presence: { om: 'home' },
+      zones: home.zones,
+      devices: [{ id: 'plug_tv', name: 'TV', kind: 'plug', state: { onOff: true } }],
+    });
   });
 });
