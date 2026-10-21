@@ -44,6 +44,9 @@ async function tap(page: Page, control: Locator) {
   await page.mouse.click(x, y);
 }
 
+/** The house's overlay, which says whether a plan is playing in the shadow twin. */
+const playing = (page: Page) => page.locator('.pins');
+
 async function say(page: Page, text: string) {
   await openControls(page);
   await page.getByLabel('Say something').fill(text);
@@ -119,6 +122,37 @@ for (const [what, url] of [
     await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
   });
 }
+
+test('a checked plan plays forward in the house, then the plan with its fixes', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await openControls(page);
+  await page.getByRole('button', { name: WEEKEND }).click();
+  const house = page.getByRole('region', { name: 'The house' });
+  await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
+  // The engine's own run: R3 breaks where the preview says, with its words and whose rule it is,
+  // on the house's card while the playback stops there.
+  const r3 = house
+    .getByRole('status')
+    .filter({ hasText: 'R3 breaks Sat 10:37 PM' })
+    .filter({ hasText: "Don't let the garage pipes freeze." })
+    .filter({ hasText: 'Om’s rule' });
+  await expect(r3).toBeVisible({ timeout: 30_000 });
+  await page.screenshot({ path: 'test-results/house-r3.png' });
+  // Then the same plan with its fixes, to the end of the weekend.
+  const fixes = house.getByRole('button', { name: 'With 4 fixes' });
+  await expect(fixes).toBeVisible({ timeout: 30_000 });
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'fixed');
+  await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
+  await page.screenshot({ path: 'test-results/house-fixed.png' });
+  // Either run can be played again.
+  await house.getByRole('button', { name: 'Your plan' }).click();
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'plan');
+  // Cancel on the screen: nothing changes, and the house goes back to the home as it is.
+  await tap(page, view(page).getByRole('button', { name: /^Cancel/ }));
+  await expect(playing(page)).toHaveAttribute('data-playing', 'no');
+});
 
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
