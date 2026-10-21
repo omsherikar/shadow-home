@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { type ServerType, serve } from '@hono/node-server';
@@ -32,6 +33,13 @@ import { memoryStore } from './store.ts';
 
 const root = join(import.meta.dirname, '../../..');
 const home = loadHome(join(root, 'fixtures/demo-home.json'));
+/** The fixes the demo script expects for the weekend plan. */
+const demoRepairs =
+  (
+    JSON.parse(readFileSync(join(root, 'fixtures/demo-script.json'), 'utf8')) as {
+      beats: { id: string; expected: { repairs?: string[] } }[];
+    }
+  ).beats.find((b) => b.id === 'weekend_away')?.expected.repairs ?? [];
 const FRIDAY = Date.parse('2027-01-15T17:45:00-06:00');
 const MINUTE = 60_000;
 
@@ -160,6 +168,15 @@ describe.each(['legacy', 'modern'] as const)('over the %s protocol', (era) => {
     expect(html.length).toBeGreaterThan(10_000);
     // Nothing loaded from elsewhere: no script or style src, so a strict sandbox runs it as is.
     expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=/);
+  });
+
+  test("the weekend's fixes read as the demo's, though the live now has seconds", async () => {
+    const { now } = await api.call<HomeStateOutput>('get_home_state', {});
+    expect(now).toBe('2027-01-15T17:45:01-06:00');
+    const preview = await api.call<PreviewOutput>('preview_plan', weekend);
+    expect(preview.repair?.changes.map((c) => c.description).sort()).toEqual(
+      [...demoRepairs].sort(),
+    );
   });
 
   test('preview, block, commit the repair, then undo just the thermostat', async () => {
