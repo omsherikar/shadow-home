@@ -539,6 +539,13 @@
   display: none;
 }
 
+/* Alone, a card that lists what broke keeps a reading width and stays clear of the buttons. */
+.stage.house-only .house-card.listing {
+  width: 300px;
+  max-height: calc(100% - 120px);
+  overflow-y: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lightbar.on {
     animation: none;
