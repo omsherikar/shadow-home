@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import { runTurn, TurnDeadlineError, within } from './run.ts';
+import type { Model } from './types.ts';
 
 const never = () => new Promise<never>(() => {});
 const committed = {
@@ -88,5 +89,34 @@ describe('a call left behind at the deadline', () => {
     await expect(within(failsLater, 0)).rejects.toBeInstanceOf(TurnDeadlineError);
     await new Promise((r) => setTimeout(r, 50));
     expect(unhandled).toEqual([]);
+  });
+});
+
+describe('a turn the person stops', () => {
+  test('during a tool call: that call finishes, and nothing more starts', async () => {
+    let steps = 0;
+    let ran = 0;
+    const model: Model = {
+      async next() {
+        steps += 1;
+        return { call: { name: 'commit_plan', arguments: { planId: 'p1' } } };
+      },
+    };
+    const stop = new AbortController();
+    const turn = await runTurn(
+      model,
+      {
+        callTool: async () => {
+          ran += 1;
+          stop.abort();
+          return committed.callTool();
+        },
+        resourceUriFor: () => undefined,
+      },
+      { text: 'yes', history: [] },
+      { signal: stop.signal },
+    );
+    expect([steps, ran]).toEqual([1, 1]);
+    expect(turn).toMatchObject({ say: 'Done: TV off.', calls: [{ name: 'commit_plan' }] });
   });
 });
