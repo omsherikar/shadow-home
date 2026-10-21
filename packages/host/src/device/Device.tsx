@@ -7,7 +7,10 @@ import {
   Client,
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
-import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type Activity, Chat } from '../chat/Chat.tsx';
+import { ask as asked, type Message, replace, withEvent } from '../chat/conversation.ts';
+import { streamTurn } from '../chat/stream.ts';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
 import {
@@ -21,13 +24,12 @@ import {
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
-import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
-import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
+import { fitHistory, spokenText } from '../turn/bounds.ts';
+import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
-const TRANSCRIPT = 20;
 const DEMO_PAUSE_MS = 900;
 
 type Screen =
@@ -36,12 +38,8 @@ type Screen =
   | { kind: 'log'; log: LogState }
   | { kind: 'rule'; rule: RuleState };
 
-interface Line {
-  who: 'you' | 'alexa';
-  text: string;
-}
-
 export interface DeviceProps {
+  /** What a first-time visitor can tap to start: the demo's own requests. */
   suggestions: string[];
   /** The demo's lines, when the host runs in demo mode. */
   demo: DemoStep[] | null;
@@ -50,9 +48,9 @@ export interface DeviceProps {
 }
 
 /**
- * A simulated Echo Show: one screen, a caption of what was said, a mic and a typed line.
- * Results with a view go to the view; the home, the activity log and new house rules the host
- * draws itself.
+ * A simulated Echo Show and a chat beside it. What's said goes to the assistant; the screen draws
+ * each result, the chat shows her answer, and then she says it. Results with a view go to the view;
+ * the home, the activity log and new house rules the host draws itself.
  */
 export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [client, setClient] = useState<Client | null>(null);
@@ -61,12 +59,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
   const [houseRequest, setHouseRequest] = useState<HouseRequest | null>(null);
   const [homeBroken, setHomeBroken] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [activity, setActivity] = useState<Activity>('idle');
   const [heard, setHeard] = useState('');
-  const [said, setSaid] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [listening, setListening] = useState(false);
-  const [transcript, setTranscript] = useState<Line[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [demoState, setDemoState] = useState<'idle' | 'playing' | 'finished'>('idle');
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
   const [micAvailable, setMicAvailable] = useState(false);
@@ -76,6 +72,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const names = useRef<Names | undefined>(undefined);
   const screenNote = useRef<string | undefined>(undefined);
   const working = useRef(false);
+  const turnSeq = useRef(0);
   const mic = useRef<{ stop(): void } | null>(null);
   const homeNow = useRef<LiveHome | null>(null);
   const requests = useRef(0);
@@ -121,10 +118,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   // Kept within what the turn route accepts, so one large result can't refuse every later turn.
   const note = useCallback((entry: Remembered) => {
     history.current = fitHistory([...history.current.slice(-40), entry]);
-  }, []);
-
-  const line = useCallback((who: Line['who'], text: string) => {
-    setTranscript((t) => [...t.slice(1 - TRANSCRIPT), { who, text }]);
   }, []);
 
   const remember = useCallback(
@@ -175,17 +168,20 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
   }, []);
 
-  const reply = useCallback(
+  /** Say it out loud, showing that she's speaking; anything new cuts it short. */
+  const voice = useCallback(
     async (text: string) => {
-      setSaid(text);
-      line('alexa', text);
-      note({ name: 'said', arguments: { text } });
-      if (!silent) await speak(text);
+      if (silent || !text) return;
+      setActivity('speaking');
+      await speak(text);
+      setActivity((a) => (a === 'speaking' ? 'idle' : a));
     },
-    [line, note, silent],
+    [silent],
   );
 
   useEffect(() => setMicAvailable(canListen()), []);
+
+  const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
 
   useEffect(() => {
     let live = true;
@@ -219,7 +215,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           ask({ play: null });
         }
         // Say what the tap ended on, once: not each call it made on the way there.
-        if (typeof structured?.say === 'string') void reply(structured.say);
+        if (typeof structured?.say === 'string') {
+          note({ name: 'said', arguments: { text: structured.say } });
+          void voice(structured.say);
+        }
       },
     });
     host.current = screenHost;
@@ -227,79 +226,127 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       host.current = null;
       void screenHost.close();
     };
-  }, [client, note, remember, refreshHome, reply, ask]);
+  }, [client, note, remember, refreshHome, ask, voice]);
 
-  const show = useCallback(async (calls: ToolCall[]) => {
-    const withView = calls.findLast((c) => c.resourceUri);
-    if (withView?.resourceUri && host.current) {
+  /** Put a call's result on screen: its view, or the host's own card for the log and new rules. */
+  const show = useCallback(async (call: ToolCall) => {
+    if (call.resourceUri && host.current) {
       setScreen({ kind: 'view' });
       await host.current.show({
-        resourceUri: withView.resourceUri,
-        arguments: withView.arguments,
-        result: withView.result as CallToolResult,
+        resourceUri: call.resourceUri,
+        arguments: call.arguments,
+        result: call.result as CallToolResult,
       });
-      return;
+      return true;
     }
-    const last = calls.at(-1);
-    const sc = last?.result.structuredContent as unknown;
-    // A failed call has nothing to draw; the reply says what went wrong.
-    if (!sc || last?.result.isError) return;
-    if (last?.name === 'get_activity_log') setScreen({ kind: 'log', log: sc as LogState });
-    if (last?.name === 'add_house_rule') setScreen({ kind: 'rule', rule: sc as RuleState });
+    const sc = call.result.structuredContent as unknown;
+    // A failed call has nothing to draw; the answer says what went wrong.
+    if (!sc || call.result.isError) return false;
+    if (call.name === 'get_activity_log') {
+      setScreen({ kind: 'log', log: sc as LogState });
+      return true;
+    }
+    if (call.name === 'add_house_rule') {
+      setScreen({ kind: 'rule', rule: sc as RuleState });
+      return true;
+    }
+    return false;
   }, []);
 
   /**
-   * One turn: what was said goes to the assistant; its reply is shown, then spoken. Saying
-   * something stops the device mid-sentence. While a turn is in flight the controls are off.
+   * One turn: the request goes to the assistant. Each call it made goes on screen (the house plays
+   * once the screen has drawn it), and her answer shows in the chat; then she says it. Saying
+   * something stops the device mid-sentence. `said` is what the chat shows as the person's line
+   * (what they tapped, when it differs from the words sent).
    */
-  const say = useCallback(
-    async (text: string) => {
-      const words = spokenText(text);
-      if (!words) return;
+  const send = useCallback(
+    async (request: TurnRequest, said: string) => {
       stopSpeaking();
       if (working.current) return;
       working.current = true;
-      setHeard(words);
-      setSaid('');
-      line('you', words);
-      setBusy(true);
-      let answer: string;
+      turnSeq.current += 1;
+      const seq = turnSeq.current;
+      const id = `t${seq}`;
+      const alexa = `${id}-alexa`;
+      setMessages((m) => asked(m, id, said, request));
+      setNotice(null);
+      setActivity('thinking');
+      // The screen's note goes with this request.
+      screenNote.current = undefined;
+      askedHouse.current = false;
+      holding.current = true;
+      // What was said goes in before what it led to, once it has led to something. A turn that
+      // fails before then leaves the conversation as it was, and a question still open stays open.
+      let heard = false;
+      const hear = () => {
+        if (heard) return;
+        heard = true;
+        note({ name: 'heard', arguments: { text: request.text } });
+      };
+      let answer: string | null = null;
+      let failure: string | null = null;
+      const take = async (call: ToolCall) => {
+        hear();
+        remember(call);
+        if (await show(call)) {
+          // The screen has it: the house may play what it was asked, then waits for the next.
+          release();
+          holding.current = true;
+        }
+      };
       try {
-        const res = await fetch('/api/turn', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            text: words,
-            history: history.current,
-            ...(names.current ? { names: names.current } : {}),
-            ...(screenNote.current ? { screen: screenNote.current } : {}),
-          }),
-        });
-        if (!res.ok) throw new Error(`turn failed (${res.status})`);
-        const turn = (await res.json()) as TurnResponse;
-        screenNote.current = undefined;
-        // What was said goes in before what it led to: a turn with no calls ("no") closes the question.
-        note({ name: 'heard', arguments: { text: words } });
-        askedHouse.current = false;
-        holding.current = true;
-        for (const call of turn.calls) remember(call);
+        for await (const event of streamTurn(request)) {
+          // How the turn ends: its calls and answer, or what went wrong.
+          if (event.type === 'done') {
+            for (const call of event.turn.calls) await take(call);
+            hear();
+            answer = event.turn.say;
+          }
+          if (event.type === 'error') failure = event.message;
+          if (event.type === 'done' || event.type === 'error') {
+            setMessages((m) =>
+              replace(m, alexa, (msg) => withEvent(msg, event, Date.now(), names.current)),
+            );
+          }
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV !== 'production') console.error('The turn failed:', e);
+        failure = 'Something went wrong on my side. Try again.';
+        const event = { type: 'error' as const, message: failure, retryable: true };
+        setMessages((m) => replace(m, alexa, (msg) => withEvent(msg, event, Date.now())));
+      } finally {
         // A turn that played nothing ("no", the activity log) leaves the house showing the home.
         if (!askedHouse.current) ask({ play: null });
-        await show(turn.calls);
-        release();
-        if (client) await refreshHome(client);
-        answer = turn.say;
-      } catch (e) {
-        note({ name: 'heard', arguments: { text: words } });
-        answer = `Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`;
-      } finally {
         release();
         working.current = false;
-        setBusy(false);
+        setActivity('idle');
       }
-      await reply(answer);
+      // Nothing came of it: the screen's note waits for whatever is said next.
+      if (!heard && request.screen && screenNote.current === undefined) {
+        screenNote.current = request.screen;
+      }
+      if (answer !== null) note({ name: 'said', arguments: { text: answer } });
+      if (client) await refreshHome(client).catch(() => undefined);
+      if (answer !== null) await voice(answer);
+      else if (failure) await voice(failure);
     },
-    [client, line, note, refreshHome, remember, reply, show, ask, release],
+    [client, note, refreshHome, remember, show, ask, release, voice],
+  );
+
+  /** A turn for words the person said, typed or tapped: `label` is what they tapped. */
+  const say = useCallback(
+    async (text: string, label?: string) => {
+      const words = spokenText(text);
+      if (!words) return;
+      const request: TurnRequest = {
+        text: words,
+        history: history.current,
+        ...(names.current ? { names: names.current } : {}),
+        ...(screenNote.current ? { screen: screenNote.current } : {}),
+      };
+      await send(request, label ?? words);
+    },
+    [send],
   );
 
   const toggleMic = useCallback(async () => {
@@ -308,19 +355,21 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       return;
     }
     stopSpeaking();
-    setListening(true);
+    setActivity('listening');
     setHeard('');
+    setNotice(null);
     const session = listenOnce((words) => setHeard(words));
     mic.current = session;
     try {
       const words = await session.result;
       mic.current = null;
-      setListening(false);
+      setActivity('idle');
+      setHeard('');
       if (words) await say(words);
     } catch (e) {
       mic.current = null;
-      setListening(false);
-      setSaid(`I couldn't hear that: ${e instanceof Error ? e.message : String(e)}`);
+      setActivity('idle');
+      setNotice(`I couldn't hear that: ${e instanceof Error ? e.message : String(e)}`);
     }
   }, [say]);
 
@@ -331,13 +380,14 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     setDemoState('playing');
     const res = await fetch('/api/demo', { method: 'POST' });
     if (!res.ok) {
-      setSaid('The demo controls are off on the server.');
+      setNotice("The demo isn't available on this server.");
       setDemoState('idle');
       return;
     }
     history.current = [];
     screenNote.current = undefined;
-    setTranscript([]);
+    setMessages([]);
+    setNotice(null);
     ask({ play: null });
     setScreen({ kind: 'home' });
     if (client) await refreshHome(client);
@@ -349,13 +399,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS + Math.max(0, left)));
     }
     setDemoState('finished');
+    setNotice('Demo finished.');
   }, [client, demo, demoState, refreshHome, say, ask, silent]);
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    void say(draft);
-    setDraft('');
-  };
 
   const ready = client !== null && demoState !== 'playing';
   return (
@@ -387,70 +432,47 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
               {screen.kind === 'log' ? <LogCard log={screen.log} names={names.current} /> : null}
               {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
             </div>
-            <div className={busy ? 'caption thinking' : 'caption'}>
-              {heard ? <p className="heard">“{heard}”</p> : null}
-              {said ? <p className="said">{said}</p> : null}
-            </div>
-            <div className={busy || listening ? 'lightbar on' : 'lightbar'} aria-hidden="true" />
+            <div
+              className={busy || activity === 'listening' ? 'lightbar on' : 'lightbar'}
+              aria-hidden="true"
+            />
           </div>
         </div>
       }
       chat={
-        <>
-          <form className="voice" onSubmit={submit}>
-            {micAvailable ? (
-              <button
-                type="button"
-                className={listening ? 'mic on' : 'mic'}
-                aria-pressed={listening}
-                disabled={!ready || busy}
-                onClick={() => void toggleMic()}
-              >
-                {listening ? 'Listening…' : 'Talk'}
-              </button>
-            ) : null}
-            <input
-              aria-label="Say something"
-              placeholder="Type what you'd say to Alexa"
-              maxLength={MAX_TEXT}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              disabled={!ready}
-            />
-            <button type="submit" disabled={!ready || busy || !draft.trim()}>
-              Say it
-            </button>
-          </form>
-          <div className="suggestions">
-            {demo ? (
-              <button
-                type="button"
-                className="play"
-                disabled={!client || busy || demoState === 'playing'}
-                onClick={() => void playDemo()}
-              >
-                {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
-              </button>
-            ) : null}
-            {suggestions.map((s) => (
-              <button key={s} type="button" disabled={!ready || busy} onClick={() => void say(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-          {demoState === 'finished' ? <p className="demo-done">Demo finished.</p> : null}
-          {transcript.length > 0 ? (
-            <ol className="transcript" aria-label="Conversation">
-              {transcript.map((l, i) => (
-                // Lines are only ever appended, so the position is a stable key.
-                // biome-ignore lint/suspicious/noArrayIndexKey: append-only list
-                <li key={i} className={`line ${l.who}`}>
-                  <span className="who">{l.who === 'you' ? 'You' : 'Alexa'}</span> {l.text}
-                </li>
-              ))}
-            </ol>
-          ) : null}
-        </>
+        <Chat
+          messages={messages}
+          placeholder="Ask Alexa to change something"
+          starters={suggestions.map((s) => ({ label: s, says: s }))}
+          activity={activity}
+          heard={heard}
+          ready={ready}
+          micAvailable={micAvailable}
+          notice={notice}
+          onSend={(says, label) => void say(says, label)}
+          onMic={() => void toggleMic()}
+          menu={
+            <details className="menu">
+              <summary aria-label="More">
+                <span aria-hidden="true">•••</span>
+              </summary>
+              <div className="menu-items">
+                {demo ? (
+                  <button
+                    type="button"
+                    disabled={!client || busy || demoState === 'playing'}
+                    onClick={(e) => {
+                      e.currentTarget.closest('details')?.removeAttribute('open');
+                      void playDemo();
+                    }}
+                  >
+                    {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
+                  </button>
+                ) : null}
+              </div>
+            </details>
+          }
+        />
       }
     />
   );
