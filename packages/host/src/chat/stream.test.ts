@@ -195,4 +195,10 @@ describe('a turn as it streams', () => {
     const { fake } = answering(JSON.stringify(turn), { type: 'application/json' });
     expect(await all(streamTurn(REQUEST, { fetch: fake }))).toEqual([{ type: 'done', turn }]);
   });
+
+  test('JSON that is not a turn is an error in plain words', async () => {
+    const { fake } = answering('{"say":3}', { type: 'application/json' });
+    const [event] = await all(streamTurn(REQUEST, { fetch: fake }));
+    expect(event).toMatchObject({ type: 'error', retryable: true });
+  });
 });
