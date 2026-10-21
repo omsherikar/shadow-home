@@ -384,4 +384,31 @@ test.describe('on a phone', () => {
     await inside();
     await page.screenshot({ path: 'test-results/chat-phone-answer.png' });
   });
+
+  test('the device folds into a strip with the verdict and its choices, and opens to the whole screen', async ({
+    page,
+  }) => {
+    await page.goto('/');
+    const strip = page.locator('.strip');
+    await expect(strip.getByText('Home mode')).toBeVisible();
+    await page.getByRole('button', { name: WEEKEND }).click();
+    await expect(strip.locator('.verdict-pill')).toHaveText(/Not safe/);
+    await expect(strip.getByText('Blocked: that breaks 4 house rules.')).toBeVisible();
+    await expect(strip.getByRole('button', { name: 'Run the safer plan' })).toBeVisible();
+    await expect(strip.getByRole('button', { name: "Don't run" })).toBeVisible();
+    // The chat keeps the question that isn't an answer.
+    await expect(page.getByRole('button', { name: 'Why?' })).toBeVisible();
+    // The screen itself is folded away until opened.
+    await expect(view(page).getByText('Not safe', { exact: true })).toBeHidden();
+    await strip.getByRole('button', { name: /Blocked: that breaks 4 house rules\./ }).click();
+    await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+    await page.screenshot({ path: 'test-results/chat-phone-screen.png' });
+    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(view(page).getByText('Not safe', { exact: true })).toBeHidden();
+    // An answer from the strip goes through the chat, like a word said.
+    await strip.getByRole('button', { name: 'Run the safer plan' }).click();
+    await expect(strip.locator('.verdict-pill')).toHaveText(/Done/);
+    await expect(lastAnswer(page).locator('.said')).toHaveText('Done: 10 changes.');
+    await expect(strip.getByRole('button', { name: 'Undo' })).toBeVisible();
+  });
 });
