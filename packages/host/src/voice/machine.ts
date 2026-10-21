@@ -34,7 +34,8 @@ export type HandsFreeEvent =
    * The turn and its voice are over; `asked` says whether it ended asking something the person
    * heard aloud.
    */
-  | { type: 'turn-ended'; asked: boolean };
+  | { type: 'turn-ended'; asked: boolean }
+  | { type: 'speaking'; on: boolean };
 
 export type Effect =
   | { kind: 'send'; text: string }
@@ -115,5 +116,9 @@ export function next(state: HandsFree, event: HandsFreeEvent): Step {
       const ended = { ...state, turn: false, asked: event.asked };
       return state.mode === 'speaking' ? stay(ended) : afterSpeaking(ended);
     }
+    case 'speaking':
+      if (event.on) return stay({ ...state, mode: 'speaking' });
+      // Her voice ending matters only if that's what she was doing (not after a wake or a Stop).
+      return state.mode === 'speaking' ? afterSpeaking(state) : stay(state);
   }
 }
