@@ -34,6 +34,9 @@ export interface FilterFacts {
   names: string[];
 }
 
+/** The most one sentence may hold: the longest speech field (decision 40). */
+export const MAX_SENTENCE_WORDS = 25;
+
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
@@ -201,6 +204,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   ) {
     return 'plain';
   }
+  if (said.split(/\s+/).filter(Boolean).length > MAX_SENTENCE_WORDS) return 'long';
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time).
   let text = said.replace(/[.!?]+$/, '');
   for (const name of facts.names) text = text.split(name).join(' ');
