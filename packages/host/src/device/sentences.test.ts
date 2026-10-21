@@ -55,4 +55,9 @@ describe('sentences in whole words', () => {
       'Well… okay.',
     ]);
   });
+
+  test('nothing to say is no sentences', () => {
+    expect(allSentences('')).toEqual([]);
+    expect(allSentences('   ')).toEqual([]);
+  });
 });
