@@ -85,10 +85,6 @@ export function TemperatureView({ c }: { c: TemperatureChart }) {
       </text>
       {bounds.map((b) => (
         <g key={`label-${b}`}>
-          <rect x={LEFT - 116} y={y(b) - 12} width={40} height={24} rx={5} className="tag" />
-          <text x={LEFT - 96} y={y(b) + 6} textAnchor="middle" className="tag-text">
-            {c.rule}
-          </text>
           <text x={LEFT - 10} y={y(b) + 7} textAnchor="end" className="bound-label">
             {b} °C
           </text>
