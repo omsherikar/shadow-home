@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { ToolCall } from '../turn/types.ts';
-import { ask, detailsFor, type Message, withEvent } from './conversation.ts';
+import { ask, detailsFor, type Message, stopped, withEvent } from './conversation.ts';
 
 const call = (name: string, structuredContent: Record<string, unknown>, isError = false) =>
   ({ name, arguments: {}, result: { content: [], structuredContent, isError } }) as ToolCall;
@@ -89,6 +89,20 @@ describe('an answer as it streams', () => {
     );
     expect(m).toMatchObject({ phase: 'failed' });
     expect(m.problem).toEqual({ message: 'Too many requests.', retryable: true, retryAt: 61_000 });
+  });
+
+  test('stopped keeps what came, and a step still running no longer is', () => {
+    let m = withEvent(start(), { type: 'text', delta: 'Checking' }, 0);
+    m = withEvent(
+      m,
+      { type: 'step', id: 's1', tool: 'preview_plan', label: 'Checking', state: 'running' },
+      0,
+    );
+    expect(stopped(m)).toMatchObject({
+      text: 'Checking',
+      phase: 'stopped',
+      steps: [{ id: 's1', state: 'failed' }],
+    });
   });
 });
 
