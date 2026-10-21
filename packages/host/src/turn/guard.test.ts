@@ -353,4 +353,14 @@ describe("a read turn: a device's state as the result gives it, for the device i
   ])('%s', (sentence, why) => {
     expect(dropReason(sentence, read())).toBe(why);
   });
+
+  test('"it" is the one device the person named, and nothing when they named none', () => {
+    expect(dropReason("No, it's unlocked.", read('Is the front door locked?'))).toBeNull();
+    expect(dropReason("It's locked.", read('Is the front door locked?'))).toBe('state');
+    expect(dropReason("It's unlocked.", read('Is everything okay?'))).toBe('state');
+    expect(filterReply("Yes. It's locked.", read())).toEqual({
+      kept: [],
+      dropped: ['fragment', 'state'],
+    });
+  });
 });
