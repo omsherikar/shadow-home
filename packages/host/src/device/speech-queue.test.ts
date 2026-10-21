@@ -325,4 +325,24 @@ describe('when the voice is refused', () => {
     ]);
     expect(v.played.map((p) => p.kind)).toEqual(['audio', 'browser', 'browser', 'browser']);
   });
+
+  test('the next answer asks again', async () => {
+    let first = true;
+    const v = fakeVoice(() => {
+      const clip: Clip = first
+        ? { kind: 'browser', refused: true }
+        : { kind: 'audio', audio: new Blob() };
+      first = false;
+      return clip;
+    });
+    const speech = speechQueue(v.voice);
+    let said = speech.say('Done: TV off.');
+    await v.drain();
+    await said;
+    said = speech.say('Done: lights off.');
+    await v.drain();
+    await said;
+    expect(v.asked).toEqual(['Done: TV off.', 'Done: lights off.']);
+    expect(v.played.map((p) => p.kind)).toEqual(['browser', 'audio']);
+  });
 });
