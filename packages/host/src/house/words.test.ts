@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { LiveDevice } from './looks.ts';
 import type { Break, Change, Run } from './playback.ts';
-import { changeWords, stepWords, summaryOf } from './words.ts';
+import { changeWords, readable, stepWords, summaryOf } from './words.ts';
 
 const device = (id: string, name: string, kind = 'plug'): LiveDevice => ({
   id,
@@ -103,6 +103,46 @@ describe('what a run came to', () => {
     );
   });
 
+  test('the fixed plan holds every rule, and the room it keeps warm stays above its limit', () => {
+    const trace = {
+      start: '2027-01-15T17:53:00-06:00',
+      end: '2027-01-17T18:00:00-06:00',
+      stepMinutes: 15,
+      outdoorC: [1],
+      zonesC: {
+        nominal: { garage: [5] },
+        pessimistic: { garage: [5] },
+        optimistic: { garage: [5] },
+      },
+    };
+    const run: Run = { ...base, label: 'With 4 fixes', tone: 'fixed', verdict: 'SAFE', trace };
+    expect(summaryOf(run, names, zones)).toBe(
+      'With 4 fixes: every house rule holds, and the garage stays above 4 °C.',
+    );
+    expect(summaryOf({ ...run, temperatureRules: {} }, names, zones)).toBe(
+      'With 4 fixes: every house rule holds.',
+    );
+  });
+
+  test('a reading that can’t be trusted is named, and nothing is claimed about the rest', () => {
+    const run: Run = {
+      ...base,
+      verdict: 'UNPROVEN',
+      temperatureRules: {},
+      breaks: [
+        {
+          kind: 'unknown',
+          atMs: at('2027-01-16T02:00:00'),
+          text: 'dishwasher_latch: battery 4% is under 15%',
+          device: 'dishwasher_latch',
+        },
+      ],
+    };
+    expect(summaryOf(run, names, zones)).toBe(
+      'Your plan: the dishwasher door latch can’t be trusted; no house rule breaks in its run.',
+    );
+  });
+
   test('a rule that might break is counted as such', () => {
     const run: Run = {
       ...base,
@@ -110,6 +150,34 @@ describe('what a run came to', () => {
     };
     expect(summaryOf(run, names, zones)).toBe(
       'Your plan: 1 might break, depending on the weather.',
+    );
+  });
+
+  test('a run that isn’t SAFE never says every rule holds, even with nothing broken to show', () => {
+    // A plan that failed its checks before it was simulated: UNSAFE, with no breaks or unknowns.
+    const invalid: Run = { ...base, verdict: 'UNSAFE', breaks: [] };
+    expect(summaryOf(invalid, names, zones)).toBeNull();
+    expect(summaryOf({ ...invalid, verdict: 'UNPROVEN' }, names, zones)).toBeNull();
+    expect(summaryOf({ ...invalid, verdict: 'SAFE', temperatureRules: {} }, names, zones)).toBe(
+      'Your plan: every house rule holds.',
+    );
+  });
+
+  test('what can’t be confirmed beyond a sensor is said in its own words', () => {
+    const run: Run = {
+      ...base,
+      verdict: 'UNPROVEN',
+      temperatureRules: {},
+      breaks: [
+        {
+          kind: 'unknown',
+          atMs: base.startMs,
+          text: 'no forecast after 2027-01-17T12:00-06:00',
+        },
+      ],
+    };
+    expect(summaryOf(run, names, zones)).toBe(
+      'Your plan: it can’t confirm everything (no forecast after 2027-01-17T12:00-06:00); no house rule breaks in its run.',
     );
   });
 
@@ -145,5 +213,20 @@ describe('what a run came to', () => {
     expect(summaryOf({ ...run(20), verdict: 'SAFE', breaks: [] }, names, zones)).toBe(
       'Your plan: every house rule holds, and the house stays between 16 and 26 °C.',
     );
+  });
+
+  test('a device’s ID at the start of what can’t be confirmed reads as its name', () => {
+    expect(readable('dishwasher_latch: battery 4% is under 15%', names)).toBe(
+      'Dishwasher door latch: battery 4% is under 15%',
+    );
+    expect(readable('no forecast after noon', names)).toBe('no forecast after noon');
+  });
+
+  test('a new rule’s sample day has its own card, so nothing more is said', () => {
+    const run: Run = {
+      ...base,
+      breaks: [{ kind: 'guard', atMs: at('2027-01-15T22:00:00'), text: 'Never unlock…' }],
+    };
+    expect(summaryOf(run, names, zones)).toBeNull();
   });
 });
