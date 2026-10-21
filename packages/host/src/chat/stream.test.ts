@@ -241,4 +241,12 @@ describe('a turn as it streams', () => {
     expect(refusal(429, '90')).toMatchObject({ retryable: true, retryAfterMs: 90_000 });
     expect(refusal(429, null)).not.toHaveProperty('retryAfterMs');
   });
+
+  test('no connection is an error to retry', async () => {
+    const offline = (async () => {
+      throw new TypeError('Failed to fetch');
+    }) as unknown as typeof fetch;
+    const events = await all(streamTurn(REQUEST, { fetch: offline }));
+    expect(events).toEqual([expect.objectContaining({ type: 'error', retryable: true })]);
+  });
 });
