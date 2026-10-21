@@ -6,12 +6,17 @@ import { turnRequest } from './request.ts';
 import { TURN_DEADLINE_MS } from './run.ts';
 import type { TurnRequest, TurnResponse } from './types.ts';
 
+/** What the person hears when the hour's live turns are used up, without the stream's retry time. */
+export const LIMITED = "I've had a lot of requests this hour.";
+
 /** What /api/turn needs from its surroundings; the route builds it from the environment. */
 export interface TurnRoute {
   /** The scripted model answers (MOCK_MODEL, DEMO_MODE): no model calls, so no limit. */
   scripted: boolean;
-  /** The hourly caps on live turns (limit.ts). */
-  limit: (visitor: string) => 'ok' | 'visitor' | 'instance';
+  /** The hourly caps on live turns (limit.ts), and how long until a visitor may take another. */
+  limit: ((visitor: string) => 'ok' | 'visitor' | 'instance') & {
+    retryAfter(visitor: string): number;
+  };
   /** One whole turn (takeTurn), told of each event as it happens. */
   take(
     input: TurnRequest,
@@ -23,9 +28,10 @@ export interface TurnRoute {
  * One conversational turn over HTTP. A request from another site (403) and a bad request (400)
  * are refused as plain HTTP. With `Accept: text/event-stream` the turn streams as it happens
  * (decision 107): steps, words and calls, then `done` with the whole turn, or `error` when it
- * failed with nothing done. Without that header the answer is the whole turn as JSON, as before,
- * so an older page keeps working. When a streaming client goes away, the turn stops: the model
- * stops writing and no further tool call starts.
+ * failed with nothing done or the hour's live turns are used up (with when to try again). Without
+ * that header the answer is the whole turn as JSON, as before, so an older page keeps working.
+ * When a streaming client goes away, the turn stops: the model stops writing and no further tool
+ * call starts.
  */
 export async function respondToTurn(request: Request, route: TurnRoute): Promise<Response> {
   if (fromOtherSite(request)) return OTHER_SITE();
@@ -36,11 +42,23 @@ export async function respondToTurn(request: Request, route: TurnRoute): Promise
   const input = parsed.data as TurnRequest;
   const streamed = wantsEvents(request);
   const { scripted } = route;
-  if (!scripted && route.limit(visitorOf(request)) !== 'ok') {
-    return Response.json({
-      say: "I've had a lot of requests this hour. Try again later.",
-      calls: [],
-    });
+  if (!scripted) {
+    const visitor = visitorOf(request);
+    if (route.limit(visitor) !== 'ok') {
+      if (!streamed) return Response.json({ say: `${LIMITED} Try again later.`, calls: [] });
+      const wait = route.limit.retryAfter(visitor);
+      const retryable = Number.isFinite(wait);
+      return eventStream(async (send) =>
+        send({
+          event: 'error',
+          data: {
+            message: LIMITED,
+            retryable,
+            ...(retryable ? { retryAfterMs: Math.ceil(wait) } : {}),
+          },
+        }),
+      );
+    }
   }
   const deadline = started + TURN_DEADLINE_MS;
   const context = { scripted, streamed, started, headers };
