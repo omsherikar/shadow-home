@@ -164,6 +164,21 @@ describe('what to offer next', () => {
     const part = call('preview_plan', preview({ tier: 'T4', safePart: { planId: 'p3' } }));
     expect(labels([part])).toEqual(['Just the part you can confirm', 'Run it anyway', "Don't run"]);
   });
+
+  test('the same choices as the screen for a yes, a safe part, or a refusal', () => {
+    expect(labels([call('preview_plan', preview({ verdict: 'SAFE', tier: 'T2' }))])).toEqual([
+      'Yes, run it',
+      'Why?',
+      "Don't run",
+    ]);
+    expect(labels([call('preview_plan', preview({ safePart: { planId: 'p3' } }))])).toEqual([
+      'Just the safe part',
+      'Why?',
+      "Don't run",
+    ]);
+    expect(labels([call('preview_plan', preview({ tier: 'T5' }))])).toEqual(['Why?']);
+    expect(labels([call('preview_plan', preview({}))])).toEqual(['Why?']);
+  });
 });
 
 describe('the details view', () => {
