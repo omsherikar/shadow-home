@@ -95,4 +95,12 @@ describe('speaking an answer as it streams', () => {
     ]);
     expect(v.played.map((p) => p.text)).toEqual(v.asked);
   });
+
+  test('an answer that never streamed is said whole at the end, sentence by sentence', async () => {
+    const v = fakeVoice();
+    const said = speechQueue(v.voice).finish(WEEKEND);
+    await v.drain();
+    await said;
+    expect(v.played).toHaveLength(4);
+  });
 });
