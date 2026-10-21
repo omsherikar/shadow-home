@@ -502,3 +502,14 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
     done: true,
   };
 }
+
+/** How long a whole show takes to play, in real milliseconds. */
+export function showLength(runs: Run[], timing: ShowTiming): number {
+  return runs.reduce(
+    (total, run, i) =>
+      total +
+      schedule(run, i === 0 ? timing.plan : timing.fixed).totalMs +
+      (i > 0 ? timing.pauseMs + timing.rewindMs : 0),
+    0,
+  );
+}
