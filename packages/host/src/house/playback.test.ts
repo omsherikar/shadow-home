@@ -863,3 +863,35 @@ describe('the clock’s pace', () => {
     expect(swept).toBeCloseTo(12_000, 6);
   });
 });
+
+describe('what has broken so far', () => {
+  const runs = runsFrom('preview_plan', preview, meta);
+  const timing: ShowTiming = {
+    plan: { sweepMs: 8000, holdMs: 1000, stepMs: 300 },
+    fixed: { sweepMs: 4000, holdMs: 1000, stepMs: 300 },
+    pauseMs: 500,
+    rewindMs: 500,
+  };
+  const plan = runs[0] as Run;
+  const [r1, r3] = plan.breaks as [Run['breaks'][number], Run['breaks'][number]];
+
+  test('a break counts from its own stop, not from the moment the clock shows its time', () => {
+    // Settling and acting out the freezer, at the very time R1 breaks: not yet.
+    expect(moment(runs, timing, 100).fired).toEqual([]);
+    expect(moment(runs, timing, 400).fired).toEqual([]);
+    // On its stop, and after it.
+    expect(moment(runs, timing, 700).fired).toEqual([r1]);
+    expect(moment(runs, timing, 2000).fired).toEqual([r1]);
+    const end = schedule(plan, timing.plan).totalMs;
+    expect(moment(runs, timing, end + 100).fired).toEqual([r1, r3]);
+  });
+
+  test('winding back, they come undone as the clock passes them; the end has the last run’s', () => {
+    const end = schedule(plan, timing.plan).totalMs;
+    const late = moment(runs, timing, end + 500 + 450);
+    expect(late.rewinding).toBe(true);
+    expect(late.fired.length).toBeLessThan(2);
+    expect(moment(runs, timing, Number.POSITIVE_INFINITY).fired).toEqual([]);
+    expect(moment(runs, timing, Number.POSITIVE_INFINITY, 0).fired).toEqual([r1, r3]);
+  });
+});
