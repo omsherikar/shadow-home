@@ -81,3 +81,28 @@ export function routeOut(layout: HouseLayout, member: string): Point[] {
     alongX ? { x: d.x, z: d.z + inward * n } : { x: d.x + inward * n, z: d.z };
   return [{ x: person.x, z: person.z }, ...through, step(0.7), d, step(-1.3)];
 }
+
+/** How far along a route a share of the walk (0 to 1) is, by distance, and which way it faces. */
+export function along(route: Point[], share: number): { at: Point; heading: number } {
+  const legs = route.slice(1).map((p, i) => {
+    const from = route[i] as Point;
+    return { from, to: p, length: Math.hypot(p.x - from.x, p.z - from.z) };
+  });
+  const total = legs.reduce((sum, l) => sum + l.length, 0);
+  let left = Math.min(1, Math.max(0, share)) * total;
+  for (const leg of legs) {
+    if (left <= leg.length || leg === legs.at(-1)) {
+      const t = leg.length === 0 ? 1 : Math.min(1, left / leg.length);
+      return {
+        at: {
+          x: leg.from.x + (leg.to.x - leg.from.x) * t,
+          z: leg.from.z + (leg.to.z - leg.from.z) * t,
+        },
+        heading: Math.atan2(leg.to.x - leg.from.x, leg.to.z - leg.from.z),
+      };
+    }
+    left -= leg.length;
+  }
+  const only = route[0] ?? { x: 0, z: 0 };
+  return { at: only, heading: 0 };
+}
