@@ -73,6 +73,22 @@ function playClip(clip: Clip, text: string, signal: AbortSignal): Promise<boolea
   }
 }
 
+/** How long a clip may play past its own length before it counts as over. */
+const PLAY_MARGIN_MS = 2_000;
+/** How long a clip whose length isn't known yet may play before it counts as over. */
+const UNKNOWN_LENGTH_MS = 10_000;
+
+/**
+ * How long to let a clip play before it counts as over, heard or not: its length plus a margin
+ * from when it starts playing, or 10 s while its length isn't known. A clip whose sound never moves on (no audio output, a
+ * stalled stream) would otherwise keep her "speaking" for good, and the next sentence waiting.
+ */
+export function playLimitMs(lengthSeconds: number): number {
+  return Number.isFinite(lengthSeconds) && lengthSeconds > 0
+    ? Math.ceil(lengthSeconds * 1000) + PLAY_MARGIN_MS
+    : UNKNOWN_LENGTH_MS;
+}
+
 function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
