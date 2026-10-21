@@ -136,7 +136,7 @@ function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) 
       <RoomTints zonesC={view.zonesC} />
       <Furniture layout={layout} />
       <Devices layout={layout} devices={view.devices} />
-      <People layout={layout} presence={view.presence} />
+      <People layout={layout} presence={view.presence} still={still} />
       {lean ? null : <Finish />}
     </>
   );
