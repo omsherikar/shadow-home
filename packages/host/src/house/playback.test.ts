@@ -16,6 +16,7 @@ import {
   runsFrom,
   type ShowTiming,
   schedule,
+  showLength,
   TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type Trace,
@@ -380,6 +381,14 @@ describe('a show', () => {
     expect(back.homeMs).toBeLessThan(plan.endMs);
     expect(back.homeMs).toBeGreaterThan(fixed.startMs);
     expect(moment(runs, timing, planMs + 1000)).toMatchObject({ run: 1, homeMs: fixed.startMs });
+  });
+
+  test('its length is when it ends, and after the end it stays on the last moment', () => {
+    const total = showLength(runs, timing);
+    expect(total).toBeCloseTo(planMs + 1000 + schedule(fixed, timing.fixed).totalMs, 6);
+    expect(moment(runs, timing, total - 1).done).toBe(false);
+    expect(moment(runs, timing, total)).toMatchObject({ run: 1, homeMs: fixed.endMs, done: true });
+    expect(moment(runs, timing, Number.POSITIVE_INFINITY).done).toBe(true);
   });
 
   test('one run can be played on its own', () => {
