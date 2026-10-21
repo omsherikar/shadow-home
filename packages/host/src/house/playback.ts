@@ -688,7 +688,7 @@ export interface Moment {
 
 /** One stretch of a whole show: part of a run, the pause on a run's end, or the clock winding back. */
 interface Piece {
-  /** Where the piece starts in the show, in real milliseconds. */
+  /** Where the piece starts in the show, in real milliseconds at normal speed. */
   atMs: number;
   realMs: number;
   run: number;
@@ -795,9 +795,42 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
   };
 }
 
-/** How long a whole show takes to play, in real milliseconds. */
+/** How long a whole show takes to play, in real milliseconds at normal speed. */
 export function showLength(runs: Run[], timing: ShowTiming): number {
   return showOf(runs, timing).totalMs;
+}
+
+/** The speeds a show plays at. */
+export const SPEEDS = [1, 2, 4] as const;
+export type Speed = (typeof SPEEDS)[number];
+
+/**
+ * Where a show is after `gapMs` more of real time at `speed`, from `position` (in real
+ * milliseconds at normal speed). The clock, the steps and the winding back go `speed` times as
+ * fast; a stop on a break lasts as long at any speed, so its card can still be read. It never
+ * goes past the end.
+ */
+export function advance(
+  runs: Run[],
+  timing: ShowTiming,
+  position: number,
+  gapMs: number,
+  speed: number,
+  only?: number,
+): number {
+  const show = showOf(runs, timing, only);
+  let at = Math.max(0, position);
+  let left = Math.max(0, gapMs);
+  for (const p of show.pieces) {
+    const end = p.atMs + p.realMs;
+    if (at >= end) continue;
+    const rate = p.segment?.hold ? 1 : speed;
+    const need = (end - at) / rate;
+    if (left < need) return at + left * rate;
+    left -= need;
+    at = end;
+  }
+  return show.totalMs;
 }
 
 /** A new house rule's sample day: the hours it guards, on the device it guards. */
