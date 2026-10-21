@@ -3,6 +3,13 @@
  * and started again whenever it ends or fails. Chrome ends a session on its own after a stretch of
  * silence or a network hiccup, so ending is normal; only a refused microphone stops it for good.
  */
+import type { RecognitionCtor } from '../device/voice.ts';
+
+/** Errors after which the microphone won't work again until the person allows it. */
+const LASTING = new Set(['not-allowed', 'service-not-allowed', 'audio-capture']);
+
+/** A beat before listening again after her voice, so its tail isn't heard as speech. */
+export const RESUME_MS = 300;
 
 /**
  * How long to wait before starting again: soon after a normal end, then longer while it keeps
@@ -10,4 +17,104 @@
  */
 export function restartDelay(failures: number): number {
   return Math.min(5000, 250 * 2 ** Math.max(0, failures));
+}
+
+export interface ListenerEvents {
+  /** A finished piece of speech. */
+  onFinal(text: string): void;
+  /** The words so far of the piece still being spoken (empty when there are none). */
+  onInterim(text: string): void;
+  /** `lasting`: listening has stopped for good, because the microphone was refused. */
+  onError(error: string, lasting: boolean): void;
+}
+
+export interface Listener {
+  /** Listen (again), after a short beat. */
+  resume(): void;
+  /** Stop listening for now; anything heard in the meantime is dropped. */
+  pause(): void;
+}
+
+export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents): Listener {
+  let wanted = false;
+  let live: { rec: InstanceType<RecognitionCtor>; session: number } | null = null;
+  // Each session's number: what an ended or paused session still reports is dropped.
+  let session = 0;
+  let failures = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const later = (ms: number) => {
+    clearTimeout(timer);
+    timer = setTimeout(begin, ms);
+  };
+
+  function begin() {
+    timer = undefined;
+    if (!wanted || live) return;
+    session += 1;
+    const mine = session;
+    const rec = new Ctor();
+    rec.lang = 'en-US';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      if (mine !== session) return;
+      failures = 0;
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const result = e.results[i];
+        if (!result) continue;
+        const words = result[0].transcript;
+        if (result.isFinal) {
+          if (words.trim()) events.onFinal(words.trim());
+        } else interim += words;
+      }
+      events.onInterim(interim.trim());
+    };
+    rec.onerror = (e) => {
+      if (mine !== session || e.error === 'aborted') return;
+      if (LASTING.has(e.error)) {
+        wanted = false;
+        events.onError(e.error, true);
+        return;
+      }
+      // Silence is normal; anything else (the network) counts towards waiting longer.
+      if (e.error === 'no-speech') {
+        events.onError(e.error, false);
+        return;
+      }
+      failures += 1;
+      events.onError(e.error, false);
+    };
+    rec.onend = () => {
+      if (mine !== session) return;
+      live = null;
+      if (wanted) later(restartDelay(failures));
+    };
+    live = { rec, session: mine };
+    try {
+      rec.start();
+    } catch {
+      live = null;
+      failures += 1;
+      if (wanted) later(restartDelay(failures));
+    }
+  }
+
+  return {
+    resume() {
+      if (wanted && (live || timer)) return;
+      wanted = true;
+      later(RESUME_MS);
+    },
+    pause() {
+      wanted = false;
+      clearTimeout(timer);
+      timer = undefined;
+      session += 1;
+      live?.rec.abort();
+      live = null;
+      events.onInterim('');
+    },
+  };
 }
