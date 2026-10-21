@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { houseLayout as layout } from './layout.ts';
-import { type Point, routeOut } from './walk.ts';
+import { along, type Point, routeOut } from './walk.ts';
 
 const inside = (p: Point, r: (typeof layout.rooms)[number]) =>
   p.x >= r.x - 1e-6 &&
@@ -38,5 +38,21 @@ describe('the way out', () => {
 
   test('someone the layout doesn’t place has no way out to show', () => {
     expect(routeOut(layout, 'nobody')).toEqual([]);
+  });
+});
+
+describe('along the way', () => {
+  const route: Point[] = [
+    { x: 0, z: 0 },
+    { x: 3, z: 0 },
+    { x: 3, z: 4 },
+  ];
+
+  test('goes by distance, start to end, facing the way it walks', () => {
+    expect(along(route, 0).at).toEqual({ x: 0, z: 0 });
+    expect(along(route, 3 / 7).at).toEqual({ x: 3, z: 0 });
+    expect(along(route, 1).at).toEqual({ x: 3, z: 4 });
+    expect(along(route, 0.2).heading).toBeCloseTo(Math.PI / 2, 9);
+    expect(along(route, 0.9).heading).toBeCloseTo(0, 9);
   });
 });
