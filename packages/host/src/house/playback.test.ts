@@ -810,4 +810,21 @@ describe('acting out the plan', () => {
     expect(at(still[3] as never)).toEqual(['thermostat_main', 'plug_garage_freezer']);
     expect(at(still[7] as never)).toContain('light_kitchen');
   });
+
+  test('a later action of the plan plays when the clock reaches it, before what it can’t establish', () => {
+    const dishwasher = {
+      ...preview,
+      verdict: 'UNPROVEN',
+      violations: [],
+      unknowns: ['dishwasher_latch: battery 4% is under 15%'],
+      timeline: [{ ...plan('dishwasher', 0, 'onOff', true), at: '2027-01-16T02:00:00-06:00' }],
+      repair: null,
+    };
+    const [late] = runsFrom('preview_plan', dishwasher, planOnly) as [Run];
+    const segs = schedule(late, timing).segments;
+    const first = segs.findIndex((seg) => seg.step);
+    expect(segs[first - 1]?.toMs).toBe(at('2027-01-16T02:00:00'));
+    expect(segs[first]?.step?.changes[0]?.device).toBe('dishwasher');
+    expect(segs[first + 1]?.hold?.map((b) => b.kind)).toEqual(['unknown']);
+  });
 });
