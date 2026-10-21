@@ -218,3 +218,55 @@
 .offer:hover:not(:disabled) {
   border-color: var(--ring);
 }
+
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px 12px;
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 18px;
+  border: 1px solid rgb(255 238 214 / 16%);
+  border-radius: 999px;
+  background: rgb(10 8 6 / 55%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.composer input::placeholder {
+  color: var(--ink-muted);
+}
+
+.round {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.round.send {
+  background: var(--ring);
+  color: #052029;
+}
+
+.round.mic {
+  background: rgb(255 238 214 / 10%);
+  color: var(--ink);
+}
+
+.round.mic[aria-pressed="true"] {
+  background: var(--ring);
+  color: #052029;
+  animation: ring-pulse 1.1s ease-in-out infinite;
+}
