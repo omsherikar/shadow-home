@@ -171,7 +171,11 @@ export function previewScreen(
  * what a person would.
  */
 function badge(p: Preview): Pick<Screen, 'tone' | 'icon' | 'word'> {
-  if (p.tier === 'T5') return { tone: 'blocked', icon: '✋', word: 'Not safe' };
+  // Refused by a rule, even one that breaks only in a colder run. A T5 for want of who's away
+  // breaks no rule, so it reads as can't confirm.
+  if (p.tier === 'T5' && (p.verdict === 'UNSAFE' || p.violations.some((v) => v.refuse))) {
+    return { tone: 'blocked', icon: '✋', word: 'Not safe' };
+  }
   if (p.verdict === 'UNSAFE') return { tone: 'blocked', icon: '✕', word: 'Not safe' };
   if (p.verdict === 'UNPROVEN') return { tone: 'unsure', icon: '?', word: "Can't confirm" };
   return { tone: 'safe', icon: '✓', word: 'Safe' };
