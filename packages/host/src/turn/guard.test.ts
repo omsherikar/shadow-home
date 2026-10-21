@@ -6,6 +6,7 @@ import {
   dropReason,
   type FilterFacts,
   filterFacts,
+  filterReply,
   numbersIn,
   timesIn,
 } from './guard.ts';
@@ -122,6 +123,32 @@ describe('what can be spoken at all', () => {
     [`The garage ${'gets colder and '.repeat(9)}colder.`, 'long'],
   ])('%s', (sentence, why) => {
     expect(dropReason(sentence, CHAT)).toBe(why);
+  });
+});
+
+describe('a whole reply', () => {
+  test('the sentences that may be said, in order, and why the others were dropped', () => {
+    expect(
+      filterReply(
+        "Om's rule is about the coffee maker. It's fine without the fix. The coffee maker would be on Saturday night.\nShall I fix it?",
+        PLAN,
+      ),
+    ).toEqual({
+      kept: [
+        "Om's rule is about the coffee maker.",
+        'The coffee maker would be on Saturday night.',
+      ],
+      dropped: ['verdict', 'question'],
+    });
+  });
+
+  test('at most three sentences, and 40 words after a check', () => {
+    const reply = filterReply(
+      "Om's rule is about the garage. The fix pauses Good night. The TV is in the living room. The end.",
+      PLAN,
+    );
+    expect(reply.kept).toHaveLength(3);
+    expect(reply.dropped).toEqual(['long']);
   });
 });
 
