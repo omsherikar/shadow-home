@@ -53,6 +53,11 @@ const VERDICT = new RegExp(
     'found nothing|found no',
   ].join('|')})\\b`,
 );
+/** Denies that the harm happens: "nothing will freeze", "won't get cold", "and it won't." */
+const NEGATED_HARM = [
+  /\b(?:no|nothing|never|won'?t|will not|wouldn'?t|would not|doesn'?t|does not|didn'?t|did not|isn'?t|is not|aren'?t|not|can'?t|cannot)\b(?:\s+[\w']+){0,4}?\s+(?:freez\w*|frost\w*|cold\w*|chill\w*|drop\w*|dip\w*|fall\w*|happen\w*)\b/,
+  /\b(?:it|that|this|they)\s+(?:won'?t|wouldn'?t|will not|would not|doesn'?t|does not|isn'?t|is not)\s*[.!]?\s*$/,
+];
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
@@ -231,6 +236,6 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
   if (context === 'chat') return null;
-  if (VERDICT.test(text)) return 'verdict';
+  if (VERDICT.test(text) || NEGATED_HARM.some((p) => p.test(text))) return 'verdict';
   return null;
 }
