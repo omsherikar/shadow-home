@@ -476,6 +476,35 @@
   overflow-y: auto;
 }
 
+/*
+ * A phone: the house (when asked for), the device folded into a strip, then the chat with its
+ * composer at the bottom. Opened, the screen fills the phone, turned on its side when it's upright.
+ */
+.narrow.stage,
+.narrow.room {
+  flex-direction: column;
+}
+
+.narrow > .house-panel {
+  flex: 0 0 34dvh;
+}
+
+.narrow.stage > .device-panel,
+.narrow.room > .device-panel {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 10px 12px 12px;
+  gap: 10px;
+}
+
+.narrow .device-fit {
+  display: none;
+}
+
+.narrow .chat-dock {
+  flex: 1 1 auto;
+}
+
 /* A plan a later turn set aside: still there to read, but its buttons no longer answer. */
 .stale-cover {
   position: absolute;
