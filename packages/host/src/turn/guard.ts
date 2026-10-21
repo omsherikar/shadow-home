@@ -28,6 +28,26 @@ export type Dropped =
   | 'plain'
   | 'long';
 
+const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
+const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
+const TEEN_WORDS =
+  'ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen';
+const TEN_WORDS = 'twenty|thirty|forty|fifty';
+const MERIDIEM = '([ap])\\.?\\s?m\\b\\.?';
+/** Times as people say them, each with the hour, the minute if given, and a or p if given. */
+const TIME_PATTERNS: RegExp[] = [
+  // 10:37 PM, 9pm, 9 p.m.
+  new RegExp(`\\b(\\d{1,2})(?::(\\d{2}))?\\s*${MERIDIEM}`, 'g'),
+  // ten thirty-seven PM, seven oh five AM, ten o'clock PM
+  new RegExp(
+    `\\b(${HOUR_WORDS})(?:[ -](o'?clock|oh[ -](?:${UNIT_WORDS})|(?:${TEN_WORDS})(?:[ -](?:${UNIT_WORDS}))?|${TEEN_WORDS}))?\\s+${MERIDIEM}`,
+    'g',
+  ),
+  // 22:37, 07:00
+  /\b(\d{1,2}):(\d{2})\b/g,
+  /\b(noon|midday|midnight)\b/g,
+];
+
 const NUMBER_WORDS: Record<string, number> = {
   zero: 0,
   two: 2,
@@ -71,6 +91,52 @@ const NUMBER_WORDS: Record<string, number> = {
 
 function lower(text: string): string {
   return text.toLowerCase().replace(/[‘’]/g, "'");
+}
+
+/**
+ * The times in some text, each as the "hour:minute" keys it could mean on the 24-hour clock (one
+ * without AM or PM, such as 10:30, could be either), and the text with them taken out. A time
+ * that can't be one (37 PM) has no keys, so it matches nothing.
+ */
+export function timesIn(text: string): { times: string[][]; rest: string } {
+  const times: string[][] = [];
+  let rest = lower(text);
+  for (const pattern of TIME_PATTERNS) {
+    rest = rest.replace(pattern, (whole: string, hour?: string, minute?: string, ap?: unknown) => {
+      times.push(timeKeys(whole, hour ?? '', minute, typeof ap === 'string' ? ap : ''));
+      return ' ';
+    });
+  }
+  return { times, rest };
+}
+
+function timeKeys(whole: string, hourText: string, minuteText: string | undefined, ap: string) {
+  const key = (h: number, m: number) => `${h}:${m}`;
+  if (whole === 'noon' || whole === 'midday') return [key(12, 0)];
+  if (whole === 'midnight') return [key(0, 0)];
+  const hour = /^\d+$/.test(hourText) ? Number(hourText) : wordNumber(hourText);
+  const minute = minuteOf(minuteText);
+  if (Number.isNaN(hour) || minute === null || minute > 59) return [];
+  if (ap === 'a' || ap === 'p') {
+    if (hour < 1 || hour > 12) return [];
+    return [key((hour % 12) + (ap === 'p' ? 12 : 0), minute)];
+  }
+  if (hour > 23) return [];
+  // 07:00 and 22:30 are the 24-hour clock; 7:00 and 10:30 could be morning or evening.
+  if (hour === 0 || hour > 12 || /^0\d$/.test(hourText)) return [key(hour, minute)];
+  return [key(hour % 12, minute), key((hour % 12) + 12, minute)];
+}
+
+function minuteOf(text: string | undefined): number | null {
+  if (!text || /o'?clock/.test(text)) return 0;
+  if (/^\d+$/.test(text)) return Number(text);
+  let total = 0;
+  for (const word of text.split(/[ -]/).filter((w) => w && w !== 'oh')) {
+    const n = wordNumber(word);
+    if (Number.isNaN(n)) return null;
+    total += n;
+  }
+  return total;
 }
 
 function wordNumber(word: string): number {
