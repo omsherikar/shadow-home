@@ -178,4 +178,26 @@ describe('the Anthropic API behind the Converse loop', () => {
     await anthropicConverse(api)({ modelId: 'm', messages: [] }, { signal: stop.signal });
     expect(signals[0]).toBe(stop.signal);
   });
+
+  test('only the call that runs is announced: the first, and only when it is on offer', async () => {
+    const heard = async (...content: unknown[]) => {
+      const { api } = fakeApi(reply(content, 'tool_use'));
+      const model = bedrockModel({ converse: anthropicConverse(api), tools, home });
+      const announced: string[] = [];
+      const step = await model.next(
+        { text: 'x', history: [], thisTurn: [] },
+        { onEvent: (e) => 'tool' in e && announced.push(e.tool) },
+      );
+      return { step, tools: announced };
+    };
+    const use = (name: string) => ({ type: 'tool_use', id: `toolu_${name}`, name, input: {} });
+    expect(await heard(use('preview_plan'), use('commit_plan'))).toEqual({
+      step: { call: { name: 'preview_plan', arguments: {} } },
+      tools: ['preview_plan'],
+    });
+    expect(await heard(use('approve_plan'), use('preview_plan'))).toEqual({
+      step: { say: "Sorry, I can't do that." },
+      tools: [],
+    });
+  });
 });
