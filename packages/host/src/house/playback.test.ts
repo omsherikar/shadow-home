@@ -446,4 +446,25 @@ describe('a new house rule’s sample day', () => {
     expect(guardFrom('add_house_rule', args, { status: 'unclear' })).toBeNull();
     expect(guardFrom('preview_plan', args, added)).toBeNull();
   });
+
+  test('shows nothing for a result or a rule it can’t read, rather than throw', () => {
+    const hours = (time: unknown) => ({
+      ...args,
+      rule: { ...args.rule, params: { ...args.rule.params, when: { time } } },
+    });
+    let deep: unknown = args.rule;
+    for (let i = 0; i < 20; i++) deep = { all: [deep] };
+    const cases: [string, Record<string, unknown>, Record<string, unknown> | undefined][] = [
+      ['words read back that aren’t words', args, { status: 'added', readBack: 5 }],
+      ['no result', args, undefined],
+      ['an hour past the day', hours({ from: '25:00', to: '06:00' }), added],
+      ['hours that aren’t times', hours({ from: 22, to: 6 }), added],
+      ['a rule that isn’t one', { ...args, rule: 'never' }, added],
+      ['a rule nested past any compiled one', { ...args, rule: deep }, added],
+    ];
+    for (const [why, call, result] of cases) {
+      expect(() => guardFrom('add_house_rule', call, result), why).not.toThrow();
+      expect(guardFrom('add_house_rule', call, result), why).toBeNull();
+    }
+  });
 });
