@@ -154,7 +154,8 @@
   animation: ring-turn 1.4s linear infinite;
 }
 
-.ring.listening {
+.ring.listening,
+.ring.awaiting {
   background: var(--ring);
   animation: ring-pulse 1.1s ease-in-out infinite;
 }
