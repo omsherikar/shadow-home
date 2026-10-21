@@ -42,4 +42,17 @@ describe('sentences in whole words', () => {
       allSentences('I can run it at 2 p.m. Shall I? That is plan B. Then the lights.'),
     ).toEqual(['I can run it at 2 p.m.', 'Shall I?', 'That is plan B.', 'Then the lights.']);
   });
+
+  test('questions, exclamations, quotes and a trailing ellipsis', () => {
+    expect(
+      allSentences(
+        'That\'s Maya\'s rule: "Keep the aquarium heater on." Shall I? Done! Well… okay.',
+      ),
+    ).toEqual([
+      'That\'s Maya\'s rule: "Keep the aquarium heater on."',
+      'Shall I?',
+      'Done!',
+      'Well… okay.',
+    ]);
+  });
 });
