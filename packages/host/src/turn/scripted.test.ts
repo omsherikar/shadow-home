@@ -47,6 +47,33 @@ describe('the scripted stand-in for the model', () => {
     expect(step.call.arguments.actions).toHaveLength(7);
   });
 
+  test("every demo line takes the same first step as before: the live model's guidance doesn't touch it", async () => {
+    const lines = script.beats.flatMap((b) => [b.say].flat());
+    const steps = await Promise.all(lines.map((line) => firstStep(line)));
+    expect(steps.map((step) => ('call' in step ? step.call.name : step.say))).toEqual([
+      'preview_plan',
+      'preview_plan',
+      'add_house_rule',
+      'get_activity_log',
+      'undo',
+      'preview_plan',
+    ]);
+    // The weekend is still the demo script's own plan, with its presence and end.
+    const weekend = script.beats.find((b) => b.id === 'weekend_away');
+    expect(steps[0]).toMatchObject({
+      call: {
+        name: 'preview_plan',
+        arguments: {
+          intent: lines[0],
+          requestedBy: 'om',
+          actions: weekend?.draftPlanExample,
+          presenceSchedule: weekend?.context?.presenceSchedule,
+          planEnd: weekend?.context?.planEnd,
+        },
+      },
+    });
+  });
+
   test('a line close to a demo line still finds it; an unrelated one does not', () => {
     expect(bestBeat(normalise('run the dishwasher at 2am, power is cheap'), script.beats)?.id).toBe(
       'dishwasher_2am',
