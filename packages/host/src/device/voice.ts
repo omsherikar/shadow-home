@@ -102,12 +102,12 @@ export function stopSpeaking(): void {
   speech.clear();
 }
 
-interface RecognitionResult {
+export interface RecognitionResult {
   isFinal: boolean;
   0: { transcript: string };
 }
 
-interface Recognition {
+export interface Recognition {
   lang: string;
   interimResults: boolean;
   continuous: boolean;
@@ -116,9 +116,10 @@ interface Recognition {
   onend: (() => void) | null;
   start(): void;
   stop(): void;
+  abort(): void;
 }
 
-type RecognitionCtor = new () => Recognition;
+export type RecognitionCtor = new () => Recognition;
 
 function recognitionCtor(): RecognitionCtor | undefined {
   if (typeof window === 'undefined') return undefined;
