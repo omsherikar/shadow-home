@@ -10,7 +10,7 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
-import { carriesPreview, runsFrom } from '../house/playback.ts';
+import { carriesPreview, guardFrom, runsFrom, sampleDay } from '../house/playback.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
@@ -72,6 +72,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const screenNote = useRef<string | undefined>(undefined);
   const working = useRef(false);
   const mic = useRef<{ stop(): void } | null>(null);
+  const homeNow = useRef<LiveHome | null>(null);
   const requests = useRef(0);
 
   /** Ask the house to play something, or with `null` to show the home as it is. */
@@ -108,8 +109,11 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       // else that goes wrong here leaves it showing the home as it is.
       try {
         const runs = runsFrom(call.name, sc, call.result._meta);
+        const guard = guardFrom(call.name, call.arguments, sc);
         if (runs.length > 0) ask({ play: runs });
-        else if (
+        else if (guard && homeNow.current) {
+          ask({ play: [sampleDay(guard, homeNow.current.now)], guard });
+        } else if (
           (call.name === 'commit_plan' && sc?.status === 'committed') ||
           carriesPreview(call.name, sc)
         ) {
@@ -131,6 +135,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     const parsed = parseLiveHome(r.structuredContent);
     setHomeBroken(parsed === null);
     if (parsed) {
+      homeNow.current = parsed;
       setHome(parsed);
     }
   }, []);

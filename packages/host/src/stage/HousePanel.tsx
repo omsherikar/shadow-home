@@ -10,6 +10,8 @@ import {
   changesBy,
   chartOf,
   devicesAt,
+  type Guard,
+  guarding,
   homeClock,
   homeIso,
   moment,
@@ -29,6 +31,7 @@ export interface HouseRequest {
   /** A new number for every request, so the same runs can be asked for twice. */
   id: number;
   play: Run[] | null;
+  guard?: Guard;
 }
 
 /** The devices the story turns on, each with a status dot over it and a short name beside it. */
@@ -56,6 +59,7 @@ const ANCHORS: Anchor[] = [
 interface Show {
   id: number;
   runs: Run[];
+  guard?: Guard;
   /** The house as it was when the plan was checked: where every run starts. */
   devices: LiveDevice[];
   presence: Record<string, 'home' | 'away'>;
@@ -108,6 +112,7 @@ export function HousePanel(props: {
     setShow({
       id: request.id,
       runs: request.play,
+      ...(request.guard ? { guard: request.guard } : {}),
       devices: live.devices,
       presence: live.presence,
     });
@@ -188,6 +193,7 @@ export function HousePanel(props: {
   const docked = mode === 'split';
   const pinnedCards = !docked && cards.length === 1 ? cards.filter((b) => b.device) : [];
   const inCard = docked ? held : cards.filter((b) => !pinnedCards.includes(b));
+  const guardOn = show?.guard && guarding(show.guard, time) ? show.guard.device : undefined;
   const byId = new Map((devices ?? []).map((d) => [d.id, d]));
 
   return (
@@ -235,7 +241,12 @@ export function HousePanel(props: {
               ) : null}
               {dot ? (
                 <span
-                  className={['dot', `dot-${dot.tone}`, broken ? `dot-${broken}` : ''].join(' ')}
+                  className={[
+                    'dot',
+                    `dot-${dot.tone}`,
+                    broken ? `dot-${broken}` : '',
+                    guardOn === d.device ? 'dot-guarding' : '',
+                  ].join(' ')}
                   title={`${byId.get(d.device)?.name ?? d.device}: ${dot.label}`}
                   data-device={d.device}
                   data-state={dot.tone}
