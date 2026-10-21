@@ -195,3 +195,26 @@
   font-size: 14px;
   text-align: center;
 }
+
+/* Suggestions sit by the composer: what to say first, then the answers to her question. */
+.offers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 16px 0;
+}
+
+.offer {
+  padding: 7px 14px;
+  border: 1px solid rgb(255 238 214 / 22%);
+  border-radius: 999px;
+  background: rgb(255 238 214 / 5%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.offer:hover:not(:disabled) {
+  border-color: var(--ring);
+}
