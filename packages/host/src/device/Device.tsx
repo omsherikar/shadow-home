@@ -422,12 +422,20 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           holding.current = true;
         }
       };
+      // The screen draws each call in order, without holding up what streams after it: her words
+      // and her voice don't wait for the plan view to be drawn.
+      let drawing: Promise<void> = Promise.resolve();
       try {
         for await (const event of streamTurn(request, { signal: controller.signal })) {
           if (gone()) break;
-          if (event.type === 'call') await take(event.call);
+          if (event.type === 'call') {
+            const { call } = event;
+            drawing = drawing.then(() => take(call));
+          }
           if (event.type === 'done') {
-            // A server that doesn't stream sends every call here; one that does, the same calls.
+            // Every call that streamed is on screen first. A server that doesn't stream sends every
+            // call here; one that does, the same calls.
+            await drawing;
             for (const call of event.turn.calls.slice(calls.length)) await take(call);
             if (!gone()) {
               hear();
@@ -447,6 +455,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           if (event.type === 'text') wrote = true;
           setActivity(running.size > 0 ? 'working' : wrote ? 'answering' : 'thinking');
         }
+        await drawing;
       } catch (e) {
         if (process.env.NODE_ENV !== 'production') console.error('The turn failed:', e);
         if (!gone()) {
@@ -455,6 +464,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           setMessages((m) => replace(m, alexa, (msg) => withEvent(msg, event, Date.now())));
         }
       } finally {
+        // Whatever is still being drawn finishes before the turn is wrapped up.
+        await drawing.catch(() => undefined);
         if (controller.signal.aborted) setMessages((m) => replace(m, alexa, stopped));
         // A turn that played nothing ("no", the activity log) leaves the house showing the home.
         if (!askedHouse.current) ask({ play: null });
