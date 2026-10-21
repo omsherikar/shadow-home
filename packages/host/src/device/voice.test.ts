@@ -129,4 +129,20 @@ describe('a clip that never finishes properly still counts as finished', () => {
     expect(result).toBe(false);
     expect(speaking).toEqual([true, false]);
   });
+
+  test('a clip that never ends, its length unknown, counts as over after 10 s', async () => {
+    const { speak, speaking } = await voiceWithAudio();
+    let result: boolean | undefined;
+    void speak('Shall I fix it?').then((r) => {
+      result = r;
+    });
+    await flush();
+    expect(speaking).toEqual([true]);
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(result).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(result).toBe(false);
+    expect(speaking).toEqual([true, false]);
+    expect(FakeAudio.made[0]?.paused).toBe(true);
+  });
 });
