@@ -165,3 +165,17 @@ test('one tap, then by voice alone: a request, her question aloud, and the answe
   const settings = await page.evaluate(() => (window as unknown as { mic: Mic }).mic.settings);
   expect(settings.every((s) => s.continuous && s.interimResults)).toBe(true);
 });
+
+test('"Alexa" alone: she listens for the request, which needs no wake word', async ({ page }) => {
+  await fakeMic(page);
+  await stubSpeech(page);
+  const sent = turnsSent(page);
+  await page.goto('/?speak=1');
+  await pill(page).click();
+  await hear(page, 'Alexa');
+  await expect(pill(page)).toContainText("I'm listening");
+  await expect(page.locator('.chat-state')).toHaveText('Listening');
+  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-awake.png' });
+  await hear(page, 'what did you change while I was away');
+  await expect.poll(() => sent).toEqual(['what did you change while I was away']);
+});
