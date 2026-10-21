@@ -234,6 +234,24 @@ export function splitFollowUps(all: FollowUp[]): { answers: FollowUp[]; rest: Fo
   };
 }
 
+/** What a result puts on the phone's strip: its verdict, if it has one, and its headline. */
+export interface Glance {
+  verdict?: Chip;
+  headline: string;
+}
+
+/** The strip's verdict and headline for a call, or null for one that puts nothing on screen. */
+export function glanceFor(call: ToolCall): Glance | null {
+  const sc = call.result.structuredContent as Record<string, unknown> | undefined;
+  if (!sc || call.result.isError) return null;
+  if (call.name === 'get_activity_log') return { headline: 'What changed' };
+  if (!['preview_plan', 'undo', 'commit_plan', 'add_house_rule'].includes(call.name)) return null;
+  const headline = (sc.speech as { headline?: unknown } | undefined)?.headline;
+  if (typeof headline !== 'string') return null;
+  const verdict = chipFor(call.name, sc);
+  return verdict ? { verdict, headline } : { headline };
+}
+
 // The details view
 
 interface ViolationLike {
