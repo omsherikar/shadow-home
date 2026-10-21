@@ -43,6 +43,27 @@
   backdrop-filter: blur(18px) saturate(140%);
 }
 
+/*
+ * Hands-free: one pill beside her name, saying what she listens for. Off, it offers to start; on,
+ * a live dot and a plain way to turn it off.
+ */
+.hands-free {
+  display: inline-flex;
+  flex: 0 1 auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 12px;
+  border: 1px solid rgb(255 238 214 / 22%);
+  border-radius: 999px;
+  background: rgb(255 238 214 / 6%);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 /* Only the messages give way when the chat is short; its head, suggestions and composer don't. */
 .chat > :not(.chat-scroll) {
   flex-shrink: 0;
