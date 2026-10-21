@@ -145,4 +145,22 @@ describe('a clip that never finishes properly still counts as finished', () => {
     expect(speaking).toEqual([true, false]);
     expect(FakeAudio.made[0]?.paused).toBe(true);
   });
+
+  test('a clip of known length that never ends counts as over its length and a margin after it started', async () => {
+    const { speak } = await voiceWithAudio();
+    let result: boolean | undefined;
+    void speak('Shall I fix it?').then((r) => {
+      result = r;
+    });
+    await flush();
+    const clip = FakeAudio.made[0];
+    if (!clip) throw new Error('no clip');
+    clip.duration = 3;
+    clip.onloadedmetadata?.();
+    clip.onplaying?.();
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(result).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(result).toBe(false);
+  });
 });
