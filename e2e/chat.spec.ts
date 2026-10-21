@@ -163,3 +163,29 @@ test('a follow-up answers her question: the safer plan runs, then Undo is offere
   await expect(lastAnswer(page).locator('.said')).toHaveText('Done: 10 changes.');
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeVisible();
 });
+
+test('Stop drops the turn: nothing it would have shown arrives, and the chat is ready again', async ({
+  page,
+}) => {
+  let aborted = false;
+  page.on('requestfailed', (r) => {
+    if (r.url().endsWith('/api/turn')) aborted = true;
+  });
+  await page.route('**/api/turn', async (route) => {
+    await new Promise((r) => setTimeout(r, 4000));
+    await route.continue().catch(() => undefined);
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  // She's thinking: the turn is under way.
+  await expect(page.locator('.chat-state')).toHaveText('Thinking');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(lastAnswer(page).getByText('Stopped.')).toBeVisible();
+  await expect.poll(() => aborted).toBe(true);
+  await expect(page.getByRole('button', { name: 'Stop' })).toHaveCount(0);
+  await expect(composer(page)).toBeEnabled();
+  // Long after the server would have answered, the screen still shows the home.
+  await page.waitForTimeout(5000);
+  await expect(page.getByText('Home mode')).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toHaveCount(0);
+});
