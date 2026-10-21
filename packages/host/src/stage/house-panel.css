@@ -316,3 +316,16 @@
 .house-canvas canvas[data-turning="yes"] {
   cursor: grabbing;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .act-ring,
+  .step-label,
+  .change-label {
+    animation: none;
+  }
+
+  .room-label,
+  .dot-name {
+    transition: none;
+  }
+}
