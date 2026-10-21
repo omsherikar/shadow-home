@@ -126,6 +126,7 @@ export interface Run {
   endMs: number;
   /** The home's UTC offset, "-06:00", for showing its clock. */
   offset: string;
+  /** Every change, in the order the house makes them: by time, the plan's own first. */
   changes: Change[];
   breaks: Break[];
   trace: Trace | null;
@@ -183,7 +184,8 @@ export function runsFrom(
           ...(e.actionIndex === undefined ? {} : { action: e.actionIndex }),
         }),
       )
-      .sort((a, b) => a.atMs - b.atMs);
+      // By time; at the same moment the plan's own changes come first, as they're acted out.
+      .sort((a, b) => a.atMs - b.atMs || Number(!actedOut(a)) - Number(!actedOut(b)));
     return {
       planId,
       label,
@@ -233,6 +235,11 @@ function previewIn(tool: string, sc: Record<string, unknown> | undefined): unkno
   if (tool === 'undo') return sc.preview;
   if (tool === 'commit_plan') return sc.freshPreview;
   return undefined;
+}
+
+/** Whether a change is one of the plan's own that the house acts out: a device, not the mode. */
+function actedOut(c: Change): boolean {
+  return c.source === 'plan' && c.device !== 'home';
 }
 
 /**
