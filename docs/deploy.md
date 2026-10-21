@@ -119,6 +119,9 @@ without a load balancer's fixed monthly charge (`docs/decisions.md`, 106). Ours:
 the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only in some regions,
 `us-central1` among them.
 
+1. Verify the domain for the account gcloud uses: `gcloud domains verify <your domain>` opens
+   Google Search Console, which asks for a TXT record at the domain's DNS (ours is Vercel DNS).
+
 ### If a deploy goes wrong
 
 Each deploy is a new revision, and the earlier ones stay. Find the last good one and send all
