@@ -225,3 +225,25 @@ test('remembered across a reload, it waits for one tap to resume, even with the 
   await page.reload();
   await expect(pill(page)).toHaveText('Start hands-free');
 });
+
+test('a hidden tab pauses the microphone, and showing it again resumes', async ({ page }) => {
+  await fakeMic(page);
+  await page.goto('/');
+  await pill(page).click();
+  const mic = () => page.evaluate(() => (window as unknown as { mic: Mic }).mic);
+  await expect.poll(async () => (await mic()).live !== null).toBe(true);
+  const shown = (hidden: boolean) =>
+    page.evaluate((h) => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: h ? 'hidden' : 'visible',
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, hidden);
+  await shown(true);
+  await expect.poll(async () => (await mic()).live).toBe(null);
+  await page.waitForTimeout(1000);
+  expect((await mic()).live).toBe(null);
+  await shown(false);
+  await expect.poll(async () => (await mic()).starts).toBe(2);
+});
