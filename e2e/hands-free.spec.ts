@@ -305,7 +305,7 @@ test('Stop while she asks her question opens no window for an answer', async ({ 
 
 test('the mic button while she speaks stops her and listens for a request', async ({ page }) => {
   await fakeMic(page);
-  await stubSpeech(page, 4000);
+  await stubSpeech(page, 30_000);
   const sent = turnsSent(page);
   await page.goto('/?speak=1');
   await pill(page).click();
