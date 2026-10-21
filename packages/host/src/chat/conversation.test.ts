@@ -377,6 +377,24 @@ describe('the conversation across a reload', () => {
     expect(loadConversation(storage).messages[0]?.details).toHaveLength(12);
   });
 
+  test('a message or entry that does not read is dropped alone', () => {
+    const storage = memory();
+    storage.items.set(
+      CONVERSATION_KEY,
+      JSON.stringify({
+        messages: [{ who: 'robot' }, { id: 'a-you', who: 'you', text: 'Hi' }],
+        history: [{ name: 3 }, { name: 'heard', arguments: { text: 'Hi' } }],
+      }),
+    );
+    expect(loadConversation(storage)).toEqual({
+      messages: [{ id: 'a-you', who: 'you', text: 'Hi' }],
+      history: [
+        { name: 'heard', arguments: { text: 'Hi' } },
+        { name: 'closed', arguments: {} },
+      ],
+    });
+  });
+
   test('drops the oldest history past its cap', () => {
     const big = {
       name: 'get_activity_log',
