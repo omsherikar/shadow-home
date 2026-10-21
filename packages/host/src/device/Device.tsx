@@ -9,7 +9,7 @@ import {
 } from '@modelcontextprotocol/client';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
-import type { LiveHome } from '../house/looks.ts';
+import { type LiveHome, parseLiveHome } from '../house/looks.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import { Stage } from '../stage/Stage.tsx';
 import { type Chip, chipFor } from '../stage/stage.ts';
@@ -52,6 +52,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
   const [chip, setChip] = useState<Chip | null>(null);
+  const [homeBroken, setHomeBroken] = useState(false);
   const [heard, setHeard] = useState('');
   const [said, setSaid] = useState('');
   const [busy, setBusy] = useState(false);
@@ -95,9 +96,15 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     [note],
   );
 
+  // The home's state is checked, not trusted: if it isn't what the page expects, the device keeps
+  // the last good one and the house steps aside rather than draw something wrong.
   const refreshHome = useCallback(async (c: Client) => {
     const r = await c.callTool({ name: 'get_home_state', arguments: {} });
-    setHome((r.structuredContent as LiveHome | undefined) ?? null);
+    const parsed = parseLiveHome(r.structuredContent);
+    setHomeBroken(parsed === null);
+    if (parsed) {
+      setHome(parsed);
+    }
   }, []);
 
   const reply = useCallback(
@@ -277,6 +284,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       said={said}
       busy={busy}
       chip={chip}
+      homeBroken={homeBroken}
       device={
         <div className="device">
           <div className="camera" aria-hidden="true" />

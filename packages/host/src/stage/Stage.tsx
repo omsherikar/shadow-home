@@ -38,6 +38,8 @@ export interface StageProps {
   said: string;
   busy: boolean;
   chip: Chip | null;
+  /** The home's state didn't come back as expected: draw no house rather than a wrong one. */
+  homeBroken: boolean;
   /** The Echo Show itself. It stays mounted in every layout, so its screen keeps its view. */
   device: ReactNode;
   /** The demo controls: typed input, suggestions, transcript. */
@@ -69,7 +71,7 @@ export function Stage(props: StageProps) {
   };
   const fail = useCallback(() => setHouse('off'), []);
 
-  const withHouse = house !== 'off';
+  const withHouse = house !== 'off' && !props.homeBroken;
   const houseOnly = withHouse && layout === 'house';
   return (
     <div className={withHouse ? `stage ${houseOnly ? 'house-only' : 'split'}` : 'room'}>
