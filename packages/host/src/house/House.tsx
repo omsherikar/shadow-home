@@ -51,6 +51,11 @@ export interface HouseProps {
   inset: { top: number; bottom: number };
   /** Skip camera moves and fades. */
   still: boolean;
+  /**
+   * A plan is playing in motion: the picture is drawn at a lower pixel ratio (1.25 at most), so a
+   * Retina screen keeps up.
+   */
+  moving?: boolean;
   /** The browser took the WebGL context away. Anything that throws is the caller's to catch. */
   onFail(): void;
   /**
@@ -92,7 +97,8 @@ export default function House(props: HouseProps) {
       shadows={props.lean ? false : 'percentage'}
       // The finish tone-maps the picture; without it, the renderer does.
       flat={!props.lean}
-      dpr={props.lean ? 1 : [1, 2]}
+      // A Retina screen draws four times the pixels: while a plan plays, fewer, so it keeps up.
+      dpr={props.lean ? 1 : props.moving ? [1, 1.25] : [1, 2]}
       camera={{ fov: FOV, near: 0.5, far: 300, position: [0, 30, 30] }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
