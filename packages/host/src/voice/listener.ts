@@ -77,8 +77,12 @@ export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents
     rec.lang = 'en-US';
     rec.continuous = true;
     rec.interimResults = true;
+    let heardAnything = false;
+    let erred = false;
+    const began = Date.now();
     rec.onresult = (e) => {
       if (mine !== session) return;
+      heardAnything = true;
       failures = 0;
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -103,11 +107,14 @@ export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents
         events.onError(e.error, false);
         return;
       }
+      erred = true;
       if (!failed()) events.onError(e.error, false);
     };
     rec.onend = () => {
       if (mine !== session) return;
       live = null;
+      // A session that ends at once without hearing anything is failing, even with no error.
+      if (!heardAnything && !erred && Date.now() - began < 1000 && failed()) return;
       if (wanted) later(restartDelay(failures));
     };
     live = { rec, session: mine };
