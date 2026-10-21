@@ -554,6 +554,34 @@ describe("away mode without saying who's away", () => {
     );
     expect((await api.call<HomeStateOutput>('get_home_state', {})).mode).toBe('home');
   });
+
+  test("the weekend without who's away is blocked and asks who; with the answer it gets the four fixes", async () => {
+    const { presenceSchedule: _, planEnd: __, ...unsaid } = weekend;
+    const first = await api.call<PreviewOutput>('preview_plan', unsaid);
+    expect(first).toMatchObject({ verdict: 'UNSAFE', tier: 'T3', safePart: null });
+    expect(first.unknowns).toEqual(["who's away, and until when, isn't given"]);
+    expect(first.speech.ask).toBe(WHO_IS_AWAY);
+    // Its fixes still don't say who's away, so they aren't offered and can't be committed.
+    expect(first.repair).toMatchObject({ verdict: 'UNPROVEN', tier: 'T5' });
+    expect(
+      await api.call<CommitOutput>('commit_plan', {
+        planId: first.repair?.planId ?? '',
+        confirmed: true,
+      }),
+    ).toMatchObject({ status: 'refused', reason: 'who_is_away_unknown' });
+
+    // The answer, "nobody, until Sunday at 6", is a new preview with a presence schedule.
+    const again = await api.call<PreviewOutput>('preview_plan', weekend);
+    expect(again.unknowns).toEqual([]);
+    expect(again).toMatchObject({ verdict: 'UNSAFE', tier: 'T3', repair: { verdict: 'SAFE' } });
+    expect(again.repair?.changes.map((c) => `${c.rule} ${c.kind} ${c.target}`)).toEqual([
+      'R8 pause_routine coffee_at_7',
+      'R1 leave_out plug_garage_freezer',
+      'R2 leave_out plug_aquarium',
+      'R3 nearest_value garage_thermostat',
+    ]);
+    expect(again.speech.ask).toBe('Do it with 4 fixes instead?');
+  });
 });
 
 describe('house rules', () => {
