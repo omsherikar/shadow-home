@@ -136,6 +136,14 @@ the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only 
    whether a mapping is ready.
 6. Check it: `node scripts/check-mcp.ts https://<mcp name>/mcp` (ours passes 15 of 15).
 
+Health checks: Cloud Run's front end keeps some paths ending in z for itself, and `/healthz` is one
+of them: it gets Google's own 404 on the run.app URL and on the domain, and never reaches the
+server. The server answers `/health` as well; the host answers `GET /api/turn`. Uptime checks on
+both, every 5 minutes from every region (what they cost is on Cloud Monitoring's pricing page):
+
+- `gcloud monitoring uptime create shadow-home-mcp --resource-type=uptime-url --resource-labels=host=<mcp name>,project_id=<project> --protocol=https --path=/health --period=5`
+- `gcloud monitoring uptime create shadow-home-host --resource-type=uptime-url --resource-labels=host=<host name>,project_id=<project> --protocol=https --path=/api/turn --period=5`
+
 ### If a deploy goes wrong
 
 Each deploy is a new revision, and the earlier ones stay. Find the last good one and send all
