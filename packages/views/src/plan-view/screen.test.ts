@@ -589,3 +589,24 @@ describe('a zone’s temperature against a house rule', () => {
     expect(undo.temperature?.curves.map((c) => c.label)).toEqual(['The undo', 'With 1 fix']);
   });
 });
+
+describe('plain words on screen', () => {
+  test('each verdict reads as a person would say it', () => {
+    expect(previewScreen(preview('SAFE', 'T1'), names).word).toBe('Safe');
+    expect(previewScreen(preview('UNSAFE', 'T3'), names).word).toBe('Not safe');
+    expect(previewScreen(preview('UNSAFE', 'T5'), names).word).toBe('Not safe');
+    expect(previewScreen(preview('UNPROVEN', 'T4'), names).word).toBe("Can't confirm");
+    const commit = { planId: 'plan-1', speech: { headline: 'Done.' }, applied: [], held: [] };
+    expect(commitScreen({ ...commit, status: 'committed' }).word).toBe('Done');
+    expect(commitScreen({ ...commit, status: 'needs_confirmation' }).word).toBe('Needs a yes');
+    expect(commitScreen({ ...commit, status: 'refused' }).word).toBe('Not done');
+    expect(
+      undoScreen({
+        status: 'nothing_to_undo',
+        cannotUndo: [],
+        notes: [],
+        speech: { headline: 'x' },
+      }).word,
+    ).toBe('Nothing to undo');
+  });
+});
