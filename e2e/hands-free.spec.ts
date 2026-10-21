@@ -231,10 +231,12 @@ test('"Alexa" alone: she listens for the request, which needs no wake word', asy
   await page.goto('/?speak=1');
   await pill(page).click();
   await hear(page, 'Alexa');
-  await expect(pill(page)).toContainText("I'm listening");
-  await expect(page.locator('.chat-state')).toHaveText('Listening');
-  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-awake.png' });
-  await hear(page, 'what did you change while I was away');
+  const awake = await sayWhenListening(
+    page,
+    "I'm listening",
+    'what did you change while I was away',
+  );
+  expect(awake.state).toBe('Listening');
   await expect.poll(() => sent).toEqual(['what did you change while I was away']);
 });
 
