@@ -130,7 +130,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   // What hands-free heard asked goes through `say`, like anything typed (set once `say` exists).
   const sayHeard = useRef<(text: string) => void>(() => undefined);
   const handsFree = useHandsFree({ onRequest: (text) => sayHeard.current(text), silent });
-  const { turnStarted, turnEnded } = handsFree;
+  const { turnStarted, turnEnded, stopped: stoppedHandsFree } = handsFree;
 
   /**
    * Set the plan on screen aside, or bring it back. Set aside, it stays readable but acts on
@@ -518,8 +518,12 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const stop = useCallback(() => {
     demoStopped.current = true;
     turn.current?.abort();
+    // A turn whose words are over but whose voice still plays ends here too: nothing more of it
+    // counts (it would open a window for an answer to a question cut short).
+    turnSeq.current += 1;
     stopSpeaking();
-  }, []);
+    stoppedHandsFree();
+  }, [stoppedHandsFree]);
 
   /** Try a failed answer again: the same request, exactly, in place of the answer that failed. */
   const retry = useCallback(
