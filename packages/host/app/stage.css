@@ -581,7 +581,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lightbar.on {
+  .lightbar.on,
+  .dot {
     animation: none;
+    transition: none;
   }
 }
