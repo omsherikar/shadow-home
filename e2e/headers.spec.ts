@@ -30,14 +30,12 @@ test('the screen and the plan view in its frame break nothing in the content pol
   }, VIOLATION);
 
   await page.goto('/');
-  // Beside the house the demo controls sit in a drawer; without it they're under the device.
-  await expect(page.getByLabel('Say something')).toBeAttached();
-  const controls = page.getByRole('button', { name: 'Demo controls', exact: true });
-  if (await controls.isVisible()) await controls.click();
-  await page.getByLabel('Say something').fill(WEEKEND);
-  await page.getByRole('button', { name: 'Say it' }).click();
+  // The chat's composer is always on the page.
+  await expect(page.getByLabel('Say something to Alexa')).toBeVisible();
+  await page.getByLabel('Say something to Alexa').fill(WEEKEND);
+  await page.getByRole('button', { name: 'Send' }).click();
   const view = page.frameLocator('.view iframe');
-  await expect(view.getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(view.getByText('Not safe', { exact: true })).toBeVisible();
   await expect(view.getByRole('img', { name: 'Garage temperature' })).toBeVisible();
   expect(violations).toEqual([]);
 });
