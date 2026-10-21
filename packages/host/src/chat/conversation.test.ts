@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { ToolCall } from '../turn/types.ts';
 import {
   ask,
+  awaitsAnswer,
   CONVERSATION_KEY,
   clockAt,
   detailsFor,
@@ -252,6 +253,15 @@ describe('on a phone', () => {
     });
     expect(glanceFor(call('get_home_state', { mode: 'home' }))).toBeNull();
     expect(glanceFor(call('preview_plan', preview({}), true))).toBeNull();
+  });
+});
+
+describe('whether an answer waits for a reply', () => {
+  test('a question at the end does', () => {
+    expect(
+      awaitsAnswer('Blocked: that breaks 4 house rules. Do it with 4 fixes instead?', []),
+    ).toBe(true);
+    expect(awaitsAnswer('Shall I fix it?” ', [])).toBe(true);
   });
 });
 
