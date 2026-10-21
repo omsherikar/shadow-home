@@ -247,3 +247,36 @@ test('a hidden tab pauses the microphone, and showing it again resumes', async (
   await shown(false);
   await expect.poll(async () => (await mic()).starts).toBe(2);
 });
+
+test('Stop while she asks her question opens no window for an answer', async ({ page }) => {
+  await fakeMic(page);
+  // Each sentence takes a while to say, so Stop comes in the middle of her question.
+  await stubSpeech(page, 4000);
+  const sent = turnsSent(page);
+  await page.goto('/?speak=1');
+  await pill(page).click();
+  await hear(page, `Alexa, ${WEEKEND}`);
+  await expect(page.locator('.chat-state')).toHaveText('Speaking');
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await page.waitForTimeout(1500);
+  await expect(pill(page)).not.toContainText('Listening for your answer');
+  // A stray "yes" is not for her.
+  await hear(page, 'yes');
+  await page.waitForTimeout(1000);
+  expect(sent).toEqual([WEEKEND]);
+});
+
+test('the mic button while she speaks stops her and listens for a request', async ({ page }) => {
+  await fakeMic(page);
+  await stubSpeech(page, 4000);
+  const sent = turnsSent(page);
+  await page.goto('/?speak=1');
+  await pill(page).click();
+  await hear(page, `Alexa, ${WEEKEND}`);
+  await expect(page.locator('.chat-state')).toHaveText('Speaking');
+  await page.getByRole('button', { name: 'Talk' }).click();
+  await expect(pill(page)).toContainText("I'm listening");
+  await hear(page, 'no');
+  await expect.poll(() => sent).toEqual([WEEKEND, 'no']);
+});
