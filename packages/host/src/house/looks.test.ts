@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { daylight, type LiveDevice, lookOf, mix, parseLiveHome } from './looks.ts';
+import { daylight, type LiveDevice, lookOf, mix, parseLiveHome, skyColors } from './looks.ts';
 
 const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
   id: 'd',
@@ -101,6 +101,21 @@ describe('the light outside', () => {
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
     expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');
     expect(mix('#000000', '#ffffff', 2)).toBe('#ffffff');
+  });
+});
+
+describe('the sky', () => {
+  const sky = (hhmm: string) => skyColors(daylight(`2027-01-15T${hhmm}:00-06:00`));
+  const light = (hex: string) =>
+    [1, 3, 5].reduce((t, i) => t + Number.parseInt(hex.slice(i, i + 2), 16), 0);
+
+  test('is dark at night, pale by day, and glows warm at the horizon around sunset', () => {
+    expect(light(sky('23:30').top)).toBeLessThan(light(sky('17:45').top));
+    expect(light(sky('17:45').top)).toBeLessThan(light(sky('12:30').top));
+    const dusk = sky('17:40').horizon;
+    expect(Number.parseInt(dusk.slice(1, 3), 16)).toBeGreaterThan(
+      Number.parseInt(dusk.slice(5, 7), 16),
+    );
   });
 });
 
