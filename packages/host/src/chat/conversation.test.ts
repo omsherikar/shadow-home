@@ -197,6 +197,13 @@ describe('what to offer next', () => {
     });
     expect(labels([refused])).toEqual(['Run the safer plan', 'Why?', "Don't run"]);
   });
+
+  test('the log offers to undo only when something can be', () => {
+    expect(labels([call('get_activity_log', { entries: [{ undoable: true }] })])).toEqual([
+      'Undo the last change',
+    ]);
+    expect(labels([call('get_activity_log', { entries: [{ undoable: false }] })])).toEqual([]);
+  });
 });
 
 describe('the details view', () => {
