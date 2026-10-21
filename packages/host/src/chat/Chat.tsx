@@ -38,6 +38,7 @@ const ACTIVITY_WORDS: Record<Activity, string> = {
   thinking: 'Thinking',
   working: 'Checking your home',
   answering: 'Answering',
+  awaiting: 'Listening for your answer',
   speaking: 'Speaking',
 };
 
