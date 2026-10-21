@@ -456,6 +456,18 @@ describe("the live session's turns", () => {
       ),
     ).toEqual([{ say: "Good morning! I'm doing well, thank you for asking." }]);
   });
+
+  test('"Is the front door locked?" answers from get_home_state', async () => {
+    const state = call('get_home_state', {
+      devices: [{ id: 'front_door_lock', name: 'Front door lock', state: { lockState: 'LOCKED' } }],
+    });
+    expect(
+      await reply(
+        { text: 'Is the front door locked?', history: afterAway, thisTurn: [state] },
+        'The front door is locked.',
+      ),
+    ).toEqual([{ say: 'The front door is locked.' }]);
+  });
 });
 
 describe('the demo', () => {
