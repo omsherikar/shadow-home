@@ -129,7 +129,10 @@ export function bedrockModel(options: {
   };
 }
 
-type Turn = { context: 'plan'; spoke: ToolCall } | { context: 'read' } | { context: 'chat' };
+type Turn =
+  | { context: 'plan'; spoke: ToolCall }
+  | { context: 'read' }
+  | { context: 'chat'; afterPlan: boolean };
 
 /** Which turn a reply belongs to (guard.ts, Context). */
 function turnOf(input: ModelInput): Turn {
@@ -137,7 +140,8 @@ function turnOf(input: ModelInput): Turn {
   const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
   if (spoke) return { context: 'plan', spoke };
   if (input.thisTurn.length > 0) return { context: 'read' };
-  return { context: 'chat' };
+  const anchor = input.history.findLast((h) => hasSpeech(h.structuredContent));
+  return { context: 'chat', afterPlan: anchor !== undefined };
 }
 
 /**
@@ -165,6 +169,7 @@ function factsFor(input: ModelInput, home: HomeBrief, turn: Turn) {
     routines: home.routines.map((r) => r.name),
     about: turn.context === 'plan' ? structuredOf(turn.spoke) : undefined,
     heard: input.text,
+    afterPlan: turn.context === 'chat' && turn.afterPlan,
   });
 }
 
