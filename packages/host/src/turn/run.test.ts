@@ -195,6 +195,26 @@ describe('a turn as it happens', () => {
     );
   });
 
+  test("a reply that claims a verdict is never sent: the engine's words go instead", async () => {
+    const { api } = fakeApi(
+      reply([{ type: 'tool_use', id: 'toolu_1', name: 'preview_plan', input: {} }], 'tool_use'),
+      reply([{ type: 'text', text: "Good news. It's safe, so I'll go ahead. Okay?" }]),
+    );
+    const model = bedrockModel({ converse: anthropicConverse(api), tools: offered, home });
+    const events: TurnEvent[] = [];
+    const turn = await runTurn(
+      model,
+      { callTool: async () => unsafe, resourceUriFor: () => VIEW },
+      { text: "I'm away for the weekend", history: [] },
+      { emit: (e) => events.push(e) },
+    );
+    expect(events.flatMap((e) => (e.event === 'text' ? [e.data.delta] : []))).toEqual([
+      'Not safe: the garage would freeze.',
+      ' Do it with 4 fixes instead?',
+    ]);
+    expect(turn.say).toBe('Not safe: the garage would freeze. Do it with 4 fixes instead?');
+  });
+
   test('a model that writes nothing as it goes: the headline as the check returns, the rest at the end', async () => {
     let step = 0;
     const model: Model = {
