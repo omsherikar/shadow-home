@@ -42,6 +42,7 @@ import { NARROW, Stage, useMedia } from '../stage/Stage.tsx';
 import { browserStorage } from '../stage/stage.ts';
 import { fitHistory, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
+import { useHandsFree } from '../voice/useHandsFree.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { Strip } from './Strip.tsx';
 import { canListen, listenOnce, speak, speech, stopSpeaking } from './voice.ts';
@@ -125,6 +126,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const restored = useRef(false);
   // Stop pressed while the demo plays: it ends after the line it's on.
   const demoStopped = useRef(false);
+  // What hands-free heard asked goes through `say`, like anything typed (set once `say` exists).
+  const sayHeard = useRef<(text: string) => void>(() => undefined);
+  const handsFree = useHandsFree({ onRequest: (text) => sayHeard.current(text), silent });
+  const { turnStarted } = handsFree;
 
   /**
    * Set the plan on screen aside, or bring it back. Set aside, it stays readable but acts on
@@ -363,6 +368,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       stopSpeaking();
       if (working.current) return;
       working.current = true;
+      turnStarted();
       turnSeq.current += 1;
       const seq = turnSeq.current;
       const id = `t${seq}-${stamp()}`;
@@ -468,7 +474,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       // The demo, played out loud, waits for her to finish before its next line.
       if (spoken) await spoken;
     },
-    [client, note, refreshHome, remember, show, ask, release, setAside, silent],
+    [client, note, refreshHome, remember, show, ask, release, setAside, silent, turnStarted],
   );
 
   /** A turn for words the person said, typed or tapped: `label` is what they tapped. */
@@ -486,6 +492,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     },
     [send],
   );
+
+  useEffect(() => {
+    sayHeard.current = (text) => void say(text);
+  }, [say]);
 
   /** Stop: the answer coming in (the server stops too), her voice, and the demo if it's playing. */
   const stop = useCallback(() => {
