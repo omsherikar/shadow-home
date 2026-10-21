@@ -20,3 +20,23 @@ export function readyEarcon(): void {
     ?.resume()
     .catch(() => undefined);
 }
+
+/** Two quick notes, rising: she's listening. */
+export function earcon(): void {
+  const ctx = audio();
+  if (!ctx) return;
+  const start = ctx.currentTime;
+  for (const [i, hz] of [660, 880].entries()) {
+    const tone = ctx.createOscillator();
+    const level = ctx.createGain();
+    const at = start + i * 0.11;
+    tone.type = 'sine';
+    tone.frequency.value = hz;
+    level.gain.setValueAtTime(0, at);
+    level.gain.linearRampToValueAtTime(0.18, at + 0.015);
+    level.gain.exponentialRampToValueAtTime(0.0001, at + 0.1);
+    tone.connect(level).connect(ctx.destination);
+    tone.start(at);
+    tone.stop(at + 0.11);
+  }
+}
