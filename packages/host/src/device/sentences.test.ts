@@ -71,4 +71,10 @@ describe('sentences as the words stream in', () => {
     expect(split.push('hat breaks a rule.')).toEqual([]);
     expect(split.end()).toEqual(['That breaks a rule.']);
   });
+
+  test('a number cut at its point is not a sentence end', () => {
+    const split = sentenceSplitter();
+    expect(split.push('The garage reaches 4.')).toEqual([]);
+    expect(split.push('5 °C at night. And')).toEqual(['The garage reaches 4.5 °C at night.']);
+  });
 });
