@@ -479,6 +479,43 @@ describe("the live session's turns", () => {
       "I'm sorry, I'm not sure what you'd like me to do next. Could you tell me what you need?";
     expect(await reply({ text: 'Yes.', history }, words)).toEqual([{ say: words }]);
   });
+
+  test('"Undo that.": a T1 undo is committed like any T1 preview, and a T2 undo says its question', async () => {
+    const undone = {
+      status: 'preview',
+      speech: { headline: 'Safe: home mode to home.', reason: 'This affects Maya and Sam.' },
+      preview: { ...away, kind: 'undo', speech: { headline: 'Safe: home mode to home.' } },
+    };
+    expect(
+      await reply(
+        { text: 'Undo that.', thisTurn: [call('undo', undone), call('commit_plan', done('home'))] },
+        '',
+      ),
+    ).toEqual([{ say: 'Done: home mode to home.' }]);
+    const asking = {
+      status: 'preview',
+      speech: {
+        headline: 'Safe, but it needs a yes: front door unlocks.',
+        reason: 'This weakens security.',
+        ask: 'Unlock the front door?',
+      },
+      preview: { verdict: 'SAFE', tier: 'T2', kind: 'undo' },
+    };
+    expect(
+      await reply(
+        { text: 'Undo that.', thisTurn: [call('undo', asking)] },
+        "Om's rule is about the front door.",
+        'Shall I go ahead?',
+      ),
+    ).toEqual([
+      {
+        say: "Safe, but it needs a yes: front door unlocks. Om's rule is about the front door. Unlock the front door?",
+      },
+      {
+        say: 'Safe, but it needs a yes: front door unlocks. This weakens security. Unlock the front door?',
+      },
+    ]);
+  });
 });
 
 describe('the demo', () => {
