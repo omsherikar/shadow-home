@@ -1,50 +1,12 @@
 /**
- * The device's ears and voice. Speech comes from /api/speak (ElevenLabs, or Polly); if that isn't
- * available (no key, no account), from the browser's own voice. Listening uses the
- * browser's speech recognition, which Chrome provides.
+ * The device's ears and voice. Speech comes from /api/speak (ElevenLabs, or Polly) a sentence at a
+ * time, so the first is heard while the rest are still being written; if that isn't available (no
+ * key, no account), from the browser's own voice. Listening uses the browser's speech recognition,
+ * which Chrome provides.
  */
 import { type Clip, speechQueue } from './speech-queue.ts';
 
 let voiceAvailable = true;
-/**
- * Aborted by every new reply and every stop: what's playing stops, and a reply still on its
- * way stays quiet.
- */
-let current = new AbortController();
-
-/** Say a reply out loud: one at a time. Resolves when it has finished, or was stopped. */
-export async function speak(text: string): Promise<void> {
-  stopSpeaking();
-  const { signal } = current;
-  if (!text.trim()) return;
-  if (voiceAvailable) {
-    try {
-      const res = await fetch('/api/speak', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        // Stopped, or a newer reply started, while this one was on its way: stay quiet.
-        return signal.aborted ? undefined : playAudio(blob, signal);
-      }
-      // 503: no voice, or this instance has spoken enough this hour. Don't ask again this
-      // session; the browser's voice takes over. Anything else (429: this visitor has heard
-      // enough this hour; 400: a line too long) is this line only, and the next asks again.
-      if (res.status === 503) voiceAvailable = false;
-    } catch {
-      voiceAvailable = false;
-    }
-  }
-  return signal.aborted ? undefined : browserVoice(text, signal);
-}
-
-/** Stop talking now: the person pressed the mic, said something new, or the demo started over. */
-export function stopSpeaking(): void {
-  current.abort();
-  current = new AbortController();
-}
 
 /**
  * One sentence's clip from /api/speak. 503 (no voice, or this instance has spoken enough this
@@ -129,6 +91,16 @@ function browserVoice(text: string, signal: AbortSignal): Promise<void> {
 
 /** The device's voice: sentences as they stream in (`write`), then the answer as it ends. */
 export const speech = speechQueue({ fetch: fetchClip, play: playClip });
+
+/** Say a whole reply out loud, cutting short whatever was being said. Resolves once it's said. */
+export function speak(text: string): Promise<void> {
+  return speech.say(text);
+}
+
+/** Stop talking now: Stop, a mic tap, something new said, or the demo starting over. */
+export function stopSpeaking(): void {
+  speech.clear();
+}
 
 interface RecognitionResult {
   isFinal: boolean;
