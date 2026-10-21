@@ -250,4 +250,24 @@ describe('whether she is speaking', () => {
     await said;
     expect(seen).toEqual([true, false]);
   });
+
+  test('a mic tap while she speaks: stopped at once, and saying so', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    const seen: boolean[] = [];
+    const stop = speech.watch((on) => seen.push(on));
+    speech.say('Blocked: that breaks 4 house rules. Shall I fix it?');
+    await v.arrive();
+    expect(seen).toEqual([true]);
+    // What the mic does first: stop her (then it listens).
+    speech.clear();
+    expect(seen).toEqual([true, false]);
+    expect(v.stopped).toEqual(['Blocked: that breaks 4 house rules.']);
+    await v.drain();
+    expect(seen).toEqual([true, false]);
+    stop();
+    speech.say('Okay.');
+    await v.drain();
+    expect(seen).toEqual([true, false]);
+  });
 });
