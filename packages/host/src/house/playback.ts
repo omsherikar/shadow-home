@@ -833,6 +833,31 @@ export function advance(
   return show.totalMs;
 }
 
+/**
+ * Where in a show a run reaches a home time: what dragging the timeline asks for. On a moment the
+ * clock stops at, the start of its steps and stops; before the run, its start; after it, its end.
+ */
+export function positionAt(
+  runs: Run[],
+  timing: ShowTiming,
+  run: number,
+  homeMs: number,
+  only?: number,
+): number {
+  const mine = showOf(runs, timing, only).pieces.filter((p) => p.run === run && p.segment);
+  for (const p of mine) {
+    const seg = p.segment as Segment;
+    if (seg.toMs === seg.fromMs) {
+      if (seg.fromMs >= homeMs) return p.atMs;
+    } else if (homeMs < seg.toMs) {
+      const t = Math.max(0, (homeMs - seg.fromMs) / (seg.toMs - seg.fromMs));
+      return p.atMs + p.realMs * t;
+    }
+  }
+  const last = mine.at(-1);
+  return last ? last.atMs + last.realMs : 0;
+}
+
 /** A new house rule's sample day: the hours it guards, on the device it guards. */
 export interface Guard {
   device: string;
