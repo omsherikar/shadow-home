@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import type { HouseLayout } from './layout.ts';
 import { type LiveDevice, mix, type Value, valueSchema } from './looks.ts';
-import { offsetMinutes } from './pacing.ts';
+import { offsetMinutes, type PaceSlice, paceSlices } from './pacing.ts';
 
 export interface Change {
   atMs: number;
@@ -333,19 +333,31 @@ function breaksOf(
 }
 
 export interface Timing {
-  /** Real milliseconds for the whole sweep from now to the end, without the stops. */
+  /** Real milliseconds for the clock to run from the start to the end, without stops or steps. */
   sweepMs: number;
   /** Real milliseconds to stop on each moment worth looking at. */
   holdMs: number;
+  /** Real milliseconds for each of the plan's own changes as it's acted out, and to settle first. */
+  stepMs: number;
 }
 
-/** One stretch of a run's playback: sweeping between two home times, or holding on one. */
-interface Segment {
+/**
+ * One stretch of a run's playback: the clock running between two home times, or standing still
+ * to settle, act out one of the plan's changes or stop on a break.
+ */
+export interface Segment {
   realMs: number;
   fromMs: number;
   toMs: number;
   /** While holding: the breaks at this moment. */
   hold?: Break[];
+  /** While acting out: the plan's change being made. */
+  step?: Step;
+  /**
+   * Where the clock stands still, how many of the run's changes have happened (they happen in
+   * order). While it runs, every change up to the time on the clock has.
+   */
+  applied?: number;
 }
 
 export interface Schedule {
@@ -354,47 +366,99 @@ export interface Schedule {
 }
 
 /**
- * How a run plays in real time: a sweep from its start to its end, stopping at every moment a
- * rule breaks (breaks in the same minute share one stop).
+ * How a run plays in real time. It settles for a moment, then acts out the plan's own changes at
+ * their time, one at a time, stopping after one that breaks a rule right then. Between them the
+ * clock runs, and stops at every other moment a rule breaks (breaks in the same minute share one
+ * stop).
  */
 export function schedule(run: Run, timing: Timing): Schedule {
-  const span = Math.max(MINUTE_MS, run.endMs - run.startMs);
-  const stops = new Map<number, Break[]>();
-  for (const b of run.breaks) {
-    const at = Math.min(Math.max(b.atMs, run.startMs), run.endMs);
-    stops.set(at, [...(stops.get(at) ?? []), b]);
-  }
-  const segments: Segment[] = [];
-  let at = run.startMs;
-  for (const [stop, held] of [...stops].sort((a, b) => a[0] - b[0])) {
-    if (stop > at) {
-      segments.push({ realMs: (timing.sweepMs * (stop - at)) / span, fromMs: at, toMs: stop });
+  const start = run.startMs;
+  const end = Math.max(run.endMs, start);
+  const clamp = (t: number) => Math.min(Math.max(t, start), end);
+  const stops = new Map<number, { steps: Step[]; breaks: Break[] }>();
+  const stopAt = (t: number) => {
+    const stop = stops.get(t) ?? { steps: [], breaks: [] };
+    stops.set(t, stop);
+    return stop;
+  };
+  for (const s of run.steps) stopAt(clamp(s.atMs)).steps.push(s);
+  for (const b of run.breaks) stopAt(clamp(b.atMs)).breaks.push(b);
+  const slices = paceSlices(start, end, [], timing.sweepMs);
+  const done = (step: Step) => Math.max(...step.changes.map((c) => run.changes.indexOf(c) + 1));
+  // A moment for the house to turn into the twin before anything changes.
+  const segments: Segment[] = [
+    {
+      realMs: timing.stepMs,
+      fromMs: start,
+      toMs: start,
+      applied: run.changes.filter((c) => c.atMs < start).length,
+    },
+  ];
+  let at = start;
+  for (const [t, stop] of [...stops].sort((a, b) => a[0] - b[0])) {
+    if (t > at) segments.push(...sweep(slices, at, t));
+    const held = new Set<Break>();
+    for (const step of stop.steps) {
+      const applied = done(step);
+      segments.push({ realMs: timing.stepMs, fromMs: t, toMs: t, step, applied });
+      // A rule this step breaks right then: stop on it before the next step.
+      const now = stop.breaks.filter(
+        (b) =>
+          !held.has(b) && b.kind !== 'unknown' && step.changes.some((c) => c.device === b.device),
+      );
+      for (const b of now) held.add(b);
+      if (now.length > 0) {
+        segments.push({ realMs: timing.holdMs, fromMs: t, toMs: t, hold: now, applied });
+      }
     }
-    segments.push({ realMs: timing.holdMs, fromMs: stop, toMs: stop, hold: held });
-    at = stop;
+    const rest = stop.breaks.filter((b) => !held.has(b));
+    if (rest.length > 0) {
+      const applied = changesBy(run.changes, t);
+      segments.push({ realMs: timing.holdMs, fromMs: t, toMs: t, hold: rest, applied });
+    }
+    at = t;
   }
-  if (run.endMs > at) {
-    segments.push({
-      realMs: (timing.sweepMs * (run.endMs - at)) / span,
-      fromMs: at,
-      toMs: run.endMs,
-    });
-  }
-  return { totalMs: segments.reduce((t, s) => t + s.realMs, 0), segments };
+  if (end > at) segments.push(...sweep(slices, at, end));
+  return { totalMs: segments.reduce((sum, s) => sum + s.realMs, 0), segments };
 }
 
-/** Where a run's playback is after `realMs`: the home time, and the breaks being held on. */
-export function playhead(s: Schedule, realMs: number): { homeMs: number; held: Break[] } {
+/** The clock running from one home time to another, at the run's pace. */
+function sweep(slices: PaceSlice[], fromMs: number, toMs: number): Segment[] {
+  const out: Segment[] = [];
+  for (const s of slices) {
+    const a = Math.max(fromMs, s.fromMs);
+    const b = Math.min(toMs, s.toMs);
+    if (b > a) out.push({ realMs: (b - a) * s.rate, fromMs: a, toMs: b });
+  }
+  return out;
+}
+
+/** Where a run's playback is: the home time, and what it's acting out or stopped on. */
+export interface Playhead {
+  homeMs: number;
+  held: Break[];
+  step: Step | null;
+  /** How many changes have happened where the clock stands still; null while it runs. */
+  applied: number | null;
+}
+
+/** Where a run's playback is after `realMs`. */
+export function playhead(s: Schedule, realMs: number): Playhead {
   let left = Math.max(0, realMs);
   for (const seg of s.segments) {
     if (left < seg.realMs) {
-      const t = seg.realMs === 0 ? 1 : left / seg.realMs;
-      return { homeMs: seg.fromMs + (seg.toMs - seg.fromMs) * t, held: seg.hold ?? [] };
+      const t = left / seg.realMs;
+      return {
+        homeMs: seg.fromMs + (seg.toMs - seg.fromMs) * t,
+        held: seg.hold ?? [],
+        step: seg.step ?? null,
+        applied: seg.applied ?? null,
+      };
     }
     left -= seg.realMs;
   }
   const last = s.segments.at(-1);
-  return { homeMs: last?.toMs ?? 0, held: [] };
+  return { homeMs: last?.toMs ?? 0, held: [], step: null, applied: null };
 }
 
 /** Each device's state at a home time: how it started, with every change up to then applied. */
@@ -558,8 +622,8 @@ export interface ShowTiming {
 }
 
 export const SHOW_TIMING: ShowTiming = {
-  plan: { sweepMs: 7000, holdMs: 1300 },
-  fixed: { sweepMs: 5000, holdMs: 1000 },
+  plan: { sweepMs: 7000, holdMs: 1300, stepMs: 450 },
+  fixed: { sweepMs: 5000, holdMs: 1000, stepMs: 400 },
   pauseMs: 900,
   rewindMs: 700,
 };
