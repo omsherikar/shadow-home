@@ -107,7 +107,7 @@ describe('a turn over HTTP', () => {
     expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8');
     const events = await readEvents(response);
     const step = { id: 's1', tool: 'preview_plan', label: stepLabel('preview_plan') };
-    expect(events.map((e) => e.event)).toEqual(['step', 'step', 'call', 'text', 'done']);
+    expect(events.map((e) => e.event)).toEqual(['step', 'step', 'call', 'text', 'text', 'done']);
     expect(events.slice(0, 2).map((e) => e.data)).toEqual([
       { ...step, state: 'running' },
       { ...step, state: 'done' },
@@ -119,9 +119,13 @@ describe('a turn over HTTP', () => {
       result: preview,
       resourceUri: VIEW,
     });
-    expect(events[3]?.data).toEqual({ delta: SAID });
+    // The engine's headline as soon as the check returns, then the rest of what's said.
+    expect(events.slice(3, 5).map((e) => e.data)).toEqual([
+      { delta: 'Not safe: the garage would freeze.' },
+      { delta: ' Do it with 4 fixes instead?' },
+    ]);
     // `done` is the whole turn, as the JSON answer has it.
-    expect(events[4]?.data).toEqual({ say: SAID, calls: [call] });
+    expect(events[5]?.data).toEqual({ say: SAID, calls: [call] });
   });
 
   test('a turn that fails with nothing done ends with an error the person can retry', async () => {
