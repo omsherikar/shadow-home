@@ -179,6 +179,16 @@ describe('what to offer next', () => {
     expect(labels([call('preview_plan', preview({ tier: 'T5' }))])).toEqual(['Why?']);
     expect(labels([call('preview_plan', preview({}))])).toEqual(['Why?']);
   });
+
+  test('after a commit, Undo; an undo asks to undo it or keep it', () => {
+    const commit = call('commit_plan', { status: 'committed' });
+    expect(followUpsFor([WEEKEND, commit])).toEqual([{ label: 'Undo', says: 'Undo.' }]);
+    const undo = call('undo', {
+      status: 'preview',
+      preview: preview({ kind: 'undo', tier: 'T2' }),
+    });
+    expect(labels([undo])).toEqual(['Yes, undo it', 'Why?', 'Keep it']);
+  });
 });
 
 describe('the details view', () => {
