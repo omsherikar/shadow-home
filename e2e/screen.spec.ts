@@ -529,13 +529,14 @@ test('the whole demo script plays in demo mode, with no manual steps', async ({ 
   test.setTimeout(180_000);
   await page.goto('/');
   await openControls(page);
+  // "Play the demo" is in the chat's small menu.
+  await page.getByLabel('More', { exact: true }).click();
   await page.getByRole('button', { name: 'Play the demo' }).click();
   await expect(page.getByText('Demo finished.')).toBeVisible({ timeout: 150_000 });
-  const lines = await page
+  const alexa = await page
     .getByRole('list', { name: 'Conversation' })
-    .locator('li')
+    .locator('li.alexa .said')
     .allInnerTexts();
-  const alexa = lines.filter((l) => l.startsWith('Alexa')).map((l) => l.replace(/^Alexa\s*/, ''));
   // Friday: blocked, then done with the fixes. The dishwasher can't be confirmed; no.
   expect(alexa[0]).toMatch(/^Blocked: that breaks 4 house rules\..*Do it with 4 fixes instead\?$/);
   expect(alexa[1]).toBe('Done: 10 changes.');
