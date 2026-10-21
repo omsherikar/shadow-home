@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import type { HomeBrief } from './bedrock.ts';
 import { stepLabel } from './events.ts';
 import type { Tools } from './mcp.ts';
-import { respondToTurn, type TurnRoute } from './respond.ts';
+import { LIMITED, respondToTurn, type TurnRoute } from './respond.ts';
 import { type Beat, scriptedModel } from './scripted.ts';
 import { readEvents } from './test-helpers.ts';
 import { takeTurn } from './turn.ts';
@@ -143,6 +143,39 @@ describe('a turn over HTTP', () => {
         data: { message: "Sorry, I can't reach my assistant model right now.", retryable: true },
       },
     ]);
+  });
+
+  test("past the hour's limit: an error that says when to try again, or today's line as JSON", async () => {
+    let taken = 0;
+    const route: TurnRoute = {
+      scripted: false,
+      limit: Object.assign(() => 'visitor' as const, { retryAfter: () => 25 * 60_000 }),
+      take: async () => {
+        taken += 1;
+        return { turn: { say: 'Hi.', calls: [] } };
+      },
+    };
+    const streamed = await respondToTurn(turnRequest({ text: 'hi', history: [] }, STREAM), route);
+    expect(streamed.headers.get('content-type')).toBe('text/event-stream; charset=utf-8');
+    expect(await readEvents(streamed)).toEqual([
+      { event: 'error', data: { message: LIMITED, retryable: true, retryAfterMs: 1_500_000 } },
+    ]);
+    const json = await respondToTurn(turnRequest({ text: 'hi', history: [] }), route);
+    expect(await json.json()).toEqual({
+      say: "I've had a lot of requests this hour. Try again later.",
+      calls: [],
+    });
+    // A cap of nothing never frees up: no time to come back.
+    const never = {
+      ...route,
+      limit: Object.assign(() => 'instance' as const, { retryAfter: () => Infinity }),
+    };
+    expect(
+      await readEvents(
+        await respondToTurn(turnRequest({ text: 'hi', history: [] }, STREAM), never),
+      ),
+    ).toEqual([{ event: 'error', data: { message: LIMITED, retryable: false } }]);
+    expect(taken).toBe(0);
   });
 
   test('a bad request and one from another site stay plain HTTP, stream or not', async () => {
