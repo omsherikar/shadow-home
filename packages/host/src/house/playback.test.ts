@@ -828,3 +828,38 @@ describe('acting out the plan', () => {
     expect(segs[first + 1]?.hold?.map((b) => b.kind)).toEqual(['unknown']);
   });
 });
+
+describe('the clock’s pace', () => {
+  const [run] = runsFrom('preview_plan', preview, meta) as [Run];
+  const s = schedule(run, { sweepMs: 12_000, holdMs: 1000, stepMs: 400 });
+  /** Real milliseconds the clock takes from one home time to another. */
+  const realBetween = (from: string, to: string) =>
+    s.segments
+      .filter((seg) => seg.toMs > seg.fromMs)
+      .reduce((sum, seg) => {
+        const a = Math.max(seg.fromMs, at(from));
+        const b = Math.min(seg.toMs, at(to));
+        return b > a ? sum + (seg.realMs * (b - a)) / (seg.toMs - seg.fromMs) : sum;
+      }, 0);
+
+  test('runs slow near a moment worth watching and quick through the quiet hours', () => {
+    const nearR3 = realBetween('2027-01-16T22:07:00', '2027-01-16T23:07:00');
+    const quiet = realBetween('2027-01-16T12:30:00', '2027-01-16T13:30:00');
+    expect(nearR3 / quiet).toBeGreaterThan(4);
+    // Quiet hours go by at several hours a second.
+    expect(3_600_000 / quiet / 3600).toBeGreaterThan(4);
+  });
+
+  test('slows through dusk, so the sky fades instead of flipping', () => {
+    const dusk = realBetween('2027-01-16T16:52:00', '2027-01-16T17:52:00');
+    const quiet = realBetween('2027-01-16T12:30:00', '2027-01-16T13:30:00');
+    expect(dusk / quiet).toBeGreaterThan(2);
+  });
+
+  test('takes the sweep time in all, whatever the run holds', () => {
+    const swept = s.segments
+      .filter((seg) => seg.toMs > seg.fromMs)
+      .reduce((sum, seg) => sum + seg.realMs, 0);
+    expect(swept).toBeCloseTo(12_000, 6);
+  });
+});
