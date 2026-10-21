@@ -72,3 +72,19 @@ describe('waking', () => {
     expect(state.mode).toBe('awake');
   });
 });
+
+describe('a turn, her voice, and the answer', () => {
+  const asking = (): HandsFree => run([on, heard("Alexa, I'm away for the weekend")]).state;
+
+  test('a question nobody heard opens no window: the page says it was asked only if it was heard', () => {
+    // Silent, or the browser held her voice back: the page ends the turn with asked false.
+    const { state } = run([{ type: 'turn-ended', asked: false }], asking());
+    expect(state.mode).toBe('idle');
+  });
+
+  test('no answer in time: back to listening for "Alexa"', () => {
+    const waiting = run([{ type: 'turn-ended', asked: true }], asking()).state;
+    const { state } = run([{ type: 'timeout', epoch: waiting.epoch }], waiting);
+    expect(state.mode).toBe('idle');
+  });
+});
