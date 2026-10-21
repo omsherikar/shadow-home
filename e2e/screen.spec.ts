@@ -5,14 +5,13 @@ const WEEKEND = "I'm away for the weekend, set the house to away.";
 const DISHWASHER = "Run the dishwasher at 2 AM when power's cheap.";
 
 const view = (page: Page) => page.frameLocator('.view iframe');
-const said = (page: Page) => page.locator('.caption .said');
+/** Alexa's words in the chat: what she said last. */
+const said = (page: Page) =>
+  page.getByRole('list', { name: 'Conversation' }).locator('li.alexa .said').last();
 
-/** The demo controls sit in a drawer beside the house; without the house they're under the device. */
+/** The chat's composer is always on the page, beside the house or under the device. */
 async function openControls(page: Page) {
-  await expect(page.getByLabel('Say something')).toBeAttached();
-  const handle = page.getByRole('button', { name: 'Demo controls', exact: true });
-  if (await handle.isVisible()) await handle.click();
-  await expect(page.getByLabel('Say something')).toBeVisible();
+  await expect(page.getByLabel('Say something to Alexa')).toBeVisible();
 }
 
 /** The house's overlay, which says whether a plan is playing in the shadow twin. */
@@ -65,8 +64,8 @@ const A_GPU = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version
 
 async function say(page: Page, text: string) {
   await openControls(page);
-  await page.getByLabel('Say something').fill(text);
-  await page.getByRole('button', { name: 'Say it' }).click();
+  await page.getByLabel('Say something to Alexa').fill(text);
+  await page.getByRole('button', { name: 'Send' }).click();
 }
 
 test.describe.configure({ mode: 'serial' });
@@ -110,9 +109,9 @@ test('without WebGL the house steps aside and the device works as before', async
   await expect(page.getByText('Home mode')).toBeVisible();
   await expect(page.getByRole('region', { name: 'The house' })).toHaveCount(0);
   await expect(page.locator('canvas')).toHaveCount(0);
-  // No drawer: the controls are under the device, as before.
+  // No drawer: the chat is under the device.
   await expect(page.getByRole('button', { name: /demo controls/i })).toHaveCount(0);
-  await expect(page.getByLabel('Say something')).toBeVisible();
+  await expect(page.getByLabel('Say something to Alexa')).toBeVisible();
   await page.getByRole('button', { name: WEEKEND }).click();
   await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/no-webgl.png' });
