@@ -104,6 +104,9 @@ test.beforeEach(async ({ page }) => {
 
 test.beforeEach(async ({ request }) => {
   await request.post('/api/demo');
+  // One scripted turn first (it costs nothing and changes nothing): the first turn after the
+  // servers start pays for warming the dev server's turn path, and a test should time only itself.
+  await request.post('/api/turn', { data: { text: 'hello', history: [] } });
 });
 
 /** /api/speak answers every sentence with an empty clip: no voice is ever asked for. */
