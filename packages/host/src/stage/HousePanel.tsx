@@ -132,6 +132,12 @@ export function HousePanel(props: {
     return () => cancelAnimationFrame(frame);
   }, [show, still, done]);
 
+  const replay = (i: number) => {
+    setOnly(i);
+    started.current = performance.now();
+    setElapsed(0);
+  };
+
   const run = show && m ? show.runs[m.run] : undefined;
   const homeMs = m?.homeMs ?? 0;
   const count = run ? changesBy(run.changes, homeMs) : 0;
@@ -264,6 +270,21 @@ export function HousePanel(props: {
             ))}
           </dl>
         </div>
+        {show && show.runs.length > 1 && done ? (
+          <div className="run-switch">
+            {show.runs.map((r, i) => (
+              <button
+                key={r.planId}
+                type="button"
+                aria-pressed={m?.run === i}
+                className={r.tone}
+                onClick={() => replay(i)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         {inCard.map((b) => (
           <BreakCard
             key={`${b.kind}:${b.text}`}
