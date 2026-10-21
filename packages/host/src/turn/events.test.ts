@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { encodeEvent, KEEP_ALIVE, stepLabel, type TurnEvent, wantsEvents } from './events.ts';
+import {
+  encodeEvent,
+  eventStream,
+  KEEP_ALIVE,
+  stepLabel,
+  type TurnEvent,
+  wantsEvents,
+} from './events.ts';
 
 describe('the turn as Server-Sent Events', () => {
   test('each event is its type and one line of JSON, then a blank line', () => {
@@ -34,5 +41,37 @@ describe('the turn as Server-Sent Events', () => {
     expect(wantsEvents(asking('text/event-stream, application/json;q=0.5'))).toBe(true);
     expect(wantsEvents(asking('application/json'))).toBe(false);
     expect(wantsEvents(asking())).toBe(false);
+  });
+});
+
+describe('a streamed response', () => {
+  test('is sent as it happens, unbuffered, and ends after done; later events are dropped', async () => {
+    let release: () => void = () => {};
+    const response = eventStream(async (send) => {
+      send({ event: 'text', data: { delta: 'Checking.' } });
+      await new Promise<void>((r) => {
+        release = r;
+      });
+      send({ event: 'done', data: { say: 'Done.', calls: [] } });
+      send({ event: 'text', data: { delta: 'too late' } });
+    });
+    expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8');
+    expect(response.headers.get('cache-control')).toBe('no-cache, no-transform');
+    expect(response.headers.get('x-accel-buffering')).toBe('no');
+    const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    // The keep-alive and the first event are readable before the turn has finished.
+    let seen = '';
+    while (!seen.includes('Checking.')) {
+      const { value } = await reader.read();
+      seen += decoder.decode(value);
+    }
+    expect(seen).toBe(`${KEEP_ALIVE}event: text\ndata: {"delta":"Checking."}\n\n`);
+    release();
+    let rest = '';
+    for (let r = await reader.read(); !r.done; r = await reader.read()) {
+      rest += decoder.decode(r.value);
+    }
+    expect(rest).toBe('event: done\ndata: {"say":"Done.","calls":[]}\n\n');
   });
 });
