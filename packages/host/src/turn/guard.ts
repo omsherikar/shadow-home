@@ -32,6 +32,8 @@ export interface FilterFacts {
   context: Context;
   /** The home's device and routine names, taken out before a sentence is checked. */
   names: string[];
+  /** The rule texts and reasons of the check the turn is about, taken out too (they're quotes). */
+  quotes: string[];
 }
 
 /** The most one sentence may hold: the longest speech field (decision 40). */
@@ -221,20 +223,55 @@ export function numbersIn(text: string): number[] {
   return found;
 }
 
-/** The facts a turn's sentences are checked against: the home's device and routine names. */
+/**
+ * The facts a turn's sentences are checked against: the home's device and routine names, and the
+ * rule texts and reasons of the check the turn is about (this turn's, or the one a "why?" asks
+ * about), which are quotes.
+ */
 export function filterFacts(input: {
   context: Context;
   results: unknown[];
   devices: { id: string; name: string }[];
   routines: string[];
+  /** The check the turn is about, for its quotes. */
+  about?: unknown;
 }): FilterFacts {
   const names = [...input.devices.map((d) => d.name), ...input.routines]
     .map(lower)
     .sort((a, b) => b.length - a.length);
+  const quotes = quotesOf(input.about).sort((a, b) => b.length - a.length);
   return {
     context: input.context,
     names,
+    quotes,
   };
+}
+
+/** The rule texts and the reason's sentences in a result, lower case, without end punctuation. */
+function quotesOf(about: unknown): string[] {
+  const found: string[] = [];
+  const add = (text: unknown) => {
+    if (typeof text !== 'string') return;
+    for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+      const quote = lower(sentence)
+        .replace(/[.!?]+$/, '')
+        .trim();
+      if (quote) found.push(quote);
+    }
+  };
+  const visit = (v: unknown) => {
+    if (Array.isArray(v)) v.forEach(visit);
+    else if (typeof v === 'object' && v !== null) {
+      const o = v as Record<string, unknown>;
+      if (typeof o.rule === 'string') add(o.text);
+      if (typeof o.speech === 'object' && o.speech !== null) {
+        add((o.speech as { reason?: unknown }).reason);
+      }
+      for (const x of Object.values(o)) visit(x);
+    }
+  };
+  visit(about);
+  return found;
 }
 
 /** Why a sentence can't be said in its turn, or null when it can. */
@@ -250,8 +287,12 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (said.split(/\s+/).filter(Boolean).length > MAX_SENTENCE_WORDS) return 'long';
   if (FRAGMENT.test(said)) return 'fragment';
   const { context } = facts;
-  // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time).
+  // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time), and a rule's
+  // own words are a quote ("Never turn off the garage freezer.").
   let text = said.replace(/[.!?]+$/, '');
+  if (context === 'plan' || context === 'anchored') {
+    for (const quote of facts.quotes) text = text.split(quote).join(' ');
+  }
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
   if (context === 'chat') return null;
