@@ -27,3 +27,17 @@ export type TurnEvent =
   | { event: 'call'; data: { call: ToolCall } }
   | { event: 'done'; data: TurnResponse }
   | { event: 'error'; data: TurnError };
+
+const LABELS: Record<string, string> = {
+  preview_plan: "Checking the plan on your home's twin",
+  commit_plan: 'Making the change',
+  undo: 'Finding what to put back',
+  add_house_rule: 'Adding the house rule',
+  get_home_state: 'Looking at your home',
+  get_activity_log: 'Reading what changed',
+};
+
+/** What the screen says while a tool runs. */
+export function stepLabel(tool: string): string {
+  return Object.hasOwn(LABELS, tool) ? (LABELS[tool] as string) : 'Working on it';
+}
