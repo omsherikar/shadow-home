@@ -57,6 +57,10 @@ describe('after a check: nothing that says or softens the verdict, asks, or give
     ["It's taken care of.", 'action'],
     ['The heater is on now.', 'action'],
     ["I've unlocked the front door.", 'action'],
+    ["The door's locked now.", 'state'],
+    ['The door gets locked at 6:30 PM.', 'state'],
+    ['The coffee maker turns off by itself.', 'state'],
+    ['The heater stays off while you are away.', 'state'],
     ['Say yes to keep the plan as it is.', 'question'],
     ['Let me know if you want the fixes', 'question'],
     ['Just say the word', 'question'],
@@ -72,6 +76,17 @@ describe('after a check: nothing that says or softens the verdict, asks, or give
   ])('%s (%s)', (sentence, why) => {
     expect(dropReason(sentence, PLAN)).toBe(why);
   });
+
+  test.each([
+    'The fix pauses the Good night routine until Sunday.',
+    'Om set that rule to keep the garage pipes from freezing.',
+    'With the heater lowered, the garage would get too cold by Saturday night.',
+  ])(
+    '%s is said: names are taken out first, and a state is fine as what would happen',
+    (sentence) => {
+      expect(dropReason(sentence, PLAN)).toBeNull();
+    },
+  );
 });
 
 describe('plain conversation: small talk is free, claims about the home are not', () => {
@@ -148,6 +163,25 @@ const home = (
     routines: demo.routines.map((r) => r.name),
     ...over,
   });
+
+describe('a state after a check only as what would happen, since nothing has run', () => {
+  test.each([
+    'The house is in away mode.',
+    'The heat is down.',
+    'Your doors are secure.',
+    'The lights are dimmed.',
+    'The thermostat is lowered.',
+    'The front door lock is engaged.',
+    'The heater is heating.',
+  ])('%s', (sentence) => {
+    expect(dropReason(sentence, home('plan'))).toBe('state');
+  });
+
+  test('said as what would happen, it may be', () => {
+    expect(dropReason('The house would be in away mode.', home('plan'))).toBeNull();
+    expect(dropReason('If the heat is down, the pipes get cold.', home('plan'))).toBeNull();
+  });
+});
 
 describe('a bare yes or no says nothing, in any turn', () => {
   test.each(['Yes.', 'No.', 'Yes, it is.', 'Yep', 'Yes, the front door is.', 'No, it isn’t.'])(
