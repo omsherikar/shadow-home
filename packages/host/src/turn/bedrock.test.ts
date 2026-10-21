@@ -352,6 +352,28 @@ describe('the conversation it sees', () => {
   });
 });
 
+describe('the system prompt plans and undoes like a real assistant', () => {
+  const lineOf = (start: string) =>
+    systemPrompt(home)
+      .split('\n')
+      .find((l) => l.startsWith(start)) ?? '';
+
+  test('going away for a while: away mode, who and until when, and the usual savings', () => {
+    const line = lineOf("- When they're going away for a while");
+    for (const part of [
+      'away mode',
+      "a presenceSchedule from now until they're back, and planEnd then",
+      '"the weekend" from a Friday evening means until Sunday evening, worked out from the home\'s time',
+      'heating turned down, lights and idle devices off, doors locked',
+      'the check catches anything that would break a house rule',
+    ]) {
+      expect(line).toContain(part);
+    }
+    // The model chooses the details; the guidance names no device.
+    expect(line).not.toMatch(/freezer|aquarium|garage heater|thermostat_|plug_/i);
+  });
+});
+
 describe('the demo', () => {
   test('every line in order, each beat followed by the answer the person gives', () => {
     const steps = demoSteps([
