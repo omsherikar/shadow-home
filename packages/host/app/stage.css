@@ -564,6 +564,20 @@
   flex: 0 0 clamp(300px, 41vh, 420px);
 }
 
+/*
+ * House only: a compact chat at the bottom right, above the toggle, leaving the band along the
+ * bottom centre (about 760 by 70 px) to the house's timeline.
+ */
+.house-panel > .chat-dock {
+  position: absolute;
+  z-index: 3;
+  right: 24px;
+  bottom: 76px;
+  display: flex;
+  width: 420px;
+  height: 260px;
+}
+
 /* Alone, a card that lists what broke keeps a reading width and stays clear of the buttons. */
 .stage.house-only .house-card.listing {
   width: 300px;
