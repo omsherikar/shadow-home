@@ -693,7 +693,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           micListening={activity === 'listening'}
           ready={ready}
           micAvailable={micAvailable}
-          notice={notice}
+          notice={notice ?? handsFree.problem}
           action={
             heldBack
               ? {
