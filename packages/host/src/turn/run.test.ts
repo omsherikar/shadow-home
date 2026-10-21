@@ -118,6 +118,14 @@ const unsafe = {
       headline: 'Not safe: the garage would freeze.',
       ask: 'Do it with 4 fixes instead?',
     },
+    violations: [
+      {
+        rule: 'R3',
+        text: 'Keep the garage above 4 °C',
+        author: 'om',
+        firstAt: '2027-01-16T22:37:00-06:00',
+      },
+    ],
   },
 };
 const VIEW = 'ui://shadow-home/plan-view.html';
@@ -193,6 +201,31 @@ describe('a turn as it happens', () => {
     expect(turn.say).toBe(
       `Not safe: the garage would freeze. ${explanation} Do it with 4 fixes instead?`,
     );
+  });
+
+  test('a later "why?": the check\'s headline first, then the model\'s sentences', async () => {
+    const { api } = fakeApi(
+      reply([{ type: 'text', text: "Om's rule is about the garage. It's fine, honestly." }]),
+    );
+    const model = bedrockModel({ converse: anthropicConverse(api), tools: offered, home });
+    const events: TurnEvent[] = [];
+    const history = [
+      { name: 'preview_plan', arguments: {}, structuredContent: unsafe.structuredContent },
+    ];
+    const turn = await runTurn(
+      model,
+      { callTool: async () => unsafe, resourceUriFor: () => VIEW },
+      { text: 'Why?', history },
+      { emit: (e) => events.push(e) },
+    );
+    expect(events.flatMap((e) => (e.event === 'text' ? [e.data.delta] : []))).toEqual([
+      'Not safe: the garage would freeze.',
+      " Om's rule is about the garage.",
+    ]);
+    expect(turn).toEqual({
+      say: "Not safe: the garage would freeze. Om's rule is about the garage.",
+      calls: [],
+    });
   });
 
   test("a reply that claims a verdict is never sent: the engine's words go instead", async () => {
