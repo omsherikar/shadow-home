@@ -1,46 +1,66 @@
 'use client';
 
-import { Canvas, useLoader, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { Suspense, useLayoutEffect, useMemo } from 'react';
+import { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
 import { Furniture, People } from './Furniture.tsx';
-import { frame, groundBounds, houseBounds } from './geometry.ts';
+import { type Band, bandBetween, frame, groundBounds, houseBounds } from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
-import { type Daylight, daylight, type LiveHome } from './looks.ts';
+import { type Daylight, daylight, type LiveDevice } from './looks.ts';
 import { Shell } from './Shell.tsx';
 
-/** A room's name where it shows on screen, in CSS pixels from the canvas's top left. */
-export interface ScreenLabel {
+/** A point in the house that something on the page is pinned to: a label, a status dot, a card. */
+export interface Anchor {
   id: string;
-  name: string;
-  x: number;
-  y: number;
+  at: [number, number, number];
+}
+
+/** What the house shows: the live home, or a moment of a plan playing in the shadow twin. */
+export interface HouseView {
+  devices: LiveDevice[] | null;
+  presence: Record<string, 'home' | 'away'> | undefined;
+  /** The home time the light outside follows. */
+  time: string;
 }
 
 export interface HouseProps {
-  /** The live home from get_home_state; null until it arrives. */
-  home: LiveHome | null;
+  view: HouseView;
+  /** Beside the device (a tall, narrow panel) or alone (the whole page). */
+  mode: 'split' | 'house';
+  anchors: Anchor[];
+  /** The page element pinned to an anchor, if it's there. */
+  pinned(id: string): HTMLElement | null | undefined;
+  /** Pixels covered along the top and bottom of the panel: the house is framed between them. */
+  inset: { top: number; bottom: number };
+  /** Skip camera moves and fades. */
+  still: boolean;
   /** The browser took the WebGL context away. Anything that throws is the caller's to catch. */
   onFail(): void;
-  /** Where each room's name lands on screen, for the overlay to draw. */
-  onLabels(labels: ScreenLabel[]): void;
-  /** Moves the house up the picture (positive) or down, as a share of its half-height. */
-  shift?: number;
 }
 
-// From the front left and above: the dollhouse view.
-const VIEW = new Vector3(-0.37, 0.73, 0.57);
 const FOV = 30;
+// Alone, from the front left and above: the dollhouse view. Beside the device, from the west, so
+// the house's long side runs up the narrow panel and fills it.
+const VIEWS = {
+  house: new Vector3(-0.37, 0.73, 0.57),
+  split: direction(82, 56),
+} as const;
+
+function direction(azimuthFromSouth: number, elevation: number): Vector3 {
+  const a = (azimuthFromSouth * Math.PI) / 180;
+  const e = (elevation * Math.PI) / 180;
+  return new Vector3(-Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e));
+}
 
 /**
- * The demo home in 3D, roof off, showing the live state. It renders only when something changes
- * (`frameloop="demand"`), so it costs nothing while the house is still. An error anywhere in the
- * scene (a model that won't load, say) is rethrown here by React Three Fiber, for the caller's
- * error boundary.
+ * The demo home in 3D, roof off. It renders only when something changes (`frameloop="demand"`):
+ * a new view from the caller, the camera gliding, the twin fading. An error anywhere in the scene
+ * (a model that won't load, say) is rethrown here by React Three Fiber, for the caller's error
+ * boundary.
  */
 export default function House(props: HouseProps) {
   return (
@@ -63,17 +83,17 @@ export default function House(props: HouseProps) {
   );
 }
 
-function Scene({ home, onLabels, shift = 0 }: HouseProps) {
-  const light = daylight(home?.now ?? '');
+function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
+  const light = daylight(view.time);
   return (
     <>
       <Environment intensity={light.sky} />
       <KeyLight light={light} />
-      <CameraRig onLabels={onLabels} shift={shift} />
-      <Shell layout={layout} home={home} />
+      <CameraRig mode={mode} anchors={anchors} pinned={pinned} still={still} inset={inset} />
+      <Shell layout={layout} devices={view.devices} />
       <Furniture layout={layout} />
-      <Devices layout={layout} home={home} />
-      <People layout={layout} presence={home?.presence} />
+      <Devices layout={layout} devices={view.devices} />
+      <People layout={layout} presence={view.presence} />
       <Finish />
     </>
   );
@@ -151,27 +171,72 @@ function KeyLight({ light }: { light: Daylight }) {
   );
 }
 
-/** Frames the house for the canvas's size, and reports where each room's name falls. */
-function CameraRig({ onLabels, shift }: { onLabels: HouseProps['onLabels']; shift: number }) {
+// Alone, the house sits a little above the caption that floats along the bottom.
+const ALONE: Band = { center: 0.08, half: 0.92 };
+
+/**
+ * Frames the whole house for the canvas's size, or one room when there's something to look at,
+ * gliding between them, in the part of the panel nothing covers; and keeps everything pinned to
+ * the house where it shows on screen, hiding what would fall outside that part rather than cut it.
+ */
+function CameraRig(props: {
+  mode: HouseProps['mode'];
+  anchors: Anchor[];
+  pinned: HouseProps['pinned'];
+  still: boolean;
+  inset: HouseProps['inset'];
+}) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const invalidate = useThree((s) => s.invalidate);
+  const { top, bottom } = props.inset;
+  const goal = useMemo(() => {
+    const aspect = width / Math.max(1, height);
+    const view = VIEWS[props.mode];
+    const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
+    const whole = props.mode === 'split' ? houseBounds(layout) : groundBounds(layout);
+    return frame(whole, view, FOV, aspect, 0.04, band ?? ALONE);
+  }, [width, height, props.mode, top, bottom]);
+  const at = useRef<{ position: Vector3; target: Vector3 } | null>(null);
+  const tmp = useMemo(() => new Vector3(), []);
+
   useLayoutEffect(() => {
     if (width === 0 || height === 0) return;
-    const f = frame(groundBounds(layout), VIEW, FOV, width / height, 0.04, shift);
     camera.aspect = width / height;
-    camera.position.copy(f.position);
-    camera.lookAt(f.target);
     camera.updateProjectionMatrix();
-    camera.updateMatrixWorld();
-    onLabels(
-      layout.rooms.map((r) => {
-        const p = new Vector3(r.x + r.width / 2, 0.2, r.z + r.depth / 2).project(camera);
-        return { id: r.id, name: r.name, x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
-      }),
-    );
+    if (!at.current || props.still) {
+      at.current = { position: goal.position.clone(), target: goal.target.clone() };
+    }
     invalidate();
-  }, [camera, width, height, shift, onLabels, invalidate]);
+  }, [camera, width, height, goal, props.still, invalidate]);
+
+  useFrame((_, delta) => {
+    const now = at.current;
+    if (!now) return;
+    const k = props.still ? 1 : 1 - Math.exp(-Math.min(delta, 1 / 30) * 2.6);
+    now.position.lerp(goal.position, k);
+    now.target.lerp(goal.target, k);
+    camera.position.copy(now.position);
+    camera.lookAt(now.target);
+    camera.updateMatrixWorld();
+    for (const a of props.anchors) {
+      const el = props.pinned(a.id);
+      if (!el) continue;
+      tmp.set(a.at[0], a.at[1], a.at[2]).project(camera);
+      const x = ((tmp.x + 1) / 2) * width;
+      const y = ((1 - tmp.y) / 2) * height;
+      // A room's name is centred on its point; a dot's name runs off to one side of it.
+      const room = a.id.startsWith('room:');
+      const side = room ? 64 : 14;
+      const inside =
+        tmp.z < 1 && x >= side && x <= width - side && y >= top + 14 && y <= height - bottom - 14;
+      el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      el.style.visibility = inside ? 'visible' : 'hidden';
+      // Near the right edge a dot's name goes on its left, so it isn't cut off.
+      if (!room) el.dataset.side = x > width - 120 ? 'left' : 'right';
+    }
+    if (now.position.distanceToSquared(goal.position) > 1e-4) invalidate();
+  });
   return null;
 }

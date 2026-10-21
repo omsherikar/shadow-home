@@ -171,8 +171,7 @@ export function overlaps(a: Box, b: Box): boolean {
 /**
  * Stand the camera along `direction` from the middle of `bounds`, as close as it can be while
  * every corner stays inside the picture, `margin` (a fraction of the half-width or half-height)
- * from each edge. `shiftY` moves the house up (positive) or down in the picture, as a fraction of
- * its half-height, to leave room for what overlays it.
+ * from each edge, and within `band` of its height (the part nothing overlays).
  */
 export function frame(
   bounds: { min: Vector3; max: Vector3 },
@@ -180,8 +179,9 @@ export function frame(
   fovDeg: number,
   aspect: number,
   margin = 0.08,
-  shiftY = 0,
+  band: Band = { center: 0, half: 1 },
 ): Framing {
+  const shiftY = band.center;
   const target = bounds.min.clone().add(bounds.max).multiplyScalar(0.5);
   const dir = direction.clone().normalize();
   const camera = new PerspectiveCamera(fovDeg, aspect, 0.1, 1000);
@@ -199,9 +199,7 @@ export function frame(
     camera.updateMatrixWorld();
     return corners.every((c) => {
       const p = c.clone().project(camera);
-      return (
-        Math.abs(p.x) <= 1 - margin && Math.abs(p.y) <= 1 - margin - Math.abs(shiftY) && p.z < 1
-      );
+      return Math.abs(p.x) <= 1 - margin && Math.abs(p.y) <= band.half - margin && p.z < 1;
     });
   };
   let near = 1;
@@ -211,7 +209,7 @@ export function frame(
     if (fits(mid)) far = mid;
     else near = mid;
   }
-  // To move the house up the picture, slide the camera and its aim down by that share of the view.
+  // To move the house to the band, slide the camera and its aim by that share of the view.
   camera.position.copy(target).addScaledVector(dir, far);
   camera.lookAt(target);
   camera.updateMatrixWorld();
