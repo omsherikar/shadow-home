@@ -49,6 +49,14 @@ function round(): Round {
 
 export function speechQueue(voice: Voice) {
   let now = round();
+  // Whether a sentence is being said, for whoever shows it (watch).
+  let speaking = false;
+  const watchers = new Set<(speaking: boolean) => void>();
+  const speakingIs = (on: boolean) => {
+    if (on === speaking) return;
+    speaking = on;
+    for (const w of watchers) w(on);
+  };
 
   const queue = (r: Round, sentence: string) => {
     const text = line(sentence);
@@ -75,10 +83,14 @@ export function speechQueue(voice: Voice) {
     for (let next = r.waiting.shift(); next && !signal.aborted; next = r.waiting.shift()) {
       const clip = await next.clip;
       if (signal.aborted) break;
+      // Speaking from the moment the first clip starts, not when the answer has finished.
+      speakingIs(true);
       // A clip that can't play is skipped, not a reason to stop the rest.
       await voice.play(clip, next.text, signal).catch(() => undefined);
     }
     r.playing = null;
+    // Everything said; a round that was cleared already said it stopped.
+    if (r === now) speakingIs(false);
   };
 
   /** Stop at once: the sentence playing, every one waiting, and every clip on its way. */
@@ -86,6 +98,7 @@ export function speechQueue(voice: Voice) {
     now.controller.abort();
     now.waiting.length = 0;
     now = round();
+    speakingIs(false);
   };
 
   /**
@@ -132,6 +145,11 @@ export function speechQueue(voice: Voice) {
         for (const sentence of now.split.push(event.delta)) queue(now, sentence);
       }
       return event.type === 'done' ? finish(event.turn.say) : null;
+    },
+    /** Hear whenever she starts or stops speaking; returns how to stop hearing it. */
+    watch(watcher: (speaking: boolean) => void): () => void {
+      watchers.add(watcher);
+      return () => watchers.delete(watcher);
     },
   };
 }
