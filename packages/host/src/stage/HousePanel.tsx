@@ -23,7 +23,7 @@ import {
   temperaturesAt,
 } from '../house/playback.ts';
 import { fractionOf } from '../house/timeline.ts';
-import { readable } from '../house/words.ts';
+import { readable, stepWords } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
 
 // three.js and the scene load in the browser only, and only on this page.
@@ -221,6 +221,7 @@ export const HousePanel = memo(function HousePanel(props: {
   // Winding back, the sky stays where the run ended rather than flicker through two days.
   const lightTime = run && m?.rewinding ? homeIso(run.endMs, run.offset) : time;
   const held = m?.held ?? [];
+  const step = m?.step ?? null;
   const focusDevice = held.find((b) => b.device)?.device;
   const focus = !calm && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
   const moving = !!show && begun && !calm && !done;
@@ -257,6 +258,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const inCard = docked ? held : cards.filter((b) => !pinnedCards.includes(b));
   const guardOn = show?.guard && guarding(show.guard, time) ? show.guard.device : undefined;
   const byId = new Map((devices ?? []).map((d) => [d.id, d]));
+  const acting = new Set(step?.changes.map((c) => c.device) ?? []);
 
   return (
     <>
@@ -289,11 +291,14 @@ export const HousePanel = memo(function HousePanel(props: {
           const dot = DOTS.has(d.device) ? dotFor(byId.get(d.device)) : null;
           const broken = brokenAt.get(d.device);
           const mine = pinnedCards.filter((b) => b.device === d.device);
-          if (!dot && mine.length === 0) {
+          const first = step?.changes[0]?.device === d.device;
+          const isActing = acting.has(d.device);
+          if (!dot && mine.length === 0 && !isActing) {
             return <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)} />;
           }
           return (
             <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)}>
+              {isActing ? <span className="act-ring" aria-hidden="true" /> : null}
               {dot ? (
                 <span
                   className={
@@ -315,6 +320,11 @@ export const HousePanel = memo(function HousePanel(props: {
                   data-device={d.device}
                   data-state={dot.tone}
                 />
+              ) : null}
+              {first && step ? (
+                <span className="step-label" data-step="">
+                  {stepWords(step.changes, devices)}
+                </span>
               ) : null}
               {mine.map((b) => (
                 <BreakCard
