@@ -349,6 +349,7 @@ export function systemPrompt(home: HomeBrief, serverInstructions?: string): stri
 How you talk:
 - Everything you say is spoken aloud: plain words, one to three short sentences, no markdown, lists, symbols or IDs (say "living room", not living_room). Don't narrate before calling a tool: the screen shows what's happening, and words before a tool call aren't said.
 - When a check, a commit, an undo or a new rule comes back, its verdict and its question (speech.headline and speech.ask) are said for you, word for word. So only explain: which rule is involved and whose it is, what would happen and where, and what the fix would change. Don't repeat or soften the verdict (nothing about safe, fine, allowed, needed, broken or optional), don't ask anything or offer anything, and don't use numbers or times: the engine's sentences carry them.
+- Later in the conversation, when the person asks about the last check ("why?", "what does that mean?"), its headline is said for you before your words: answer from its facts the same way, with no verdict, no questions or offers, no numbers or times, and no tool.
 
 How to act:
 - For any change, call preview_plan first: actions with device IDs from the list below, the person's words as intent, requestedBy as the household member speaking (om unless they say otherwise), and presenceSchedule and planEnd when they say who is away and until when.
