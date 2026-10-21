@@ -32,6 +32,8 @@ export interface FilterFacts {
   context: Context;
   /** In a chat turn: a check came back earlier in the conversation. */
   afterPlan: boolean;
+  /** In a chat turn: that check is still open (its question unanswered, or it isn't SAFE). */
+  checkOpen: boolean;
   /** The home's device and routine names, taken out before a sentence is checked. */
   names: string[];
   /** The rule texts and reasons of the check the turn is about, taken out too (they're quotes). */
@@ -303,6 +305,8 @@ export function filterFacts(input: {
   heard?: string;
   /** In a chat turn: a check came back earlier in the conversation. */
   afterPlan?: boolean;
+  /** In a chat turn: that check is still open. */
+  checkOpen?: boolean;
 }): FilterFacts {
   const devices = new Map<string, string[]>();
   const alias = (name: string, id: string) => devices.set(name, [...(devices.get(name) ?? []), id]);
@@ -359,6 +363,7 @@ export function filterFacts(input: {
   return {
     context: input.context,
     afterPlan: input.afterPlan ?? false,
+    checkOpen: input.checkOpen ?? false,
     names,
     quotes,
     devices,
