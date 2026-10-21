@@ -71,6 +71,12 @@ describe('waking', () => {
     const { state } = run([{ type: 'timeout', epoch: first.state.epoch }], again.state);
     expect(state.mode).toBe('awake');
   });
+
+  test('the mic button while on listens for a request, as "Alexa" would', () => {
+    const { state, effects } = run([on, { type: 'wake' }]);
+    expect(state.mode).toBe('awake');
+    expect(effects[0]).toEqual({ kind: 'earcon' });
+  });
 });
 
 describe('a turn, her voice, and the answer', () => {
@@ -178,5 +184,21 @@ describe('stopping, turning off, and the microphone failing', () => {
     expect(effects).toEqual([]);
     // A stray "yes" is not for her.
     expect(run([heard('yes')], state).effects).toEqual([]);
+  });
+
+  test('the mic button while she speaks: awake, and her voice stopping and her turn ending change nothing', () => {
+    // Her words are over and her voice still plays: the page is still waiting for it.
+    const speaking = run([on, heard('Alexa, hello'), { type: 'speaking', on: true }]).state;
+    expect(speaking.turn).toBe(true);
+    // The button wakes her, then stops her voice; then the page's turn ends, cut short.
+    const { state, effects } = run(
+      [{ type: 'wake' }, { type: 'speaking', on: false }, { type: 'turn-ended', asked: false }],
+      speaking,
+    );
+    expect(state.mode).toBe('awake');
+    expect(effects[0]).toEqual({ kind: 'earcon' });
+    // Not in the middle of a turn's words, though: the button is off then.
+    const thinking = run([on, heard('Alexa, hello')]).state;
+    expect(run([{ type: 'wake' }], thinking).state.mode).toBe('thinking');
   });
 });
