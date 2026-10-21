@@ -295,7 +295,10 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   }
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
-  if (context === 'chat') return null;
+  if (context === 'chat') {
+    if (STATE.test(text)) return 'state';
+    return null;
+  }
   if (VERDICT.test(text) || NEGATED_HARM.some((p) => p.test(text))) return 'verdict';
   if (OFFER.test(text)) return 'question';
   const { times, rest } = timesIn(text);
