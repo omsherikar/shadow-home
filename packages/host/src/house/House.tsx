@@ -3,12 +3,13 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
 import { Furniture, People } from './Furniture.tsx';
 import { type Band, bandBetween, frame, groundBounds, houseBounds } from './geometry.ts';
+import { ghost } from './ghost.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveDevice } from './looks.ts';
 import { Shell } from './Shell.tsx';
@@ -25,6 +26,8 @@ export interface HouseView {
   presence: Record<string, 'home' | 'away'> | undefined;
   /** The home time the light outside follows. */
   time: string;
+  /** 0 is the real house, 1 the shadow twin. */
+  shadow: number;
   /** The room to move in on, or null for the whole house. */
   focus: string | null;
 }
@@ -99,6 +102,7 @@ function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
         still={still}
         inset={inset}
       />
+      <TwinFade shadow={view.shadow} still={still} />
       <Shell layout={layout} devices={view.devices} />
       <Furniture layout={layout} />
       <Devices layout={layout} devices={view.devices} />
@@ -257,6 +261,30 @@ function CameraRig(props: {
       if (!room) el.dataset.side = x > width - 120 ? 'left' : 'right';
     }
     if (now.position.distanceToSquared(goal.position) > 1e-4) invalidate();
+  });
+  return null;
+}
+
+/** Fades the house into the shadow twin and back. */
+function TwinFade({ shadow, still }: { shadow: number; still: boolean }) {
+  const invalidate = useThree((s) => s.invalidate);
+  const target = useRef(shadow);
+  useEffect(() => {
+    target.current = shadow;
+    invalidate();
+  }, [shadow, invalidate]);
+  useEffect(
+    () => () => {
+      ghost.value = 0;
+    },
+    [],
+  );
+  useFrame((_, delta) => {
+    const goal = target.current;
+    const k = still ? 1 : 1 - Math.exp(-Math.min(delta, 1 / 30) * 3);
+    ghost.value += (goal - ghost.value) * k;
+    if (Math.abs(goal - ghost.value) > 0.002) invalidate();
+    else ghost.value = goal;
   });
   return null;
 }
