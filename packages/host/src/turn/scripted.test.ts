@@ -81,6 +81,38 @@ describe('the scripted stand-in for the model', () => {
     ).toEqual({ planId: 's1', confirmed: true });
   });
 
+  test('"why?" says the last answer\'s reason, and leaves its question open for a yes', async () => {
+    const weekend = preview({
+      tier: 'T3',
+      verdict: 'UNSAFE',
+      repair: { planId: 'r1', verdict: 'SAFE', tier: 'T1' },
+      speech: {
+        headline: 'Blocked: that breaks 4 house rules.',
+        reason: "No coffee maker running when nobody's home. That's Om's rule.",
+        ask: 'Do it with 4 fixes instead?',
+      },
+    });
+    const said = (text: string): Remembered => ({ name: 'said', arguments: { text } });
+    const history = [weekend, said('Blocked: that breaks 4 house rules.')];
+    expect(await firstStep('Why?', history)).toEqual({
+      say: "No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?",
+    });
+    const asked = [
+      ...history,
+      { name: 'heard', arguments: { text: 'Why?' } },
+      said("No coffee maker running when nobody's home. That's Om's rule."),
+    ];
+    expect(await firstStep('Yes.', asked)).toMatchObject({
+      call: { name: 'commit_plan', arguments: { planId: 'r1', confirmed: true } },
+    });
+    // Once the question is closed, "why?" still says the reason, without asking again.
+    const closed = [...history, { name: 'heard', arguments: { text: 'no' } }];
+    expect(await firstStep('How come?', closed)).toEqual({
+      say: "No coffee maker running when nobody's home. That's Om's rule.",
+    });
+    expect(await firstStep('Why?')).toEqual({ say: "That's all the check told me." });
+  });
+
   test('a no, a Cancel tap or another request closes the question; a later yes answers nothing', async () => {
     const t2 = preview({ tier: 'T2', verdict: 'SAFE' });
     const nothing = { say: "There's nothing waiting for a yes." };
