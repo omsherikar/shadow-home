@@ -9,7 +9,7 @@ import {
 } from '@modelcontextprotocol/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Activity, Chat } from '../chat/Chat.tsx';
-import { ask as asked, type Message, replace, withEvent } from '../chat/conversation.ts';
+import { ask as asked, type Message, replace, stopped, withEvent } from '../chat/conversation.ts';
 import { streamTurn } from '../chat/stream.ts';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
@@ -73,6 +73,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const names = useRef<Names | undefined>(undefined);
   const screenNote = useRef<string | undefined>(undefined);
   const working = useRef(false);
+  const turn = useRef<AbortController | null>(null);
   const turnSeq = useRef(0);
   const taps = useRef(0);
   const mic = useRef<{ stop(): void } | null>(null);
@@ -82,6 +83,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const showEnds = useRef(0);
   // Calls a tap on screen made, until the view says what the tap ended on.
   const tapped = useRef<ToolCall[]>([]);
+  // Stop pressed while the demo plays: it ends after the line it's on.
+  const demoStopped = useRef(false);
 
   // During a turn the house waits for the screen: what it's asked to play goes to it once the plan
   // view has the result, so drawing the house never holds up the device.
@@ -172,7 +175,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
   }, []);
 
-  /** Say it out loud, showing that she's speaking; anything new cuts it short. */
+  /** Say it out loud, showing that she's speaking; Stop or anything new cuts it short. */
   const voice = useCallback(
     async (text: string) => {
       if (silent || !text) return;
@@ -300,9 +303,14 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       screenNote.current = undefined;
       askedHouse.current = false;
       holding.current = true;
+      const controller = new AbortController();
+      turn.current = controller;
+      // Stopped, or a newer turn started: nothing more from this one shows, counts or speaks.
+      const gone = () => controller.signal.aborted || turnSeq.current !== seq;
       const calls: ToolCall[] = [];
       // What was said goes in before what it led to, once it has led to something. A turn that
-      // fails before then leaves the conversation as it was, and a question still open stays open.
+      // fails or is stopped before then leaves the conversation as it was, and a question still
+      // open stays open.
       let heard = false;
       const hear = () => {
         if (heard) return;
@@ -315,6 +323,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       let answer: string | null = null;
       let failure: string | null = null;
       const take = async (call: ToolCall) => {
+        if (gone()) return;
         hear();
         calls.push(call);
         remember(call);
@@ -325,14 +334,18 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         }
       };
       try {
-        for await (const event of streamTurn(request)) {
+        for await (const event of streamTurn(request, { signal: controller.signal })) {
+          if (gone()) break;
           if (event.type === 'call') await take(event.call);
           if (event.type === 'done') {
             // A server that doesn't stream sends every call here; one that does, the same calls.
             for (const call of event.turn.calls.slice(calls.length)) await take(call);
-            hear();
-            answer = event.turn.say;
+            if (!gone()) {
+              hear();
+              answer = event.turn.say;
+            }
           }
+          if (gone()) break;
           if (event.type === 'error') failure = event.message;
           setMessages((m) =>
             replace(m, alexa, (msg) => withEvent(msg, event, Date.now(), names.current)),
@@ -344,13 +357,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         }
       } catch (e) {
         if (process.env.NODE_ENV !== 'production') console.error('The turn failed:', e);
-        failure = 'Something went wrong on my side. Try again.';
-        const event = { type: 'error' as const, message: failure, retryable: true };
-        setMessages((m) => replace(m, alexa, (msg) => withEvent(msg, event, Date.now())));
+        if (!gone()) {
+          failure = 'Something went wrong on my side. Try again.';
+          const event = { type: 'error' as const, message: failure, retryable: true };
+          setMessages((m) => replace(m, alexa, (msg) => withEvent(msg, event, Date.now())));
+        }
       } finally {
+        if (controller.signal.aborted) setMessages((m) => replace(m, alexa, stopped));
         // A turn that played nothing ("no", the activity log) leaves the house showing the home.
         if (!askedHouse.current) ask({ play: null });
         release();
+        turn.current = null;
         working.current = false;
         setActivity('idle');
       }
@@ -358,8 +375,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       if (!heard && request.screen && screenNote.current === undefined) {
         screenNote.current = request.screen;
       }
+      if (gone()) return;
       if (answer !== null) note({ name: 'said', arguments: { text: answer } });
       if (client) await refreshHome(client).catch(() => undefined);
+      if (gone()) return;
       if (answer !== null) await voice(answer);
       else if (failure) await voice(failure);
     },
@@ -381,6 +400,13 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     },
     [send],
   );
+
+  /** Stop: the answer coming in (the server stops too), her voice, and the demo if it's playing. */
+  const stop = useCallback(() => {
+    demoStopped.current = true;
+    turn.current?.abort();
+    stopSpeaking();
+  }, []);
 
   const toggleMic = useCallback(async () => {
     if (mic.current) {
@@ -423,16 +449,18 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     setNotice(null);
     ask({ play: null });
     setScreen({ kind: 'home' });
+    demoStopped.current = false;
     if (client) await refreshHome(client);
     for (const step of demo) {
+      if (demoStopped.current) break;
       await say(step.line);
       // Out loud (the recorded demo), each plan finishes playing in the house before the next line.
       const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const left = silent || still ? 0 : showEnds.current - performance.now();
       await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS + Math.max(0, left)));
     }
-    setDemoState('finished');
-    setNotice('Demo finished.');
+    setDemoState(demoStopped.current ? 'idle' : 'finished');
+    setNotice(demoStopped.current ? 'Demo stopped.' : 'Demo finished.');
   }, [client, demo, demoState, refreshHome, say, ask, silent]);
 
   const ready = client !== null && demoState !== 'playing';
@@ -484,6 +512,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           notice={notice}
           onSend={(says, label) => void say(says, label)}
           onMic={() => void toggleMic()}
+          onStop={stop}
           menu={
             <details className="menu">
               <summary aria-label="More">
