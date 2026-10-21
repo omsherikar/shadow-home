@@ -689,7 +689,12 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           micAvailable={micAvailable}
           notice={notice}
           onSend={(says, label) => void say(says, label)}
-          onMic={() => void toggleMic()}
+          onMic={() => {
+            if (handsFree.state.mode === 'off') return void toggleMic();
+            // Hands-free: listen for a request now, and stop her voice.
+            handsFree.wake();
+            stopSpeaking();
+          }}
           onStop={stop}
           onRetry={retry}
           menu={
