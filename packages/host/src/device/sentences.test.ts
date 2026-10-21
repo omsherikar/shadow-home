@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { allSentences, sentenceSplitter } from './sentences.ts';
+import { allSentences, finishedSentences, sentenceSplitter } from './sentences.ts';
 
 const WEEKEND =
   "Blocked: that breaks 4 house rules. No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?";
@@ -88,5 +88,12 @@ describe('sentences as the words stream in', () => {
       got.push(...split.end());
       expect(got, `pieces of ${size}`).toEqual(whole);
     }
+  });
+
+  test('what is not yet finished is kept as the rest', () => {
+    expect(finishedSentences('Okay. Nothing changed. Shall')).toEqual({
+      sentences: ['Okay.', 'Nothing changed.'],
+      rest: 'Shall',
+    });
   });
 });
