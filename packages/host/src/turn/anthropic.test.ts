@@ -1,9 +1,8 @@
-import type Anthropic from '@anthropic-ai/sdk';
 import type { ConverseCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
 import { anthropicConverse, fromReply, toRequest } from './anthropic.ts';
 import { bedrockModel, type HomeBrief, toolSpecs } from './bedrock.ts';
-import { reply } from './test-helpers.ts';
+import { fakeApi, reply } from './test-helpers.ts';
 
 const home: HomeBrief = {
   now: '2027-01-15T17:45:00-06:00',
@@ -17,22 +16,6 @@ const tools = [
   { name: 'preview_plan', description: 'Check a plan', inputSchema: { type: 'object' } },
   { name: 'commit_plan', description: 'Commit', inputSchema: { type: 'object' } },
 ];
-
-/** The Messages API, answering from a list and recording what it was sent. */
-function fakeApi(...answers: Anthropic.Message[]) {
-  const sent: Anthropic.MessageCreateParamsNonStreaming[] = [];
-  const api = {
-    messages: {
-      create: async (params: Anthropic.MessageCreateParamsNonStreaming) => {
-        sent.push(structuredClone(params));
-        const next = answers.shift();
-        if (!next) throw new Error('No answer left');
-        return next;
-      },
-    },
-  };
-  return { api, sent };
-}
 
 describe('the Anthropic API behind the Converse loop', () => {
   test('a request keeps the system prompt, tools, length limit and every turn', () => {

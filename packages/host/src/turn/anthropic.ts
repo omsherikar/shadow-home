@@ -19,7 +19,7 @@ export interface ModelStream extends AsyncIterable<Anthropic.MessageStreamEvent>
 /** The one call the loop makes, so tests can stand in for the API. */
 export interface MessagesApi {
   messages: {
-    create(params: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message>;
+    stream(params: Anthropic.MessageStreamParams, options?: { signal?: AbortSignal }): ModelStream;
   };
 }
 
@@ -28,21 +28,37 @@ let client: Anthropic | undefined;
 /**
  * Converse calls answered by the Anthropic API. The loop in bedrock.ts speaks Converse; this
  * translates each request and reply, so the loop, the history it keeps and its tests stay as they
- * are. The key comes from ANTHROPIC_API_KEY.
+ * are. Each call streams (the SDK's `messages.stream`): the model's words go to `onEvent` as they
+ * come, and so does each tool call as its block starts, by name, before its input is written.
+ * `signal` aborts the stream. The key comes from ANTHROPIC_API_KEY.
  */
 export function anthropicConverse(api?: MessagesApi): Converse {
   const messages = api ?? sharedClient();
-  return async (input) => fromReply(await messages.messages.create(toRequest(input)));
+  return async (input, options = {}) => {
+    const stream = messages.messages.stream(
+      toRequest(input),
+      options.signal ? { signal: options.signal } : undefined,
+    );
+    for await (const event of stream) {
+      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+        options.onEvent?.({ tool: event.content_block.name });
+      } else if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        options.onEvent?.({ text: event.delta.text });
+      }
+    }
+    return fromReply(await stream.finalMessage());
+  };
 }
 
 function sharedClient(): Anthropic {
   // One try and one retry, each short: a person is waiting, and the turn says sorry if both fail.
+  // For a stream the timeout covers the wait for it to start; the turn's deadline covers the rest.
   if (!client) client = new Anthropic({ timeout: 20_000, maxRetries: 1 });
   return client;
 }
 
 /** A Converse request as a Messages API request. */
-export function toRequest(input: ConverseCommandInput): Anthropic.MessageCreateParamsNonStreaming {
+export function toRequest(input: ConverseCommandInput): Anthropic.MessageStreamParams {
   const system = (input.system ?? [])
     .map((s) => s.text ?? '')
     .filter(Boolean)
