@@ -50,3 +50,8 @@ export function encodeEvent({ event, data }: TurnEvent): string {
 
 /** A comment line: clients ignore it, and it keeps an idle connection open through proxies. */
 export const KEEP_ALIVE = ': keep-alive\n\n';
+
+/** Whether the client asked for the turn as a stream of events rather than one JSON answer. */
+export function wantsEvents(request: Request): boolean {
+  return /\btext\/event-stream\b/i.test(request.headers.get('accept') ?? '');
+}
