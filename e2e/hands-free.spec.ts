@@ -280,3 +280,21 @@ test('the mic button while she speaks stops her and listens for a request', asyn
   await hear(page, 'no');
   await expect.poll(() => sent).toEqual([WEEKEND, 'no']);
 });
+
+test('while she listens for an answer, the text box still takes typing, and typing ends the window', async ({
+  page,
+}) => {
+  await fakeMic(page);
+  await stubSpeech(page);
+  const sent = turnsSent(page);
+  await page.goto('/?speak=1');
+  await pill(page).click();
+  await hear(page, `Alexa, ${WEEKEND}`);
+  await expect(pill(page)).toContainText('Listening for your answer');
+  const box = page.getByLabel('Say something to Alexa');
+  await expect(box).toBeEditable();
+  await box.fill('no');
+  await box.press('Enter');
+  await expect.poll(() => sent).toEqual([WEEKEND, 'no']);
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+});
