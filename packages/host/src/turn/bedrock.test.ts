@@ -372,6 +372,12 @@ describe('the system prompt plans and undoes like a real assistant', () => {
     // The model chooses the details; the guidance names no device.
     expect(line).not.toMatch(/freezer|aquarium|garage heater|thermostat_|plug_/i);
   });
+
+  test("when a check asks who's away and until when, ask, then check again with the answer", () => {
+    expect(lineOf("- When a check asks who's away")).toBe(
+      "- When a check asks who's away and until when, ask the person, then check the plan again with presenceSchedule and planEnd from their answer.",
+    );
+  });
 });
 
 describe('the demo', () => {
