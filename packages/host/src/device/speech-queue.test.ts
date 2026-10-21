@@ -212,4 +212,14 @@ describe('following a turn as it streams', () => {
     expect(v.played.map((p) => p.text)).toEqual(['Done: TV off.']);
     expect(v.played.map((p) => p.text)).not.toContain('Let me check that on your home first.');
   });
+
+  test('a done whose say differs from what streamed clears it and says the replacement', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.follow(text("It's safe to run, I think. Shall"));
+    const said = speech.follow(done("I can't confirm that's safe. Run it anyway?"));
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual(["I can't confirm that's safe.", 'Run it anyway?']);
+  });
 });
