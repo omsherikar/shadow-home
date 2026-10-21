@@ -154,6 +154,35 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   await expect(playing(page)).toHaveAttribute('data-playing', 'no');
 });
 
+test('with less motion, the house shows where each run ends, without the sweep', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // House only, where a run that ends with several broken rules lists them in the house’s card.
+  await page.addInitScript(() => {
+    // The plan view's sandboxed frame has no storage; only the page needs this.
+    try {
+      localStorage.setItem('shadow-home/layout', 'house');
+    } catch {}
+  });
+  await page.goto('/');
+  await openControls(page);
+  await page.getByRole('button', { name: WEEKEND }).click();
+  const house = page.getByRole('region', { name: 'The house' });
+  // The plan's end at once, with every rule it breaks.
+  await expect(house.getByRole('button', { name: 'With 4 fixes' })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'plan');
+  await expect(house.getByRole('status')).toHaveCount(4);
+  await house.getByRole('button', { name: 'With 4 fixes' }).click();
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'fixed');
+  await expect(house.getByRole('status')).toHaveCount(0);
+  await house.getByRole('button', { name: 'Show the device' }).click();
+  await tap(page, view(page).getByRole('button', { name: /^Cancel/ }));
+  await expect(playing(page)).toHaveAttribute('data-playing', 'no');
+});
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
