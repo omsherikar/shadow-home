@@ -7,8 +7,10 @@ import {
   followUpsFor,
   glanceFor,
   KEEP_MESSAGES,
+  loadConversation,
   type Message,
   problemWords,
+  saveConversation,
   splitFollowUps,
   stopped,
   toKeep,
@@ -282,6 +284,15 @@ describe('the details view', () => {
   });
 });
 
+function memory() {
+  const items = new Map<string, string>();
+  return {
+    getItem: (k: string) => items.get(k) ?? null,
+    setItem: (k: string, v: string) => void items.set(k, v),
+    items,
+  };
+}
+
 describe('the conversation across a reload', () => {
   const done = (id: string, text: string): Message => ({
     id,
@@ -289,6 +300,22 @@ describe('the conversation across a reload', () => {
     text,
     phase: 'done',
     steps: [],
+  });
+
+  test('comes back as it was, with any open question closed', () => {
+    const storage = memory();
+    const messages: Message[] = [
+      { id: 'a-you', who: 'you', text: 'Hi' },
+      done('a-alexa', 'Hello.'),
+    ];
+    const history = [
+      { name: 'heard', arguments: { text: 'Hi' } },
+      { name: 'preview_plan', arguments: {}, structuredContent: { planId: 'p1' } },
+    ];
+    saveConversation(storage, { messages, history });
+    const back = loadConversation(storage);
+    expect(back.messages).toEqual(messages);
+    expect(back.history).toEqual([...history, { name: 'closed', arguments: {} }]);
   });
 
   test('keeps the last messages only, each cut short, and none still coming in', () => {
