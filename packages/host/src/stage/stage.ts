@@ -37,12 +37,15 @@ export function browserStorage(): Storage | null {
 
 export type Chip = 'SAFE' | 'UNSAFE' | 'UNPROVEN' | 'DONE';
 
-/** Icon, word and tone for each chip, as the plan view shows them. */
-export const CHIPS: Record<Chip, { icon: string; tone: string }> = {
-  SAFE: { icon: '✓', tone: 'safe' },
-  UNSAFE: { icon: '✕', tone: 'blocked' },
-  UNPROVEN: { icon: '?', tone: 'unsure' },
-  DONE: { icon: '✓', tone: 'done' },
+/**
+ * Icon, word and tone for each chip, as the plan view shows them. The verdicts stay SAFE, UNSAFE
+ * and UNPROVEN in the data; on screen they read as a person would say them.
+ */
+export const CHIPS: Record<Chip, { icon: string; word: string; tone: string }> = {
+  SAFE: { icon: '✓', word: 'Safe', tone: 'safe' },
+  UNSAFE: { icon: '✕', word: 'Not safe', tone: 'blocked' },
+  UNPROVEN: { icon: '?', word: "Can't confirm", tone: 'unsure' },
+  DONE: { icon: '✓', word: 'Done', tone: 'done' },
 };
 
 const verdict = (v: unknown): Chip | undefined =>
