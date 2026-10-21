@@ -25,6 +25,7 @@ interface Round {
   split: ReturnType<typeof sentenceSplitter>;
   /** Every sentence handed to the voice this round, in one line. */
   queued: string;
+  refused: boolean;
   /** The last clip asked for: each asks once the one before has answered. */
   asked: Promise<unknown>;
   playing: Promise<void> | null;
@@ -39,6 +40,7 @@ function round(): Round {
     waiting: [],
     split: sentenceSplitter(),
     queued: '',
+    refused: false,
     asked: Promise.resolve(),
     playing: null,
   };
@@ -50,10 +52,15 @@ export function speechQueue(voice: Voice) {
   const queue = (r: Round, sentence: string) => {
     const text = line(sentence);
     const { signal } = r.controller;
-    // One request at a time, in order.
+    // One request at a time, in order, so a refusal is known before the next sentence asks.
     const clip = r.asked.then(async (): Promise<Clip> => {
       if (signal.aborted) return { kind: 'browser', refused: false };
-      return voice.fetch(text, signal).catch((): Clip => ({ kind: 'browser', refused: false }));
+      if (r.refused) return { kind: 'browser', refused: true };
+      const got = await voice
+        .fetch(text, signal)
+        .catch((): Clip => ({ kind: 'browser', refused: false }));
+      if (got.kind === 'browser' && got.refused) r.refused = true;
+      return got;
     });
     r.asked = clip;
     r.waiting.push({ text, clip });
