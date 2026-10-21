@@ -141,6 +141,12 @@
   backdrop-filter: blur(6px);
 }
 
+.room-label b {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .drawer {
   position: absolute;
   right: 24px;
