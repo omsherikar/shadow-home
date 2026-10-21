@@ -121,7 +121,8 @@ export interface Recognition {
 
 export type RecognitionCtor = new () => Recognition;
 
-function recognitionCtor(): RecognitionCtor | undefined {
+/** The browser's speech recognition, where it has one (Chrome, Edge, Safari; not Firefox). */
+export function recognitionCtor(): RecognitionCtor | undefined {
   if (typeof window === 'undefined') return undefined;
   const w = window as unknown as {
     SpeechRecognition?: RecognitionCtor;
