@@ -8,7 +8,8 @@ import {
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type Activity, Chat } from '../chat/Chat.tsx';
+import { shownActivity, type TurnActivity } from '../chat/activity.ts';
+import { Chat } from '../chat/Chat.tsx';
 import {
   ask as asked,
   type FollowUp,
@@ -43,7 +44,7 @@ import { fitHistory, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { Strip } from './Strip.tsx';
-import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
+import { canListen, listenOnce, speak, speech, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
 
@@ -97,7 +98,9 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   // What the screen shows, in brief, for the strip a phone shows in its place.
   const [glance, setGlance] = useState<Glance | null>(null);
   const narrow = useMedia(NARROW);
-  const [activity, setActivity] = useState<Activity>('idle');
+  // The mic and the turn; her voice says on its own when it speaks (speech.watch).
+  const [activity, setActivity] = useState<TurnActivity>('idle');
+  const [speaking, setSpeaking] = useState(false);
   const [heard, setHeard] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
   const [demoState, setDemoState] = useState<'idle' | 'playing' | 'finished'>('idle');
@@ -224,16 +227,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
   }, []);
 
-  /** Say it out loud, showing that she's speaking; Stop or anything new cuts it short. */
+  /** Say a whole reply out loud (a tap's answer), unless the device is silent. */
   const voice = useCallback(
     async (text: string) => {
       if (silent || !text) return;
-      setActivity('speaking');
       await speak(text);
-      setActivity((a) => (a === 'speaking' ? 'idle' : a));
     },
     [silent],
   );
+
+  // Speaking from the moment her first clip starts to when the last ends or she's stopped.
+  useEffect(() => speech.watch(setSpeaking), []);
 
   useEffect(() => setMicAvailable(canListen()), []);
 
@@ -606,7 +610,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
               {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
             </div>
             <div
-              className={busy || activity === 'listening' ? 'lightbar on' : 'lightbar'}
+              className={busy || speaking || activity === 'listening' ? 'lightbar on' : 'lightbar'}
               aria-hidden="true"
             />
           </div>
@@ -629,7 +633,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           followUps={narrow ? phone.rest : followUps}
           placeholder={narrow ? 'Ask Alexa' : 'Ask Alexa to change something'}
           starters={suggestions.map((s) => ({ label: s, says: s }))}
-          activity={activity}
+          activity={shownActivity(activity, speaking)}
           heard={heard}
           ready={ready}
           micAvailable={micAvailable}
