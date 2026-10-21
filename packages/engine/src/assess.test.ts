@@ -678,4 +678,16 @@ describe("away mode without saying who's away", () => {
     expect(a.tier.tier).toBe('T3');
     expect(a.speech.ask).toBeUndefined();
   });
+
+  test('a plan that sets away and later home is away in between, so it still asks who', () => {
+    const a = assess(
+      home,
+      plan([{ mode: 'away' }, { mode: 'home', at: '2027-01-15T21:00:00-06:00' }]),
+      { requestedBy: 'om' },
+    );
+    expect(a.check.verdict).toBe('UNPROVEN');
+    expect(a.check.unknowns).toEqual([AWAY_UNSTATED]);
+    expect(a.tier.tier).toBe('T5');
+    expect(a.speech).toEqual(WHO_IS_AWAY);
+  });
 });
