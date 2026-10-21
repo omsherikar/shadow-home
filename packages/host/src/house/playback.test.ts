@@ -25,6 +25,7 @@ import {
   TEMPERATURES_META_KEY,
   type Trace,
   temperatureColor,
+  temperatureStrength,
   temperaturesAt,
 } from './playback.ts';
 
@@ -492,12 +493,16 @@ describe('the house at a moment', () => {
 });
 
 describe('drawing it', () => {
-  test('rooms go from icy blue through neutral to warm orange', () => {
-    expect(temperatureColor(-5)).toBe('#dff1ff');
-    expect(temperatureColor(0)).toBe('#dff1ff');
+  test('rooms go from frost through cyan and clear to warm orange', () => {
+    expect(temperatureColor(-5)).toBe('#f2feff');
+    expect(temperatureColor(-2)).toBe('#f2feff');
     expect(temperatureColor(30)).toBe('#ec8a3c');
     const red = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
     expect(red(temperatureColor(20))).toBeGreaterThan(red(temperatureColor(4)));
+    // A comfortable room is barely tinted; the further from comfortable, the stronger.
+    expect(temperatureStrength(15)).toBeLessThan(0.1);
+    expect(temperatureStrength(4)).toBeGreaterThan(temperatureStrength(10));
+    expect(temperatureStrength(22)).toBeGreaterThan(temperatureStrength(18));
   });
 
   test('a device is in the room the layout puts it in; the porch light in the nearest', () => {
