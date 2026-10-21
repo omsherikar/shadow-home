@@ -8,6 +8,20 @@ import { expect, type Locator, type Page } from '@playwright/test';
 export async function tap(page: Page, control: Locator) {
   await expect(control).toBeVisible();
   const frame = page.locator('.view iframe');
+  // Just after a layout change the device is still being zoomed to its new room: measure once it
+  // holds still, or the tap lands where the control was.
+  let before = '';
+  await expect
+    .poll(
+      async () => {
+        const now = JSON.stringify(await frame.boundingBox());
+        const still = now === before;
+        before = now;
+        return still;
+      },
+      { intervals: [150] },
+    )
+    .toBe(true);
   const box = await frame.boundingBox();
   if (!box) throw new Error('The plan view is not on screen.');
   const scale = await frame.evaluate(
