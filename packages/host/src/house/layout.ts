@@ -100,9 +100,12 @@ const prop = z.object({
     .optional(),
 });
 
-/** Pieces built from simple shapes where no CC0 model fits. */
+/**
+ * Pieces built from simple shapes where no CC0 model fits. The garage's tube light is scenery:
+ * the twin has no light there, so it isn't a device, nothing switches it, and it's always on.
+ */
 const built = z.object({
-  shape: z.enum(['counter', 'bed', 'rug', 'wall_heater']),
+  shape: z.enum(['counter', 'bed', 'rug', 'wall_heater', 'tube_light']),
   room: z.string(),
   x: metres,
   y: metres.default(0),
@@ -412,6 +415,16 @@ export const houseLayout: HouseLayout = houseLayoutSchema.parse({
       depth: 0.18,
       height: 0.45,
       drivenBy: 'garage_thermostat',
+    },
+    {
+      shape: 'tube_light',
+      room: 'garage',
+      x: 1.6,
+      y: 2.3,
+      z: 0.12,
+      width: 1.5,
+      depth: 0.12,
+      height: 0.09,
     },
   ],
   people: [

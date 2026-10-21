@@ -340,7 +340,7 @@ function Frame({ width, height }: { width: number; height: number }) {
   );
 }
 
-/** Counters, beds, rugs and the garage heater, from simple shapes in matching materials. */
+/** Counters, beds, rugs, the garage heater and its light, from simple shapes in matching materials. */
 function BuiltPiece({ piece: b, glow }: { piece: Built; glow: number }) {
   return (
     <group position={[b.x, b.y, b.z]} rotation-y={deg(b.facing)}>
@@ -372,6 +372,30 @@ function BuiltPiece({ piece: b, glow }: { piece: Built; glow: number }) {
           </mesh>
         </group>
       ) : null}
+      {b.shape === 'tube_light' ? <TubeLight b={b} /> : null}
+    </group>
+  );
+}
+
+/** The garage's tube light: scenery, always on, so the garage isn't a black hole at dusk. */
+function TubeLight({ b }: { b: Built }) {
+  return (
+    <group>
+      <mesh castShadow>
+        <boxGeometry args={[b.width, b.height, b.depth]} />
+        <meshStandardMaterial ref={twin} color={palette.ivory} roughness={0.5} />
+      </mesh>
+      <mesh position={[0, -b.height / 2, b.depth / 4]} rotation-z={Math.PI / 2}>
+        <cylinderGeometry args={[0.025, 0.025, b.width - 0.1, 12]} />
+        <meshStandardMaterial color="#fff6e8" emissive="#fff1dc" emissiveIntensity={3.2} />
+      </mesh>
+      <pointLight
+        position={[0, -0.25, 1.2]}
+        color="#ffe9cc"
+        intensity={16}
+        distance={9}
+        decay={2}
+      />
     </group>
   );
 }
