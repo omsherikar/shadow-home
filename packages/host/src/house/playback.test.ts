@@ -29,6 +29,27 @@ import {
   temperaturesAt,
 } from './playback.ts';
 
+/** A colour's hue in degrees, from "#rrggbb". */
+function hue(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16) / 255) as [
+    number,
+    number,
+    number,
+  ];
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
+/** How far apart two colours are, as a straight line through RGB. */
+function distance(a: string, b: string): number {
+  const ch = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
+  const [x, y] = [ch(a), ch(b)];
+  return Math.hypot(...x.map((v, i) => v - (y[i] ?? 0)));
+}
+
 const at = (local: string) => Date.parse(`${local}-06:00`);
 const FRI = '2027-01-15T17:45:00-06:00';
 const SUN = '2027-01-17T18:00:00-06:00';
@@ -503,6 +524,16 @@ describe('drawing it', () => {
     expect(temperatureStrength(15)).toBeLessThan(0.1);
     expect(temperatureStrength(4)).toBeGreaterThan(temperatureStrength(10));
     expect(temperatureStrength(22)).toBeGreaterThan(temperatureStrength(18));
+  });
+
+  test('cold is a cyan of its own, apart from the twin’s blue, so 4 °C reads apart from 10 °C', () => {
+    // The twin's blue at its brightest is rgb(0.6, 0.78, 1.0): a hue of about 213°.
+    const twinHue = hue('#99c7ff');
+    expect(Math.abs(hue(temperatureColor(4)) - twinHue)).toBeGreaterThan(20);
+    expect(Math.abs(hue(temperatureColor(2)) - twinHue)).toBeGreaterThan(20);
+    // The garage near its limit is a strong cyan; a room at 10 °C a faint wash.
+    expect(temperatureStrength(4) - temperatureStrength(10)).toBeGreaterThan(0.3);
+    expect(distance(temperatureColor(4), temperatureColor(10))).toBeGreaterThan(120);
   });
 
   test('a device is in the room the layout puts it in; the porch light in the nearest', () => {
