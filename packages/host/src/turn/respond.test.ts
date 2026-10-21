@@ -144,4 +144,18 @@ describe('a turn over HTTP', () => {
       },
     ]);
   });
+
+  test('a bad request and one from another site stay plain HTTP, stream or not', async () => {
+    const bad = await respondToTurn(turnRequest({ text: '' }, STREAM), scriptedRoute());
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: 'Bad turn request' });
+    const elsewhere = await respondToTurn(
+      turnRequest(
+        { text: WEEKEND, history: [] },
+        { ...STREAM, origin: 'https://elsewhere.example' },
+      ),
+      scriptedRoute(),
+    );
+    expect(elsewhere.status).toBe(403);
+  });
 });
