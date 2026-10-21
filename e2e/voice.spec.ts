@@ -109,3 +109,16 @@ test('each sentence is asked for as soon as it is finished, the first before the
   await expect.poll(async () => (await heard(page)).map((h) => h.text)).toEqual(SENTENCES);
   expect((await heard(page)).at(-1)?.ended).toBe(true);
 });
+
+test('a silent page asks for no voice at all', async ({ page }) => {
+  await stubSpeech(page);
+  await holdTheEnd(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await page.evaluate(() => (window as unknown as { releaseDone(): void }).releaseDone());
+  await expect(
+    page.getByRole('list', { name: 'Conversation' }).locator('li.alexa').last(),
+  ).toHaveAttribute('data-phase', 'done');
+  await page.waitForTimeout(1000);
+  expect(await heard(page)).toEqual([]);
+});
