@@ -234,6 +234,63 @@
   left: auto;
 }
 
+.break-card {
+  position: absolute;
+  bottom: 16px;
+  left: 14px;
+  width: 250px;
+  padding: 10px 14px 11px;
+  border-left: 4px solid var(--blocked);
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.break-card.not_robust,
+.break-card.unknown {
+  border-left-color: var(--unsure);
+}
+
+.break-card.guard {
+  border-left-color: var(--safe);
+}
+
+.break-card.inline {
+  position: static;
+  width: auto;
+  margin-top: 10px;
+}
+
+.break-card p {
+  margin: 0;
+}
+
+.break-head {
+  color: var(--blocked);
+  font-weight: 700;
+}
+
+.break-card.not_robust .break-head,
+.break-card.unknown .break-head {
+  color: var(--unsure);
+}
+
+.break-card.guard .break-head {
+  color: var(--safe);
+}
+
+.break-card .break-text {
+  margin-top: 3px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+.break-card .break-who {
+  margin-top: 4px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
 .drawer {
   position: absolute;
   right: 24px;
