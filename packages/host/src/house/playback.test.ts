@@ -5,6 +5,7 @@ import {
   changesBy,
   devicesAt,
   playhead,
+  presenceAt,
   REPLAY_META_KEY,
   type Run,
   runsFrom,
@@ -292,5 +293,18 @@ describe('the house at a moment', () => {
     });
     expect(changesBy(run.changes, at('2027-01-16T06:59:00'))).toBe(2);
     expect(changesBy(run.changes, at('2027-01-16T07:00:00'))).toBe(3);
+  });
+
+  test('people follow the presence windows the plan was checked with', () => {
+    const now = { om: 'home', maya: 'home', sam: 'home' } as const;
+    expect(presenceAt(now, run.presence, at('2027-01-15T17:50:00'))).toEqual(now);
+    expect(presenceAt(now, run.presence, at('2027-01-16T12:00:00'))).toEqual({
+      om: 'away',
+      maya: 'away',
+      sam: 'away',
+    });
+    const some = [{ fromMs: 0, toMs: Number.POSITIVE_INFINITY, who: { home: ['sam'] } }];
+    expect(presenceAt(now, some, 1)).toEqual({ om: 'away', maya: 'away', sam: 'home' });
+    expect(presenceAt(now, run.presence, Date.parse(SUN))).toEqual(now);
   });
 });
