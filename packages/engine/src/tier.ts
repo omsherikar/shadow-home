@@ -47,14 +47,12 @@ export function confirmationTier(
   tags: readonly ActionTag[],
   requestedBy?: string,
 ): TierResult {
-  const refused = result.reasons.find(
-    (r) => (r.kind === 'violation' || r.kind === 'not_robust') && r.refuse,
-  );
+  const refused = refusingRule(result);
   const others = home.household.members.map((m) => m.id).filter((id) => id !== requestedBy);
   // A plan with no actions asks for nothing a rule could forbid: when the house already breaks a
   // refuse rule as someone leaves, that is a block with a fix on offer, not a refusal.
-  if (refused && 'rule' in refused && plan.actions.length > 0) {
-    return { tier: 'T5', why: `rule ${refused.rule} forbids it`, affects: [], sensitive: [] };
+  if (refused && plan.actions.length > 0) {
+    return { tier: 'T5', why: `rule ${refused} forbids it`, affects: [], sensitive: [] };
   }
   if (result.verdict === 'UNSAFE') {
     return { tier: 'T3', why: 'the plan is UNSAFE', affects: [], sensitive: [] };
