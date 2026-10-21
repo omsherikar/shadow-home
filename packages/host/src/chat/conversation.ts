@@ -405,3 +405,12 @@ export function loadConversation(storage: Pick<Storage, 'getItem'> | null): Kept
     return { messages: [], history: [] };
   }
 }
+
+/** Forget the conversation (a new one, or the demo starting over). */
+export function forgetConversation(storage: Pick<Storage, 'removeItem'> | null): void {
+  try {
+    storage?.removeItem(CONVERSATION_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}
