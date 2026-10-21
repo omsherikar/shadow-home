@@ -271,3 +271,18 @@ describe('whether she is speaking', () => {
     expect(seen).toEqual([true, false]);
   });
 });
+
+describe('stopping', () => {
+  test('clears the queue and stops the sentence playing at once; nothing after it plays', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    const said = speech.finish(WEEKEND);
+    await v.arrive();
+    expect(v.played.map((p) => p.text)).toEqual(['Blocked: that breaks 4 house rules.']);
+    speech.clear();
+    await said;
+    expect(v.stopped).toEqual(['Blocked: that breaks 4 house rules.']);
+    await v.drain();
+    expect(v.played).toHaveLength(1);
+  });
+});
