@@ -1,5 +1,5 @@
 import type { ConverseCommandInput, ConverseCommandOutput } from '@aws-sdk/client-bedrock-runtime';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { demoSteps } from '../demo/steps.ts';
 import { fromOtherSite } from '../origin.ts';
 import {
@@ -100,6 +100,31 @@ describe('the Bedrock model', () => {
     const { converse } = fakeConverse(text('All done, your TV is off and everything is great!'));
     const model = bedrockModel({ converse, tools, home });
     expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({ say: 'Safe: TV off.' });
+  });
+
+  test("with none of its sentences left, the server's speech, and only counts are logged", async () => {
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, 'log').mockImplementation((line: string) => {
+      lines.push(line);
+    });
+    try {
+      for (const words of [
+        'All done, your TV is off and everything is great!',
+        'That breaks a house rule.',
+      ]) {
+        const { converse } = fakeConverse(text(words));
+        const model = bedrockModel({ converse, tools, home });
+        expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({
+          say: 'Safe: TV off.',
+        });
+      }
+    } finally {
+      spy.mockRestore();
+    }
+    expect(lines).toEqual([
+      'reply (context=plan kept=0 dropped=1 why=action)',
+      'reply (context=plan kept=0 dropped=1 why=verdict)',
+    ]);
   });
 
   test('a later "why?" leads with the check\'s headline; with nothing left, its reason', async () => {
