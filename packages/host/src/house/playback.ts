@@ -13,6 +13,10 @@ export interface Change {
   device: string;
   attr: string;
   to: Value;
+  /** "plan" for the plan's own changes; otherwise the routine or schedule that made it. */
+  source?: string;
+  /** Which of the plan's actions made it, where the result says. */
+  action?: number;
 }
 
 /** A moment worth stopping on: a rule breaking, or something the twin couldn't establish. */
@@ -37,6 +41,7 @@ const entrySchema = z.object({
   at: instant,
   /** "plan" for the plan's own actions; a routine's ID, or what scheduled it, otherwise. */
   source: z.string().optional(),
+  actionIndex: z.number().int().nonnegative().optional(),
   device: z.string(),
   attr: z.string(),
   to: valueSchema,
@@ -168,7 +173,16 @@ export function runsFrom(
     presence: Replay['presence'],
   ): Run => {
     const changes = replay.timeline
-      .map((e) => ({ atMs: Date.parse(e.at), device: e.device, attr: e.attr, to: e.to }))
+      .map(
+        (e): Change => ({
+          atMs: Date.parse(e.at),
+          device: e.device,
+          attr: e.attr,
+          to: e.to,
+          ...(e.source === undefined ? {} : { source: e.source }),
+          ...(e.actionIndex === undefined ? {} : { action: e.actionIndex }),
+        }),
+      )
       .sort((a, b) => a.atMs - b.atMs);
     return {
       planId,
