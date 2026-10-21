@@ -171,4 +171,11 @@ describe('the Anthropic API behind the Converse loop', () => {
       toolUse: { toolUseId: 'toolu_1', name: 'preview_plan', input: { intent: 'x' } },
     });
   });
+
+  test('the stop signal goes to the stream', async () => {
+    const { api, signals } = fakeApi(reply([{ type: 'text', text: 'Hi.' }]));
+    const stop = new AbortController();
+    await anthropicConverse(api)({ modelId: 'm', messages: [] }, { signal: stop.signal });
+    expect(signals[0]).toBe(stop.signal);
+  });
 });
