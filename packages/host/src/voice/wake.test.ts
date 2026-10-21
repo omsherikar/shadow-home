@@ -16,4 +16,17 @@ describe('the wake word', () => {
       request: 'Undo the thermostat.',
     });
   });
+
+  test('anything without it is not for her', () => {
+    for (const heard of [
+      "I'm away for the weekend",
+      'yes',
+      'Alexander came by',
+      'the lexicon',
+      'Alexandra said hi',
+      '',
+    ]) {
+      expect(parseWake(heard), heard).toEqual({ woke: false });
+    }
+  });
 });
