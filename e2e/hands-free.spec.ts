@@ -95,8 +95,10 @@ function silence(ms: number): Buffer {
 }
 
 /**
- * /api/speak answers every sentence with a clip of silence (`ms` long), and notes what was asked
- * for. Nothing is ever sent to a real voice.
+ * /api/speak answers every sentence with a clip of silence `ms` long, and notes what was asked
+ * for; nothing is ever sent to a real voice. The page's speaker is a stand-in too: each clip
+ * "plays" on the page's own timers and ends after its length, as a speaker would, so when she
+ * finishes doesn't depend on the machine's audio output (CI has none). Stop pauses it.
  */
 async function stubSpeech(page: Page, ms = 100): Promise<string[]> {
   const spoken: string[] = [];
@@ -104,6 +106,21 @@ async function stubSpeech(page: Page, ms = 100): Promise<string[]> {
     spoken.push((route.request().postDataJSON() as { text: string }).text);
     await route.fulfill({ status: 200, contentType: 'audio/wav', body: silence(ms) });
   });
+  await page.addInitScript((length) => {
+    const playing = new WeakMap<HTMLMediaElement, ReturnType<typeof setTimeout>>();
+    HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+      // As a real element does: "playing" once it starts, "ended" after its length.
+      setTimeout(() => this.dispatchEvent(new Event('playing')), 0);
+      playing.set(
+        this,
+        setTimeout(() => this.dispatchEvent(new Event('ended')), length),
+      );
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function (this: HTMLMediaElement) {
+      clearTimeout(playing.get(this));
+    };
+  }, ms);
   return spoken;
 }
 
