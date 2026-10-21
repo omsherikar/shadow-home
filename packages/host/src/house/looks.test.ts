@@ -126,4 +126,14 @@ describe('the home as get_home_state reports it', () => {
       devices: [{ id: 'plug_tv', name: 'TV', kind: 'plug', state: { onOff: true } }],
     });
   });
+
+  test('is refused when it isn’t what the page expects', () => {
+    expect(parseLiveHome(undefined)).toBeNull();
+    expect(parseLiveHome({ ...home, zones: 'warm' })).toBeNull();
+    expect(parseLiveHome({ ...home, presence: { om: 'out' } })).toBeNull();
+    expect(parseLiveHome({ ...home, devices: [{ id: 'plug_tv', state: {} }] })).toBeNull();
+    expect(
+      parseLiveHome({ ...home, devices: [{ id: 'x', kind: 'plug', state: { onOff: [] } }] }),
+    ).toBeNull();
+  });
 });
