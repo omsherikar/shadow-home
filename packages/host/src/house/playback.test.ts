@@ -7,12 +7,14 @@ import {
   devicesAt,
   homeClock,
   homeIso,
+  moment,
   playhead,
   presenceAt,
   REPLAY_META_KEY,
   type Run,
   roomOf,
   runsFrom,
+  type ShowTiming,
   schedule,
   TEMPERATURES_META_KEY,
   type Trace,
@@ -350,5 +352,32 @@ describe('drawing it', () => {
     expect(homeClock(at('2027-01-16T22:37:00'), '-06:00')).toBe('Sat 10:37 PM');
     expect(homeClock(at('2027-01-17T00:05:00'), '-06:00')).toBe('Sun 12:05 AM');
     expect(homeIso(at('2027-01-16T22:37:00'), '-06:00')).toBe('2027-01-16T22:37:00-06:00');
+  });
+});
+
+describe('a show', () => {
+  const runs = runsFrom('preview_plan', preview, meta);
+  const timing: ShowTiming = {
+    plan: { sweepMs: 8000, holdMs: 1000 },
+    fixed: { sweepMs: 4000, holdMs: 1000 },
+    pauseMs: 500,
+    rewindMs: 500,
+  };
+  const plan = runs[0] as Run;
+  const fixed = runs[1] as Run;
+  const planMs = schedule(plan, timing.plan).totalMs;
+
+  test('plays the plan, pauses on its end, winds back, then plays the plan with its fixes', () => {
+    expect(moment(runs, timing, 0)).toMatchObject({ run: 0, homeMs: plan.startMs, done: false });
+    expect(moment(runs, timing, planMs + 100)).toMatchObject({
+      run: 0,
+      homeMs: plan.endMs,
+      rewinding: false,
+    });
+    const back = moment(runs, timing, planMs + 500 + 250);
+    expect(back.rewinding).toBe(true);
+    expect(back.homeMs).toBeLessThan(plan.endMs);
+    expect(back.homeMs).toBeGreaterThan(fixed.startMs);
+    expect(moment(runs, timing, planMs + 1000)).toMatchObject({ run: 1, homeMs: fixed.startMs });
   });
 });
