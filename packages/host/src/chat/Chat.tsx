@@ -3,10 +3,10 @@
 import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { CHIPS } from '../stage/stage.ts';
 import { MAX_TEXT } from '../turn/bounds.ts';
+import type { Activity } from './activity.ts';
 import { type FollowUp, type Message, problemWords, type Step } from './conversation.ts';
 
-/** What the person can see Alexa doing. */
-export type Activity = 'idle' | 'listening' | 'thinking' | 'working' | 'answering' | 'speaking';
+export type { Activity } from './activity.ts';
 
 export interface ChatProps {
   messages: Message[];
