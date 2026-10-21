@@ -22,6 +22,12 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   each listed in CREDITS.md, textures WebP and meshes quantized, never Draco, meshopt or KTX2 (their
   decoders need WebAssembly). Nothing loads from another origin. Without WebGL the page is the
   device alone, as before.
+- The house plays each preview forward (src/house/playback.ts, src/stage/HousePanel.tsx) from what
+  the tool results carry: the timeline, the broken rules, the `_meta` temperatures and the `_meta`
+  replay (who each check took to be home, and the repair's run). It never fills a gap with a guess,
+  never reads presence from a call's arguments, and checks all of it with zod: what it can't read,
+  it doesn't play. Keep the number of lights fixed (dark when off): changing it rebuilds every
+  shader mid-playback.
 - Render MCP App views in a sandboxed iframe through @modelcontextprotocol/ext-apps/app-bridge.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
