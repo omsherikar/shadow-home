@@ -25,6 +25,7 @@ import {
 import { fractionOf } from '../house/timeline.ts';
 import { readable, stepWords } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
+import './house-panel.css';
 
 // three.js and the scene load in the browser only, and only on this page.
 const House = dynamic(() => import('../house/House.tsx'), { ssr: false });
