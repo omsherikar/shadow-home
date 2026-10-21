@@ -268,3 +268,45 @@ test('the hourly limit says when to come back', async ({ page }) => {
   await expect(problem.getByRole('button')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/chat-limit.png' });
 });
+
+test("a later turn sets the plan on screen aside, so its buttons can't act on it", async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
+  await say(page, 'hello');
+  await expect(lastAnswer(page)).toHaveAttribute('data-phase', 'done');
+  await expect(page.getByText('This plan was set aside. Ask again to act on it.')).toBeVisible();
+  const frame = page.locator('.view iframe');
+  const box = await frame.boundingBox();
+  if (!box) throw new Error('The plan view is not on screen.');
+  const hit = await page.evaluate((p) => document.elementFromPoint(p.x, p.y)?.tagName, {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2,
+  });
+  expect(hit).not.toBe('IFRAME');
+  const doIt = view(page).getByRole('button', { name: /Do it with 4 fixes/ });
+  // By keyboard: the view is inert, so Tab never reaches its button to press it, even from the
+  // control just before it on the screen.
+  await page.getByRole('button', { name: 'Home screen' }).focus();
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Tab');
+    await expect(doIt).not.toBeFocused();
+  }
+  await composer(page).focus();
+  // Through the bridge: a click the view makes itself still reaches no server tool.
+  await doIt.evaluate((el) => (el as HTMLElement).click());
+  await expect(
+    view(page).getByText('This plan was set aside. Ask again to act on it.'),
+  ).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(view(page).getByText('Done', { exact: true })).toHaveCount(0);
+  await expect(conversation(page).locator('li.alexa .said', { hasText: /^Done/ })).toHaveCount(0);
+  // A new check brings the screen back, and finds the plan as blocked as before: nothing ran.
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(page.getByText('This plan was set aside. Ask again to act on it.')).toHaveCount(0);
+  await expect(lastAnswer(page).locator('.said')).toHaveText(
+    /^Blocked: that breaks 4 house rules\./,
+  );
+});
