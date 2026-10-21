@@ -8,6 +8,8 @@ import {
   NAMES_META_KEY,
   type Names,
   planScreen,
+  REPLAY_META_KEY,
+  type Replay,
   TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type TemperatureTrace,
@@ -757,6 +759,37 @@ describe.each(['legacy', 'modern'] as const)(
       const [plan, fixed] = s.temperature?.curves ?? [];
       expect(Math.min(...(plan?.nominalC ?? []))).toBeLessThan(4);
       expect(Math.min(...(fixed?.lowC ?? [Number.NaN]))).toBeGreaterThanOrEqual(4);
+    });
+
+    test('gets who the check took to be home, and the fix’s own run, in _meta to replay, outside what the model reads', async () => {
+      const r = await api.client.callTool({ name: 'preview_plan', arguments: weekend });
+      const preview = r.structuredContent as PreviewOutput;
+      const replays = r._meta?.[REPLAY_META_KEY] as Record<string, Replay>;
+      const repairId = preview.repair?.planId ?? '';
+      expect(Object.keys(replays).sort()).toEqual([preview.planId, repairId].sort());
+      // Both checks took nobody to be home all weekend. The plan's own run is in the result
+      // already, so its entry is who's home and nothing more.
+      expect(replays[preview.planId]).toEqual({ presence: weekend.presenceSchedule });
+      const fixed = replays[repairId];
+      expect(fixed?.presence).toEqual(weekend.presenceSchedule);
+      // The run behind the fix's verdict: SAFE, so it breaks nothing and can establish everything.
+      expect(preview.repair?.verdict).toBe('SAFE');
+      expect(fixed?.violations).toEqual([]);
+      expect(fixed?.unknowns).toEqual([]);
+      // The fix holds the garage at 5 °C and pauses Coffee at 7, which the plan's own run lets fire.
+      const coffeeOn = (t: { device: string; to: unknown }[]) =>
+        t.some((e) => e.device === 'plug_coffee_maker' && e.to === true);
+      expect(fixed?.timeline).toContainEqual(
+        expect.objectContaining({ device: 'garage_thermostat', attr: 'heatingSetpointC', to: 5 }),
+      );
+      expect(coffeeOn(fixed?.timeline ?? [])).toBe(false);
+      expect(coffeeOn(preview.timeline)).toBe(true);
+      expect(preview.repair).not.toHaveProperty('timeline');
+      expect(preview).not.toHaveProperty('presence');
+      expect(preview.repair).not.toHaveProperty('presence');
+      expect(JSON.stringify(r.structuredContent)).not.toContain(REPLAY_META_KEY);
+      expect(JSON.stringify(r.content)).not.toContain(REPLAY_META_KEY);
+      expect(JSON.stringify(r.content)).not.toContain('garage_thermostat');
     });
 
     test('an undo’s preview comes with its own temperatures', async () => {
