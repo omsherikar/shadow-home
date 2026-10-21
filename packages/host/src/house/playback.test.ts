@@ -709,3 +709,54 @@ describe('the zone chart', () => {
     expect(chartOf(trace, 'garage', undefined, 200, 80).limitY).toBeNull();
   });
 });
+
+describe('acting out the plan', () => {
+  // The weekend: the thermostat down, every plug off (the freezer and the aquarium break a rule
+  // each right then), two lights off together, the door locked, the mode to away.
+  const plan = (device: string, actionIndex: number, attr: string, to: unknown) => ({
+    at: FRI,
+    source: 'plan',
+    actionIndex,
+    device,
+    attr,
+    from: null,
+    to,
+  });
+  const weekend = {
+    ...preview,
+    timeline: [
+      plan('thermostat_main', 0, 'heatingSetpointC', 10),
+      plan('plug_garage_freezer', 2, 'onOff', false),
+      plan('plug_aquarium', 2, 'onOff', false),
+      plan('plug_tv', 2, 'onOff', false),
+      plan('light_living', 3, 'onOff', false),
+      plan('light_kitchen', 3, 'onOff', false),
+      plan('front_door_lock', 4, 'lockState', 'LOCKED'),
+      plan('home', 6, 'mode', 'away'),
+      ...preview.timeline.slice(0, 1),
+    ],
+    violations: [
+      ...preview.violations,
+      {
+        rule: 'R2',
+        text: 'Keep the aquarium heater on.',
+        author: 'maya',
+        run: 'nominal',
+        firstAt: FRI,
+        cause: { device: 'plug_aquarium' },
+      },
+    ],
+  };
+  const [run] = runsFrom('preview_plan', weekend, meta) as [Run];
+
+  test('each of the plan’s changes is a step; the lights one action turns off go together', () => {
+    expect(run.steps.map((st) => st.changes.map((c) => c.device))).toEqual([
+      ['thermostat_main'],
+      ['plug_garage_freezer'],
+      ['plug_aquarium'],
+      ['plug_tv'],
+      ['light_living', 'light_kitchen'],
+      ['front_door_lock'],
+    ]);
+  });
+});
