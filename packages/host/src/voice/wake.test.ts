@@ -32,6 +32,23 @@ describe('the wake word', () => {
     }
   });
 
+  test('a mishearing that is an ordinary word, said in the middle, is not for her', () => {
+    for (const heard of [
+      'Ask Alex a question about the heating',
+      'I told Alexis to turn the lights off',
+      'call Alexia later',
+    ]) {
+      expect(parseWake(heard), heard).toEqual({ woke: false });
+    }
+    // "Alex a" was never her name.
+    expect(parseWake('Alex a turn the lights off')).toEqual({ woke: false });
+    // "Alexa" itself still counts anywhere.
+    expect(parseWake('okay Alexa turn the lights off')).toEqual({
+      woke: true,
+      request: 'turn the lights off',
+    });
+  });
+
   test('anything without it is not for her', () => {
     for (const heard of [
       "I'm away for the weekend",
