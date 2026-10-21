@@ -5,14 +5,16 @@
  */
 
 let voiceAvailable = true;
-let playing: { stop(): void } | null = null;
-/** Bumped by every new reply and every stop: a reply still being fetched checks it before playing. */
-let generation = 0;
+/**
+ * Aborted by every new reply and every stop: what's playing stops, and a reply still on its
+ * way stays quiet.
+ */
+let current = new AbortController();
 
 /** Say a reply out loud: one at a time. Resolves when it has finished, or was stopped. */
 export async function speak(text: string): Promise<void> {
   stopSpeaking();
-  const mine = generation;
+  const { signal } = current;
   if (!text.trim()) return;
   if (voiceAvailable) {
     try {
@@ -24,7 +26,7 @@ export async function speak(text: string): Promise<void> {
       if (res.ok) {
         const blob = await res.blob();
         // Stopped, or a newer reply started, while this one was on its way: stay quiet.
-        return mine === generation ? play(blob) : undefined;
+        return signal.aborted ? undefined : playAudio(blob, signal);
       }
       // 503: no voice, or this instance has spoken enough this hour. Don't ask again this
       // session; the browser's voice takes over. Anything else (429: this visitor has heard
@@ -34,59 +36,55 @@ export async function speak(text: string): Promise<void> {
       voiceAvailable = false;
     }
   }
-  return mine === generation ? browserVoice(text) : undefined;
+  return signal.aborted ? undefined : browserVoice(text, signal);
 }
 
 /** Stop talking now: the person pressed the mic, said something new, or the demo started over. */
 export function stopSpeaking(): void {
-  generation += 1;
-  playing?.stop();
+  current.abort();
+  current = new AbortController();
 }
 
-function play(blob: Blob): Promise<void> {
+function playAudio(blob: Blob, signal: AbortSignal): Promise<void> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   return new Promise((resolve) => {
-    const me = {
-      stop: () => {
-        audio.pause();
-        done();
-      },
-    };
     const done = () => {
+      signal.removeEventListener('abort', stop);
       URL.revokeObjectURL(url);
-      if (playing === me) playing = null;
       resolve();
     };
+    const stop = () => {
+      audio.pause();
+      done();
+    };
+    signal.addEventListener('abort', stop, { once: true });
     audio.onended = done;
     audio.onerror = done;
-    playing = me;
     audio.play().catch(done);
   });
 }
 
-function browserVoice(text: string): Promise<void> {
+function browserVoice(text: string, signal: AbortSignal): Promise<void> {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
   if (!synth) return Promise.resolve();
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
-    const me = {
-      stop: () => {
-        synth.cancel();
-        done();
-      },
-    };
     // Some browsers never fire `end`; don't let the conversation wait forever.
     const timer = setTimeout(() => done(), 2000 + text.split(' ').length * 500);
     const done = () => {
       clearTimeout(timer);
-      if (playing === me) playing = null;
+      signal.removeEventListener('abort', stop);
       resolve();
     };
+    const stop = () => {
+      synth.cancel();
+      done();
+    };
+    signal.addEventListener('abort', stop, { once: true });
     utterance.onend = done;
     utterance.onerror = done;
-    playing = me;
     synth.speak(utterance);
   });
 }
