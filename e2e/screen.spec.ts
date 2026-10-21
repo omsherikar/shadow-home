@@ -217,6 +217,41 @@ test('a home state the page doesn’t expect hides the house, and the device car
   await expect(page.getByText('Home mode')).toBeVisible();
 });
 
+test('a replay the house can’t read leaves it showing the home, and the turn carries on', async ({
+  page,
+}) => {
+  // The weekend preview comes back with its fix's replay broken: a timeline that isn't a list.
+  let broken = 0;
+  await page.route('**/api/turn', async (route) => {
+    const response = await route.fetch();
+    const turn = (await response.json()) as {
+      calls: { result: { _meta?: Record<string, Record<string, { timeline?: unknown }>> } }[];
+    };
+    for (const call of turn.calls) {
+      for (const replay of Object.values(call.result._meta?.['shadow-home/replay'] ?? {})) {
+        if (Array.isArray(replay.timeline)) {
+          replay.timeline = 'soon';
+          broken += 1;
+        }
+      }
+    }
+    await route.fulfill({ response, json: turn });
+  });
+  await page.goto('/');
+  await openControls(page);
+  await page.getByRole('button', { name: WEEKEND }).click();
+  // The plan view and the answer are as they always are.
+  const v = view(page);
+  await expect(v.getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(v.getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
+  await expect(said(page)).toHaveText(/^Blocked: that breaks 4 house rules\./);
+  expect(broken).toBeGreaterThan(0);
+  // The house plays nothing it can't read: it shows the home as it is.
+  const house = page.getByRole('region', { name: 'The house' });
+  await expect(playing(page)).toHaveAttribute('data-playing', 'no');
+  await expect(house.getByRole('status')).toHaveCount(0);
+});
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
