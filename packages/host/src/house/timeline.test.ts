@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { LiveDevice } from './looks.ts';
 import { type Run, runsFrom } from './playback.ts';
-import { markersOf } from './timeline.ts';
+import { markersOf, nightsOf } from './timeline.ts';
 
 const at = (local: string) => Date.parse(`${local}-06:00`);
 const FRI = '2027-01-15T17:53:00-06:00';
@@ -76,5 +76,16 @@ describe('the timeline’s marks', () => {
       ['arrives', 'Someone comes home'],
       ['arrives', '2 people come home'],
     ]);
+  });
+});
+
+describe('the timeline’s nights', () => {
+  test('shade from dusk to dawn, starting at the start when the run begins after dark', () => {
+    const nights = nightsOf(run);
+    expect(nights).toHaveLength(3);
+    expect(nights[0]?.fromMs).toBe(run.startMs);
+    expect(new Date((nights[0]?.toMs ?? 0) - 6 * 3_600_000).getUTCHours()).toBe(7);
+    expect(new Date((nights[1]?.fromMs ?? 0) - 6 * 3_600_000).getUTCHours()).toBe(17);
+    expect(nights.at(-1)?.toMs).toBe(run.endMs);
   });
 });
