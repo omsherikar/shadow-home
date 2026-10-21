@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { recognitionCtor } from '../device/voice.ts';
 import { earcon, readyEarcon } from './earcon.ts';
-import { continuousListener, type Listener } from './listener.ts';
+import { continuousListener, GAVE_UP, type Listener } from './listener.ts';
 import { type HandsFree, type HandsFreeEvent, hears, next, OFF } from './machine.ts';
+
+const NEEDS_CHROME =
+  'Hands-free needs a browser that recognises speech, such as Chrome. You can type instead.';
+const MIC_REFUSED =
+  "Hands-free needs the microphone. Allow it in your browser's settings for this site, then turn it on again.";
+const UNAVAILABLE = "Hands-free stopped: speech recognition isn't available right now.";
 
 /**
  * Whether the microphone should listen: in a state that listens, and only while the page is in
@@ -20,6 +26,7 @@ export interface HandsFreeControls {
   available: boolean | null;
   /** The words so far, while she listens for a request or an answer. */
   heard: string;
+  problem: string | null;
   turnOn(): void;
   turnOff(): void;
   /** The mic button while hands-free is on: listen for a request now. */
@@ -42,6 +49,7 @@ export function useHandsFree(options: {
   const [state, setState] = useState<HandsFree>(OFF);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [heard, setHeard] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
   const current = useRef<HandsFree>(OFF);
   const latest = useRef(options);
   latest.current = options;
@@ -76,7 +84,10 @@ export function useHandsFree(options: {
         const { mode } = current.current;
         setHeard(mode === 'awake' || mode === 'answer' ? text : '');
       },
-      onError: (_error, lasting) => dispatch({ type: 'mic-error', lasting }),
+      onError: (error, lasting) => {
+        dispatch({ type: 'mic-error', lasting });
+        if (lasting) setProblem(error === GAVE_UP ? UNAVAILABLE : MIC_REFUSED);
+      },
     });
     const pending = timers.current;
     return () => {
@@ -94,9 +105,13 @@ export function useHandsFree(options: {
   }, [state]);
 
   const turnOn = useCallback(() => {
-    if (!recognitionCtor()) return;
+    if (!recognitionCtor()) {
+      setProblem(NEEDS_CHROME);
+      return;
+    }
     // Inside the tap: browsers allow the microphone prompt and sound from here on.
     readyEarcon();
+    setProblem(null);
     dispatch({ type: 'on' });
   }, [dispatch]);
   const turnOff = useCallback(() => dispatch({ type: 'off' }), [dispatch]);
@@ -112,6 +127,7 @@ export function useHandsFree(options: {
     state,
     available,
     heard,
+    problem,
     turnOn,
     turnOff,
     wake,
