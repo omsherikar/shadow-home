@@ -201,7 +201,8 @@ Deploy:
   `npm run bundle -w @shadow-home/infra` and `npm run serve-lambda -w @shadow-home/infra`
   (http://localhost:3200/mcp).
 
-The host on Amplify Hosting:
+The host on Amplify Hosting is no longer supported: turns stream as they happen (decision 107),
+and Amplify doesn't stream responses. The steps were:
 
 1. Create an app from this GitHub repository's `main` branch, with the app root `packages/host`.
    Amplify reads `amplify.yml` at the repository root.
