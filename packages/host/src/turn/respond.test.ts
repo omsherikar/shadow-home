@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import type { HomeBrief } from './bedrock.ts';
+import { stepLabel } from './events.ts';
 import type { Tools } from './mcp.ts';
 import { respondToTurn, type TurnRoute } from './respond.ts';
 import { type Beat, scriptedModel } from './scripted.ts';
+import { readEvents } from './test-helpers.ts';
 import { takeTurn } from './turn.ts';
 import type { TurnResponse } from './types.ts';
 
@@ -73,6 +75,7 @@ function turnRequest(
     ...(signal ? { signal } : {}),
   });
 }
+const STREAM = { accept: 'text/event-stream' };
 
 describe('a turn over HTTP', () => {
   test('without asking for a stream, the answer is the whole turn as JSON, as before', async () => {
@@ -94,5 +97,30 @@ describe('a turn over HTTP', () => {
       calls: [{ ...step.call, result: preview, resourceUri: VIEW }],
     };
     expect(await response.text()).toBe(JSON.stringify(turn));
+  });
+
+  test('the scripted model streams the same events a live one does', async () => {
+    const response = await respondToTurn(
+      turnRequest({ text: WEEKEND, history: [] }, STREAM),
+      scriptedRoute(),
+    );
+    expect(response.headers.get('content-type')).toBe('text/event-stream; charset=utf-8');
+    const events = await readEvents(response);
+    const step = { id: 's1', tool: 'preview_plan', label: stepLabel('preview_plan') };
+    expect(events.map((e) => e.event)).toEqual(['step', 'step', 'call', 'text', 'done']);
+    expect(events.slice(0, 2).map((e) => e.data)).toEqual([
+      { ...step, state: 'running' },
+      { ...step, state: 'done' },
+    ]);
+    const { call } = (events[2]?.data ?? {}) as { call?: { name: string } };
+    expect(call).toMatchObject({
+      name: 'preview_plan',
+      arguments: { intent: WEEKEND, requestedBy: 'om' },
+      result: preview,
+      resourceUri: VIEW,
+    });
+    expect(events[3]?.data).toEqual({ delta: SAID });
+    // `done` is the whole turn, as the JSON answer has it.
+    expect(events[4]?.data).toEqual({ say: SAID, calls: [call] });
   });
 });
