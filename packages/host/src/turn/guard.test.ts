@@ -25,7 +25,7 @@ const PLAN = facts('plan');
 /** Plain conversation: nothing checked anywhere in it. */
 const CHAT = facts('chat');
 
-describe('after a check: nothing that says or softens the verdict', () => {
+describe('after a check: nothing that says or softens the verdict, or asks', () => {
   test.each([
     ["You're covered.", 'verdict'],
     ['That works.', 'verdict'],
@@ -57,6 +57,10 @@ describe('after a check: nothing that says or softens the verdict', () => {
     ["It's taken care of.", 'action'],
     ['The heater is on now.', 'action'],
     ["I've unlocked the front door.", 'action'],
+    ['Say yes to keep the plan as it is.', 'question'],
+    ['Let me know if you want the fixes', 'question'],
+    ['Just say the word', 'question'],
+    ['Want to try it anyway?', 'question'],
   ])('%s (%s)', (sentence, why) => {
     expect(dropReason(sentence, PLAN)).toBe(why);
   });
