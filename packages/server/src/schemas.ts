@@ -189,6 +189,7 @@ export const commitOutput = z.object({
       'unknown_plan',
       'unsafe',
       'refused_by_rule',
+      'who_is_away_unknown',
       'irreversible_needs_safe',
       'no_safe_part',
     ])
