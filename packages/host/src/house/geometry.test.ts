@@ -1,6 +1,13 @@
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, test } from 'vitest';
-import { bandBetween, frame, groundBounds, wallHeightAt, wallPieces } from './geometry.ts';
+import {
+  bandBetween,
+  frame,
+  groundBounds,
+  overlaps,
+  wallHeightAt,
+  wallPieces,
+} from './geometry.ts';
 import { houseLayout as layout } from './layout.ts';
 
 const pieces = wallPieces(layout);
@@ -88,5 +95,15 @@ describe('a band of the picture', () => {
     const band = bandBetween(300, 75, 900);
     expect(band.center).toBeCloseTo(-0.25, 6);
     expect(band.half).toBeCloseTo(0.5833, 3);
+  });
+});
+
+describe('what a card covers', () => {
+  const card = { left: 100, top: 100, right: 350, bottom: 200 };
+
+  test('is anything that reaches under it, even in part', () => {
+    expect(overlaps({ left: 300, top: 180, right: 400, bottom: 210 }, card)).toBe(true);
+    expect(overlaps({ left: 120, top: 120, right: 180, bottom: 140 }, card)).toBe(true);
+    expect(overlaps(card, { left: 0, top: 0, right: 500, bottom: 500 })).toBe(true);
   });
 });
