@@ -395,6 +395,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       let drew = false;
       let answer: string | null = null;
       let failure: string | null = null;
+      // Her voice, a sentence at a time: what streams is spoken as each sentence is finished.
+      let spoken: Promise<void> | null = null;
       const take = async (call: ToolCall) => {
         if (gone()) return;
         hear();
@@ -420,6 +422,9 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
             }
           }
           if (gone()) break;
+          // Her voice follows the stream: a sentence at a time as the words come, nothing of what
+          // came before a tool call, and in the end `say`, which is the truth.
+          if (!silent) spoken = speech.follow(event) ?? spoken;
           if (event.type === 'error') failure = event.message;
           setMessages((m) =>
             replace(m, alexa, (msg) => withEvent(msg, event, Date.now(), names.current)),
@@ -450,6 +455,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         screenNote.current = request.screen;
       }
       if (gone()) return;
+      // What went wrong is said, not whatever streamed before it.
+      if (answer === null && failure && !silent) spoken = speak(failure);
       // A plan still on screen from before a turn that led somewhere else is now set aside.
       if (heard && !drew) setAside(true);
       if (answer !== null) {
@@ -458,10 +465,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       }
       if (client) await refreshHome(client).catch(() => undefined);
       if (gone()) return;
-      if (answer !== null) await voice(answer);
-      else if (failure) await voice(failure);
+      // The demo, played out loud, waits for her to finish before its next line.
+      if (spoken) await spoken;
     },
-    [client, note, refreshHome, remember, show, ask, release, voice, setAside],
+    [client, note, refreshHome, remember, show, ask, release, setAside, silent],
   );
 
   /** A turn for words the person said, typed or tapped: `label` is what they tapped. */
