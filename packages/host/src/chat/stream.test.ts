@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { eventFrom, eventParser } from './stream.ts';
+import { eventFrom, eventParser, type TurnEvent } from './stream.ts';
 
 const CALL = {
   name: 'preview_plan',
@@ -55,6 +55,18 @@ describe('reading the event stream', () => {
       type: 'done',
       turn: { say: 'Blocked: that breaks 4 house rules.', calls: [CALL] },
     });
+  });
+
+  test('gives the same events however the text is cut into chunks', () => {
+    const whole = eventParser().push(PREVIEW_TURN);
+    for (const size of [1, 2, 3, 7, 16, 61]) {
+      const parser = eventParser();
+      const events: TurnEvent[] = [];
+      for (let i = 0; i < PREVIEW_TURN.length; i += size) {
+        events.push(...parser.push(PREVIEW_TURN.slice(i, i + size)));
+      }
+      expect(events, `chunks of ${size}`).toEqual(whole);
+    }
   });
 
   test('reads an error, with and without when to try again', () => {
