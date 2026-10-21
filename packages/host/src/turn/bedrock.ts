@@ -184,8 +184,8 @@ function isQuestion(text: string): boolean {
 /**
  * Which turn a reply belongs to (guard.ts, Context). With no call this turn, a turn is about a
  * check when a check is still open and the person asks anything at all ("Is that safe?", "How
- * bad is it?"), or when they ask about the last one (ASKS_ABOUT); thanks, a no, a greeting or
- * small talk is plain conversation.
+ * bad is it?"), or when they ask about one (ASKS_ABOUT) after a finished change; thanks, a no, a
+ * greeting or small talk is plain conversation.
  */
 function turnOf(input: ModelInput): Turn {
   // The last call that spoke, even if the model called something quieter after it.
@@ -193,12 +193,11 @@ function turnOf(input: ModelInput): Turn {
   if (spoke) return { context: 'plan', spoke };
   if (input.thisTurn.length > 0) return { context: 'read' };
   const open = openCheck(input.history);
-  const last = input.history.findLast((h) => hasSpeech(h.structuredContent));
   const anchor =
     open && isQuestion(input.text)
       ? open
       : ASKS_ABOUT.test(normalise(input.text))
-        ? last?.structuredContent
+        ? (open ?? finishedCheck(input.history))
         : undefined;
   if (anchor) {
     return {
@@ -206,7 +205,8 @@ function turnOf(input: ModelInput): Turn {
       anchor: anchor as { speech: { headline: string; reason?: string } },
     };
   }
-  return { context: 'chat', afterPlan: last !== undefined, checkOpen: open !== undefined };
+  const afterPlan = input.history.some((h) => hasSpeech(h.structuredContent));
+  return { context: 'chat', afterPlan, checkOpen: open !== undefined };
 }
 
 /**
@@ -234,6 +234,34 @@ function openCheck(history: Remembered[]): Record<string, unknown> | undefined {
   if (last.name === 'commit_plan') return sc.status === 'committed' ? undefined : sc;
   if (!isPreview(last)) return undefined;
   return (sc.speech as { ask?: unknown } | undefined)?.ask ? sc : undefined;
+}
+
+/**
+ * After a finished change (a commit), what a question about it is answered from: the preview that
+ * led to it, so "why?" gets its headline and reason, never "Done: ...". When what was committed
+ * was the preview's fix or its safe part, the commit's own headline leads (the plan as asked was
+ * blocked; the fix wasn't), with the preview's reason behind it, and its rules for quotes.
+ */
+function finishedCheck(history: Remembered[]): Record<string, unknown> | undefined {
+  const at = history.findLastIndex((h) => hasSpeech(h.structuredContent));
+  const last = history[at];
+  const done = last?.structuredContent;
+  if (last?.name !== 'commit_plan' || done?.status !== 'committed') return undefined;
+  const preview = history.slice(0, at).findLast(isPreview)?.structuredContent;
+  if (!preview) return undefined;
+  const plan = (preview.preview ?? preview) as {
+    repair?: { planId?: unknown } | null;
+    safePart?: { planId?: unknown } | null;
+    speech?: { reason?: string };
+  };
+  const ids = [done.planId, last.arguments.planId];
+  const alternative =
+    last.arguments.safePartOnly === true ||
+    [plan.repair?.planId, plan.safePart?.planId].some((id) => id && ids.includes(id));
+  if (!alternative) return preview;
+  const reason = (preview.speech as { reason?: string } | undefined)?.reason ?? plan.speech?.reason;
+  const headline = (done.speech as { headline: string }).headline;
+  return { ...preview, speech: { headline, ...(reason ? { reason } : {}) } };
 }
 
 /** A check's preview: a plan's, or an undo's. */
