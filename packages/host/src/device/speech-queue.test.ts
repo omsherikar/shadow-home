@@ -232,3 +232,22 @@ describe('following a turn as it streams', () => {
     expect(v.played).toEqual([]);
   });
 });
+
+describe('whether she is speaking', () => {
+  test('from the moment the first clip starts, until the last one ends', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    const seen: boolean[] = [];
+    speech.watch((on) => seen.push(on));
+    speech.follow(text('Blocked: that breaks 4 house rules. Shall'));
+    await settle();
+    // Asked for, not yet playing.
+    expect(seen).toEqual([]);
+    await v.arrive();
+    expect(seen).toEqual([true]);
+    const said = speech.follow(done('Blocked: that breaks 4 house rules. Shall I fix it?'));
+    await v.drain();
+    await said;
+    expect(seen).toEqual([true, false]);
+  });
+});
