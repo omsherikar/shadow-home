@@ -52,3 +52,27 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+
+.chat-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 12px 10px 16px;
+  border-bottom: 1px solid rgb(255 238 214 / 8%);
+}
+
+.chat-title {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 19px;
+}
+
+.chat-state {
+  color: var(--ring);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+}
