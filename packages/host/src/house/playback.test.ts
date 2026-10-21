@@ -6,6 +6,7 @@ import {
   changesBy,
   devicesAt,
   guardFrom,
+  guarding,
   homeClock,
   homeIso,
   moment,
@@ -466,5 +467,19 @@ describe('a new house rule’s sample day', () => {
       expect(() => guardFrom('add_house_rule', call, result), why).not.toThrow();
       expect(guardFrom('add_house_rule', call, result), why).toBeNull();
     }
+  });
+
+  test('its hours run past midnight', () => {
+    const guard = guardFrom('add_house_rule', args, added);
+    if (!guard) throw new Error('no guard');
+    const at = (hhmm: string) => guarding(guard, `2027-01-15T${hhmm}:00-06:00`);
+    expect([at('21:59'), at('22:00'), at('23:30'), at('05:59'), at('06:00'), at('12:00')]).toEqual([
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+    ]);
   });
 });
