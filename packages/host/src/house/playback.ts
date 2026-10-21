@@ -652,8 +652,8 @@ export interface ShowTiming {
 }
 
 export const SHOW_TIMING: ShowTiming = {
-  plan: { sweepMs: 7000, holdMs: 1300, stepMs: 450 },
-  fixed: { sweepMs: 5000, holdMs: 1000, stepMs: 400 },
+  plan: { sweepMs: 12_000, holdMs: 1300, stepMs: 450 },
+  fixed: { sweepMs: 9000, holdMs: 1000, stepMs: 400 },
   pauseMs: 900,
   rewindMs: 700,
 };
