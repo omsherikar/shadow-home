@@ -163,4 +163,25 @@ describe('a clip that never finishes properly still counts as finished', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(result).toBe(false);
   });
+
+  test('playback that starts 3 s after its length is known is not cut short', async () => {
+    const { speak } = await voiceWithAudio();
+    let result: boolean | undefined;
+    void speak('Shall I fix it?').then((r) => {
+      result = r;
+    });
+    await flush();
+    const clip = FakeAudio.made[0];
+    if (!clip) throw new Error('no clip');
+    clip.duration = 3;
+    clip.onloadedmetadata?.();
+    // The audio device takes 3 s to wake; then the 3 s clip plays to its end.
+    await vi.advanceTimersByTimeAsync(3_000);
+    clip.onplaying?.();
+    await vi.advanceTimersByTimeAsync(2_900);
+    expect(result).toBeUndefined();
+    clip.onended?.();
+    await flush();
+    expect(result).toBe(true);
+  });
 });
