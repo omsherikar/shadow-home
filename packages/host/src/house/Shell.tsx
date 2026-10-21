@@ -13,14 +13,14 @@ import {
 import { houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
 import { ghost, ghostly } from './ghost.ts';
 import type { Built, HouseLayout, Opening, Room } from './layout.ts';
-import { type LiveHome, lookOf } from './looks.ts';
+import { type LiveDevice, lookOf } from './looks.ts';
 import { palette } from './palette.ts';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 
 /** The house without its furniture and devices: ground, floors, walls, doors and built pieces. */
-export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | null }) {
-  const device = (id: string | undefined) => home?.devices.find((d) => d.id === id);
+export function Shell({ layout, devices }: { layout: HouseLayout; devices: LiveDevice[] | null }) {
+  const device = (id: string | undefined) => devices?.find((d) => d.id === id);
   return (
     <>
       <Grounds layout={layout} />

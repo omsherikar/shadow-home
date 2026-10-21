@@ -1,6 +1,5 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import {
   Component,
   type CSSProperties,
@@ -10,22 +9,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ScreenLabel } from '../house/House.tsx';
-import { houseLayout } from '../house/layout.ts';
 import type { LiveHome } from '../house/looks.ts';
 import { webglAvailable } from '../house/webgl.ts';
-import {
-  browserStorage,
-  CHIPS,
-  type Chip,
-  dayAndTime,
-  type Layout,
-  readLayout,
-  writeLayout,
-} from './stage.ts';
-
-// three.js and the scene load in the browser only, and only on this page.
-const House = dynamic(() => import('../house/House.tsx'), { ssr: false });
+import { HousePanel, type HouseRequest } from './HousePanel.tsx';
+import { browserStorage, CHIPS, type Chip, type Layout, readLayout, writeLayout } from './stage.ts';
 
 // The device lays out at its full size beside the house and is zoomed out to fit, as a real screen
 // looks smaller from further away rather than rearranging itself.
@@ -38,6 +25,8 @@ export interface StageProps {
   said: string;
   busy: boolean;
   chip: Chip | null;
+  /** What the house should play, from the latest tool results. */
+  request: HouseRequest | null;
   /** The home's state didn't come back as expected: draw no house rather than a wrong one. */
   homeBroken: boolean;
   /** The Echo Show itself. It stays mounted in every layout, so its screen keeps its view. */
@@ -55,9 +44,9 @@ export function Stage(props: StageProps) {
   const [house, setHouse] = useState<'checking' | 'on' | 'off'>('checking');
   const [layout, setLayout] = useState<Layout>('split');
   const [drawer, setDrawer] = useState(false);
-  const [labels, setLabels] = useState<ScreenLabel[]>([]);
   const panel = useRef<HTMLElement>(null);
   const scale = useFit(panel);
+  const still = useReducedMotion();
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
   useEffect(() => {
@@ -79,22 +68,15 @@ export function Stage(props: StageProps) {
         <section className="house-panel" aria-label="The house">
           {house === 'on' ? (
             <Contained onError={fail}>
-              <House
+              <HousePanel
                 home={props.home}
+                request={props.request}
+                mode={houseOnly ? 'house' : 'split'}
+                still={still}
                 onFail={fail}
-                onLabels={setLabels}
-                shift={houseOnly ? 0.08 : 0}
               />
             </Contained>
           ) : null}
-          <div className="room-labels" aria-hidden="true">
-            {labels.map((l) => (
-              <span key={l.id} className="room-label" style={{ left: l.x, top: l.y }}>
-                {l.name}
-              </span>
-            ))}
-          </div>
-          <HouseCard home={props.home} />
           <button
             type="button"
             className="layout-toggle glass"
@@ -150,6 +132,19 @@ class Contained extends Component<{ onError(): void; children: ReactNode }, { fa
   }
 }
 
+/** Whether the person asked for less motion, following the setting as it changes. */
+function useReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return reduced;
+}
+
 /** How far to scale the device down to fit its panel. */
 function useFit(panel: { current: HTMLElement | null }): number {
   const [scale, setScale] = useState(0.55);
@@ -169,26 +164,6 @@ function useFit(panel: { current: HTMLElement | null }): number {
     return () => observer.disconnect();
   }, [panel]);
   return scale;
-}
-
-/** The home's name, its time and the two heating zones, on frosted glass. */
-function HouseCard({ home }: { home: LiveHome | null }) {
-  return (
-    <div className="house-card glass">
-      <h1 className="house-name">{houseLayout.name}</h1>
-      <p className="house-time">{home ? dayAndTime(home.now) : ' '}</p>
-      {home ? (
-        <dl className="house-zones">
-          {home.zones.map((z) => (
-            <div key={z.id}>
-              <dt>{z.name}</dt>
-              <dd>{z.tempC.toFixed(1)} °C</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
-    </div>
-  );
 }
 
 /** In house-only mode, what was heard and said, and the verdict, float over the house. */

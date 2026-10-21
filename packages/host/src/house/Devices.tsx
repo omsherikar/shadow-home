@@ -2,7 +2,7 @@
 
 import { DoubleSide } from 'three';
 import type { DevicePlacement, DeviceShape, HouseLayout } from './layout.ts';
-import { type LiveHome, type Look, lookOf } from './looks.ts';
+import { type LiveDevice, type Look, lookOf } from './looks.ts';
 import { palette, statusColor } from './palette.ts';
 
 const deg = (d: number) => (d * Math.PI) / 180;
@@ -14,14 +14,20 @@ const deg = (d: number) => (d * Math.PI) / 180;
  * light the rooms, and their lights are always there, dark when off: switching one never changes
  * how many lights the scene has, which would rebuild every shader in the middle of a playback.
  */
-export function Devices({ layout, home }: { layout: HouseLayout; home: LiveHome | null }) {
+export function Devices({
+  layout,
+  devices,
+}: {
+  layout: HouseLayout;
+  devices: LiveDevice[] | null;
+}) {
   return (
     <>
       {layout.devices.map((p) => (
         <group key={p.device} name={p.device} position={[p.x, p.y, p.z]} rotation-y={deg(p.facing)}>
           <Shape
             shape={p.shape}
-            look={lookOf(home?.devices.find((d) => d.id === p.device))}
+            look={lookOf(devices?.find((d) => d.id === p.device))}
             placement={p}
             wallHeight={layout.wallHeight}
           />

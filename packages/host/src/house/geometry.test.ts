@@ -70,7 +70,10 @@ describe('framing', () => {
     'the whole base fits a canvas %f times as wide as tall',
     (aspect) => {
       const bounds = groundBounds(layout);
-      const f = frame(bounds, new Vector3(-0.37, 0.73, 0.57), 30, aspect, 0.04, 0.08);
+      const f = frame(bounds, new Vector3(-0.37, 0.73, 0.57), 30, aspect, 0.04, {
+        center: 0.08,
+        half: 0.92,
+      });
       const camera = new PerspectiveCamera(30, aspect, 0.1, 1000);
       camera.position.copy(f.position);
       camera.lookAt(f.target);

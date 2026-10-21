@@ -10,7 +10,9 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
+import { carriesPreview, runsFrom } from '../house/playback.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
+import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
 import { type Chip, chipFor } from '../stage/stage.ts';
 import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
@@ -52,6 +54,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
   const [chip, setChip] = useState<Chip | null>(null);
+  const [houseRequest, setHouseRequest] = useState<HouseRequest | null>(null);
   const [homeBroken, setHomeBroken] = useState(false);
   const [heard, setHeard] = useState('');
   const [said, setSaid] = useState('');
@@ -69,6 +72,13 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const screenNote = useRef<string | undefined>(undefined);
   const working = useRef(false);
   const mic = useRef<{ stop(): void } | null>(null);
+  const requests = useRef(0);
+
+  /** Ask the house to play something, or with `null` to show the home as it is. */
+  const ask = useCallback((play: Omit<HouseRequest, 'id'>) => {
+    requests.current += 1;
+    setHouseRequest({ id: requests.current, ...play });
+  }, []);
 
   // Kept within what the turn route accepts, so one large result can't refuse every later turn.
   const note = useCallback((entry: Remembered) => {
@@ -92,8 +102,26 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       if (fresh) names.current = fresh;
       const verdict = chipFor(call.name, sc);
       if (verdict) setChip(verdict);
+      // What the house plays: a checked plan (and its fixes), a new rule's sample day, or, once a
+      // plan is committed, the home as it now is. Both are read with zod, and what the house
+      // can't read plays nothing; the house is never a reason for a turn to fail, so anything
+      // else that goes wrong here leaves it showing the home as it is.
+      try {
+        const runs = runsFrom(call.name, sc, call.result._meta);
+        if (runs.length > 0) ask({ play: runs });
+        else if (
+          (call.name === 'commit_plan' && sc?.status === 'committed') ||
+          carriesPreview(call.name, sc)
+        ) {
+          ask({ play: null });
+        }
+      } catch (e) {
+        // Silent in production; while developing, a fault in the house's own code should show.
+        if (process.env.NODE_ENV !== 'production') console.error('The house could not play:', e);
+        ask({ play: null });
+      }
     },
-    [note],
+    [note, ask],
   );
 
   // The home's state is checked, not trusted: if it isn't what the page expects, the device keeps
@@ -284,6 +312,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       said={said}
       busy={busy}
       chip={chip}
+      request={houseRequest}
       homeBroken={homeBroken}
       device={
         <div className="device">
