@@ -12,6 +12,7 @@ import { type Band, bandBetween, frame, groundBounds, houseBounds } from './geom
 import { ghost } from './ghost.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveDevice } from './looks.ts';
+import { temperatureColor } from './playback.ts';
 import { Shell } from './Shell.tsx';
 
 /** A point in the house that something on the page is pinned to: a label, a status dot, a card. */
@@ -26,6 +27,8 @@ export interface HouseView {
   presence: Record<string, 'home' | 'away'> | undefined;
   /** The home time the light outside follows. */
   time: string;
+  /** Each zone's temperature, to tint its rooms; null for the live house. */
+  zonesC: Record<string, number> | null;
   /** 0 is the real house, 1 the shadow twin. */
   shadow: number;
   /** The room to move in on, or null for the whole house. */
@@ -104,6 +107,7 @@ function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
       />
       <TwinFade shadow={view.shadow} still={still} />
       <Shell layout={layout} devices={view.devices} />
+      <RoomTints zonesC={view.zonesC} />
       <Furniture layout={layout} />
       <Devices layout={layout} devices={view.devices} />
       <People layout={layout} presence={view.presence} />
@@ -287,4 +291,32 @@ function TwinFade({ shadow, still }: { shadow: number; still: boolean }) {
     else ghost.value = goal;
   });
   return null;
+}
+
+/** While a plan plays, each room's floor washes warm or icy with its zone's temperature. */
+function RoomTints({ zonesC }: { zonesC: Record<string, number> | null }) {
+  return (
+    <>
+      {layout.rooms.map((r) => {
+        const c = zonesC?.[r.zone];
+        return (
+          <mesh
+            key={r.id}
+            rotation-x={-Math.PI / 2}
+            position={[r.x + r.width / 2, 0.02, r.z + r.depth / 2]}
+          >
+            <planeGeometry args={[r.width - 0.1, r.depth - 0.1]} />
+            {/* Always drawn, clear when there's nothing to show, so it costs no rebuild later. */}
+            <meshBasicMaterial
+              color={temperatureColor(c ?? 15)}
+              transparent
+              opacity={c === undefined ? 0 : 0.34}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </mesh>
+        );
+      })}
+    </>
+  );
 }
