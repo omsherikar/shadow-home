@@ -109,21 +109,29 @@ export function perVisitor(
  * A cap for everyone on this instance (`total`) and one for each visitor (`each`), spent together:
  * a use is spent from both or from neither, so a visitor retrying while everyone's hour is used up
  * isn't charged for it, and what a visitor's own cap refuses doesn't count against everyone's.
- * Says which refused, the visitor's first, or 'ok'.
+ * Says which refused, the visitor's first, or 'ok'. `retryAfter` says in how many milliseconds
+ * both caps would allow a visitor's amount (Infinity: never), so a refusal can say when to come
+ * back.
  */
 export function hourlyCaps(
   total: number,
   each: number,
   options: { maxVisitors?: number; now?: () => number } = {},
-): (visitor: string, amount?: number) => 'ok' | 'visitor' | 'instance' {
+): ((visitor: string, amount?: number) => 'ok' | 'visitor' | 'instance') & {
+  retryAfter(visitor: string, amount?: number): number;
+} {
   const everyone = hourlyBudget(total, options.now);
   const visitors = perVisitor(each, options);
-  return (visitor, amount = 1) => {
-    if (!visitors.fits(visitor, amount)) return 'visitor';
-    if (!everyone(amount)) return 'instance';
+  const caps = (visitor: string, amount = 1) => {
+    if (!visitors.fits(visitor, amount)) return 'visitor' as const;
+    if (!everyone(amount)) return 'instance' as const;
     visitors(visitor, amount);
-    return 'ok';
+    return 'ok' as const;
   };
+  return Object.assign(caps, {
+    retryAfter: (visitor: string, amount = 1) =>
+      Math.max(visitors.retryAfter(visitor, amount), everyone.retryAfter(amount)),
+  });
 }
 
 /** A whole number from the environment, or the default when it's unset or not one. */
