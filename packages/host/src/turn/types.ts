@@ -52,6 +52,9 @@ export interface ModelInput extends TurnRequest {
   thisTurn: ToolCall[];
 }
 
+/** What a model reports as it writes, when it can: its words, and the tool it has begun to call. */
+export type ModelEvent = { text: string } | { tool: string };
+
 /** Whatever decides the next step of a turn: the scripted stand-in, or a live model. */
 export interface Model {
   next(input: ModelInput): Promise<ModelStep>;
