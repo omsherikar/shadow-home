@@ -1,5 +1,6 @@
+import type Anthropic from '@anthropic-ai/sdk';
 import { afterEach, describe, expect, test } from 'vitest';
-import { anthropicConverse } from './anthropic.ts';
+import { anthropicConverse, type MessagesApi } from './anthropic.ts';
 import { bedrockModel, type HomeBrief } from './bedrock.ts';
 import { stepLabel, type TurnEvent } from './events.ts';
 import { runTurn, TurnDeadlineError, TurnStoppedError, within } from './run.ts';
@@ -253,6 +254,56 @@ describe('a turn as it happens', () => {
 });
 
 describe('a turn the person stops', () => {
+  test('while the model writes: its stream is aborted, and no tool call starts', async () => {
+    const signals: (AbortSignal | undefined)[] = [];
+    const api: MessagesApi = {
+      messages: {
+        stream(_, options) {
+          signals.push(options?.signal);
+          const stopped = new Promise<never>((_, reject) =>
+            options?.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+          );
+          stopped.catch(() => undefined);
+          return {
+            async *[Symbol.asyncIterator]() {
+              yield {
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text: 'Let me check.' },
+              } as Anthropic.MessageStreamEvent;
+              await stopped;
+            },
+            finalMessage: () => stopped,
+          };
+        },
+      },
+    };
+    const model = bedrockModel({ converse: anthropicConverse(api), tools: offered, home });
+    let ran = 0;
+    const stop = new AbortController();
+    const turn = runTurn(
+      model,
+      {
+        callTool: async () => {
+          ran += 1;
+          return unsafe;
+        },
+        resourceUriFor: () => VIEW,
+      },
+      { text: 'away', history: [] },
+      {
+        signal: stop.signal,
+        emit: (e) => {
+          // The person taps Stop as the first words arrive.
+          if (e.event === 'text') stop.abort();
+        },
+      },
+    );
+    await expect(turn).rejects.toBeInstanceOf(TurnStoppedError);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(ran).toBe(0);
+  });
+
   test('during a tool call: that call finishes, and nothing more starts', async () => {
     let steps = 0;
     let ran = 0;
