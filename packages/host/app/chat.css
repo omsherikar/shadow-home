@@ -515,6 +515,19 @@
   height: 40px;
 }
 
+/* On a phone, a little smaller. */
+.narrow .msg.alexa .said {
+  font-size: 17px;
+}
+
+.narrow .chat {
+  border-radius: 18px;
+}
+
+.narrow .offer {
+  text-align: left;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ring,
   .dots i,
