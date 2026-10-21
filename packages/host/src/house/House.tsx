@@ -12,7 +12,7 @@ import { type Band, bandBetween, frame, groundBounds, houseBounds, overlaps } fr
 import { ghost } from './ghost.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveDevice } from './looks.ts';
-import { temperatureColor } from './playback.ts';
+import { temperatureColor, temperatureStrength } from './playback.ts';
 import { Shell } from './Shell.tsx';
 
 /** A point in the house that something on the page is pinned to: a label, a status dot, a card. */
@@ -321,7 +321,10 @@ function TwinFade({ shadow, still }: { shadow: number; still: boolean }) {
   return null;
 }
 
-/** While a plan plays, each room's floor washes warm or icy with its zone's temperature. */
+/**
+ * While a plan plays, each room's floor washes with its zone's temperature: warm orange when
+ * heated, clear when comfortable, teal deepening to cyan near freezing.
+ */
 function RoomTints({ zonesC }: { zonesC: Record<string, number> | null }) {
   return (
     <>
@@ -338,7 +341,7 @@ function RoomTints({ zonesC }: { zonesC: Record<string, number> | null }) {
             <meshBasicMaterial
               color={temperatureColor(c ?? 15)}
               transparent
-              opacity={c === undefined ? 0 : 0.34}
+              opacity={c === undefined ? 0 : temperatureStrength(c)}
               depthWrite={false}
               toneMapped={false}
             />
