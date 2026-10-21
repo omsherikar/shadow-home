@@ -20,6 +20,9 @@ import { browserStorage, type Layout, readLayout, writeLayout } from './stage.ts
 const DEVICE_WIDTH = 1180;
 const DEVICE_HEIGHT = DEVICE_WIDTH / 1.6;
 
+/** A phone's width, where the page stacks and the device folds into a strip. */
+export const NARROW = '(max-width: 760px)';
+
 export interface StageProps {
   home: LiveHome | null;
   /** What the house should play, from the latest tool results. */
@@ -28,20 +31,27 @@ export interface StageProps {
   homeBroken: boolean;
   /** The Echo Show itself. It stays mounted in every layout, so its screen keeps its view. */
   device: ReactNode;
+  /** On a phone, the device folded into a strip; `open` shows the whole screen. */
+  strip(open: () => void): ReactNode;
   /** The conversation and the composer: on the page in every layout. */
   chat: ReactNode;
 }
 
 /**
  * The page: the house in 3D beside the device with the chat under it (split), or the house alone
- * with a compact chat over it (house only). Without WebGL, or if the house fails, it's the device
- * with the chat under it.
+ * with a compact chat over it (house only). On a phone they stack: the device folds into a strip
+ * that opens to the whole screen, and the house is behind a toggle. Without WebGL, or if the house
+ * fails, it's the device with the chat under it.
  */
 export function Stage(props: StageProps) {
   const [house, setHouse] = useState<'checking' | 'on' | 'off'>('checking');
   // WebGL that draws on the CPU, where the house draws lean and doesn't sweep.
   const [lean, setLean] = useState(false);
   const [layout, setLayout] = useState<Layout>('split');
+  const narrow = useMedia(NARROW);
+  // On a phone the house is there only when asked for, and the screen only when opened.
+  const [phoneHouse, setPhoneHouse] = useState(false);
+  const [open, setOpen] = useState(false);
   const fitBox = useRef<HTMLDivElement>(null);
   const scale = useFit(fitBox);
   const still = useMedia('(prefers-reduced-motion: reduce)');
@@ -54,17 +64,31 @@ export function Stage(props: StageProps) {
     setLayout(readLayout(browserStorage()));
   }, []);
 
+  // The whole screen closes with Escape, and on its own when the page widens.
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [open]);
+  const opened = open && narrow;
+
   const choose = (next: Layout) => {
     setLayout(next);
     writeLayout(browserStorage(), next);
   };
   const fail = useCallback(() => setHouse('off'), []);
+  const show = useCallback(() => setOpen(true), []);
 
-  const withHouse = house !== 'off' && !props.homeBroken;
-  const houseOnly = withHouse && layout === 'house';
+  const canHouse = house !== 'off' && !props.homeBroken;
+  const withHouse = canHouse && (!narrow || phoneHouse);
+  const houseOnly = withHouse && !narrow && layout === 'house';
   const chat = <div className="chat-dock">{props.chat}</div>;
+  const kind = withHouse ? `stage ${houseOnly ? 'house-only' : 'split'}` : 'room';
   return (
-    <div className={withHouse ? `stage ${houseOnly ? 'house-only' : 'split'}` : 'room'}>
+    <div className={narrow ? `${kind} narrow` : kind}>
       {withHouse ? (
         <section className="house-panel" aria-label="The house">
           {house === 'on' ? (
@@ -79,21 +103,39 @@ export function Stage(props: StageProps) {
               />
             </Contained>
           ) : null}
-          <button
-            type="button"
-            className="layout-toggle glass"
-            onClick={() => choose(houseOnly ? 'split' : 'house')}
-          >
-            {houseOnly ? 'Show the device' : 'House only'}
-          </button>
+          {narrow ? null : (
+            <button
+              type="button"
+              className="layout-toggle glass"
+              onClick={() => choose(houseOnly ? 'split' : 'house')}
+            >
+              {houseOnly ? 'Show the device' : 'House only'}
+            </button>
+          )}
           {houseOnly ? chat : null}
         </section>
       ) : null}
       <section className="device-panel" aria-label="The device">
-        <div ref={fitBox} className="device-fit">
+        {narrow && canHouse ? (
+          <button
+            type="button"
+            className="house-toggle"
+            aria-pressed={phoneHouse}
+            onClick={() => setPhoneHouse(!phoneHouse)}
+          >
+            {phoneHouse ? 'Hide the house' : 'Show the house'}
+          </button>
+        ) : null}
+        {narrow ? props.strip(show) : null}
+        <div ref={fitBox} className={opened ? 'device-fit opened' : 'device-fit'}>
           <div className="device-scaled" style={{ '--device-scale': scale } as CSSProperties}>
             {props.device}
           </div>
+          {opened ? (
+            <button type="button" className="close-screen" onClick={() => setOpen(false)}>
+              Close
+            </button>
+          ) : null}
         </div>
         {houseOnly ? null : chat}
       </section>

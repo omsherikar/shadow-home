@@ -19,7 +19,7 @@ export interface ChatProps {
   /** Connected, and not playing the demo. */
   ready: boolean;
   micAvailable: boolean;
-  /** What the empty text box says. */
+  /** What the empty text box says: shorter on a phone. */
   placeholder: string;
   /** A line from the page itself: the demo finished, the mic is blocked. */
   notice: string | null;
