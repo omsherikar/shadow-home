@@ -69,6 +69,18 @@ describe('reading the event stream', () => {
     }
   });
 
+  test('reads \\r\\n and \\r line ends, even with a \\r\\n split across chunks', () => {
+    const crlf = PREVIEW_TURN.replaceAll('\n', '\r\n');
+    const whole = eventParser().push(PREVIEW_TURN);
+    expect(eventParser().push(crlf)).toEqual(whole);
+    expect(eventParser().push(PREVIEW_TURN.replaceAll('\n', '\r'), true)).toEqual(whole);
+    // Until the stream ends, a last \r may be half of a \r\n.
+    expect(eventParser().push(PREVIEW_TURN.replaceAll('\n', '\r'))).toEqual(whole.slice(0, -1));
+    const parser = eventParser();
+    const cut = crlf.indexOf('\r\n') + 1;
+    expect([...parser.push(crlf.slice(0, cut)), ...parser.push(crlf.slice(cut))]).toEqual(whole);
+  });
+
   test('reads an error, with and without when to try again', () => {
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":120000}')).toEqual(
       { type: 'error', message: 'Busy', retryable: true, retryAfterMs: 120000 },
