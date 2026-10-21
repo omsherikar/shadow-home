@@ -34,12 +34,12 @@ export class TurnStoppedError extends Error {
  * call already started finishes (it has its own timeout in mcp.ts), so the person hears what
  * really happened.
  *
- * `emit` hears the turn as it happens (decision 107): the model's words, a step for each tool call
- * (running from when the model begins it, then done or failed), and each call once it returns.
- * Words written in separate model calls are joined with a space; a turn whose model wrote nothing
- * as it went (the scripted one, Bedrock) sends what it says as one piece at the end. When `signal`
- * aborts, the model stops writing and no further tool call starts. A model step left behind is
- * stopped too, and nothing it writes afterwards is sent.
+ * `emit` hears the turn as it happens (decision 107): a step for each tool call (running from
+ * when the model begins it, then done or failed), each call once it returns, and the words. Words
+ * go out as pieces joined with a space. When the model answers, what's said follows on from the
+ * words sent since its step began: only the part not yet sent goes out, or all of it when it
+ * doesn't follow on. When `signal` aborts, the model stops writing and no further tool call
+ * starts. A model step left behind is stopped too, and nothing it writes afterwards is sent.
  */
 export async function runTurn(
   model: Model,
@@ -63,22 +63,21 @@ export async function runTurn(
   const emit = (event: TurnEvent) => {
     if (!over) options.emit?.(event);
   };
-  let said = '';
-  // Set where the words that follow belong to a new piece: a new model call, or after a step.
-  let gap = false;
-  const say = (delta: string) => {
-    if (!delta) return;
-    const joined = gap && said !== '' && !/\s$/.test(said) && !/^\s/.test(delta);
-    gap = false;
-    said += joined ? ` ${delta}` : delta;
-    emit({ event: 'text', data: { delta: joined ? ` ${delta}` : delta } });
+  let anySaid = false;
+  // The pieces what's said will follow on from: the words sent since the model's step began.
+  let since: string[] = [];
+  const say = (piece: string) => {
+    const text = piece.trim();
+    if (!text) return;
+    emit({ event: 'text', data: { delta: anySaid ? ` ${text}` : text } });
+    anySaid = true;
+    since.push(text);
   };
   let steps = 0;
   let open: Omit<Step, 'state'> | undefined;
   const begin = (tool: string) => {
     if (open) return;
     open = { id: `s${++steps}`, tool, label: stepLabel(tool) };
-    gap = true;
     emit({ event: 'step', data: { ...open, state: 'running' } });
   };
   const end = (state: 'done' | 'failed') => {
@@ -91,7 +90,9 @@ export async function runTurn(
     else say(event.text);
   };
   const finish = (words: string): TurnResponse => {
-    if (said === '') say(words);
+    const sent = since.join(' ');
+    if (words !== sent)
+      say(sent && words.startsWith(`${sent} `) ? words.slice(sent.length) : words);
     return { say: words, calls };
   };
   try {
@@ -100,7 +101,7 @@ export async function runTurn(
       // step starts, since its answer would be thrown away and it costs a model call.
       if (now() >= deadline) throw new TurnDeadlineError('The turn ran out of time');
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
-      gap = true;
+      since = [];
       const step = await within(
         model.next({ ...request, thisTurn: calls }, { signal: stop.signal, onEvent }),
         deadline - now(),
