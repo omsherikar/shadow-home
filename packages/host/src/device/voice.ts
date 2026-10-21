@@ -15,25 +15,31 @@ export const CLIP_WAIT_MS = 12_000;
  * One sentence's clip from /api/speak. 503 (no voice, or this instance has spoken enough this
  * hour): the browser speaks for the rest of the session. 429 (this visitor has heard enough this
  * hour): the browser says the rest of this answer, and the next asks again. Anything else (400: a
- * line too long) is this sentence only.
+ * line too long) is this sentence only. A clip that hasn't come after CLIP_WAIT_MS is given up on,
+ * and the browser speaks for the rest of the session.
  */
 async function fetchClip(text: string, signal: AbortSignal): Promise<Clip> {
   if (!voiceAvailable) return { kind: 'browser', refused: true };
+  // A clip that doesn't come in time (a stalled request) isn't waited for any longer.
+  const late = new AbortController();
+  const timer = setTimeout(() => late.abort(), CLIP_WAIT_MS);
   try {
     const res = await fetch('/api/speak', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text }),
-      signal,
+      signal: AbortSignal.any([signal, late.signal]),
     });
     if (res.ok) return { kind: 'audio', audio: await res.blob() };
     if (res.status === 503) voiceAvailable = false;
     return { kind: 'browser', refused: res.status === 503 || res.status === 429 };
   } catch {
-    // Stopped: nothing to say. Unreachable: the browser speaks from now on.
+    // Stopped: nothing to say. Unreachable or too slow: the browser speaks from now on.
     if (signal.aborted) return { kind: 'browser', refused: false };
     voiceAvailable = false;
     return { kind: 'browser', refused: true };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
