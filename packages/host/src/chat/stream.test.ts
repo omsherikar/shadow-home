@@ -272,4 +272,16 @@ describe('a turn as it streams', () => {
     // Nothing after the abort, not even an error: the person stopped it.
     expect(events).toEqual([{ type: 'text', delta: 'Checking' }]);
   });
+
+  test('aborting stops at once, even with the rest of the turn already in hand', async () => {
+    // The whole turn arrives in one chunk, so every event is parsed before the first is read.
+    const { fake } = answering(PREVIEW_TURN);
+    const controller = new AbortController();
+    const events: TurnEvent[] = [];
+    for await (const e of streamTurn(REQUEST, { fetch: fake, signal: controller.signal })) {
+      events.push(e);
+      controller.abort();
+    }
+    expect(events.map((e) => e.type)).toEqual(['text']);
+  });
 });
