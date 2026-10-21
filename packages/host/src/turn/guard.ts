@@ -60,7 +60,7 @@ const MAX_WORDS = 65;
 const VERDICT = new RegExp(
   `\\b(?:${[
     'safe|safely|safety|unsafe|risk|risks|risky|danger\\w*|harm\\w*',
-    'fine|ok|okay|all set|all right|alright|good|great|perfect|happy|relax\\w*|warm\\w*',
+    'fine|ok|okay|all set|all right|alright|good|great|perfect|bad|happy|relax\\w*|warm\\w*',
     'go ahead|green light|problem|problems|issue|issues|worr\\w*|wrong|trouble|clear|covered',
     'blocked|block|blocks|allow\\w*|permitted|approv\\w*|break|breaks|breaking|broke|broken',
     'hold|holds|holding|violat\\w*|respect\\w*|meet|meets|conflict\\w*|in order|in the way',
