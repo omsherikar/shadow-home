@@ -435,3 +435,12 @@
   width: 40px;
   height: 40px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .dots i,
+  .step.running .step-mark,
+  .round.mic[aria-pressed="true"] {
+    animation: none;
+  }
+}
