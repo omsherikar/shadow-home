@@ -579,3 +579,35 @@ export function guarding(guard: Guard, iso: string): boolean {
     w.from <= w.to ? w.from <= t && t < w.to : t >= w.from || t < w.to,
   );
 }
+
+/**
+ * A rule's sample day as a run to play: the next 24 hours from now, with nothing changing, and a
+ * stop when the guarded hours begin.
+ */
+export function sampleDay(guard: Guard, nowIso: string): Run {
+  const startMs = Date.parse(nowIso);
+  const offset = nowIso.slice(-6);
+  const endMs = startMs + 24 * 60 * MINUTE_MS;
+  // The first time in the day the guard starts.
+  let begins = startMs;
+  for (let t = startMs; t <= endMs; t += MINUTE_MS) {
+    if (guarding(guard, homeIso(t, offset))) {
+      begins = t;
+      break;
+    }
+  }
+  return {
+    planId: 'rule',
+    label: 'Sample day',
+    tone: 'fixed',
+    verdict: 'SAFE',
+    startMs,
+    endMs,
+    offset,
+    changes: [],
+    breaks: [{ kind: 'guard', atMs: begins, text: guard.words, device: guard.device }],
+    trace: null,
+    limits: {},
+    presence: [],
+  };
+}
