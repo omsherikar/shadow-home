@@ -204,6 +204,12 @@ describe('what to offer next', () => {
     ]);
     expect(labels([call('get_activity_log', { entries: [{ undoable: false }] })])).toEqual([]);
   });
+
+  test('nothing after talk, a failed call or a new rule', () => {
+    expect(followUpsFor([])).toEqual([]);
+    expect(followUpsFor([call('preview_plan', preview({}), true)])).toEqual([]);
+    expect(followUpsFor([call('add_house_rule', { status: 'added', conflicts: [] })])).toEqual([]);
+  });
 });
 
 describe('the details view', () => {
