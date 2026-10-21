@@ -25,7 +25,7 @@ const PLAN = facts('plan');
 /** Plain conversation: nothing checked anywhere in it. */
 const CHAT = facts('chat');
 
-describe('after a check: nothing that says the verdict', () => {
+describe('after a check: nothing that says or softens the verdict', () => {
   test.each([
     ["You're covered.", 'verdict'],
     ['That works.', 'verdict'],
@@ -35,6 +35,8 @@ describe('after a check: nothing that says the verdict', () => {
     ['The fixes are optional.', 'verdict'],
     ['You can skip the fixes.', 'verdict'],
     ['The garage stays warm the whole weekend.', 'verdict'],
+    ['Nothing will freeze.', 'verdict'],
+    ["With the fixes the garage won't get cold.", 'verdict'],
     ['Your rules are all respected.', 'verdict'],
     ['It meets every house rule.', 'verdict'],
     ['Everything is in order.', 'verdict'],
@@ -49,6 +51,7 @@ describe('after a check: nothing that says the verdict', () => {
     ['The twin found nothing.', 'verdict'],
     ['The twin found no conflicts.', 'verdict'],
     ['It breaks on the third night.', 'verdict'],
+    ["Om set this rule so the garage would never drop that low, and it won't.", 'verdict'],
     ['None of your house rules are broken.', 'verdict'],
     ["It's not unsafe at all.", 'verdict'],
     ["It's taken care of.", 'action'],
