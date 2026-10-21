@@ -61,6 +61,7 @@ describe('after a check: nothing that says or softens the verdict, asks, or give
     ['Let me know if you want the fixes', 'question'],
     ['Just say the word', 'question'],
     ['Want to try it anyway?', 'question'],
+    ['Ready to go?', 'question'],
     ['The garage freezes at 7 AM.', 'time'],
     ['The garage freezes at 5:45 PM.', 'time'],
     ['The garage freezes at 11 PM.', 'time'],

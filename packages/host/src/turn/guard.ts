@@ -243,7 +243,9 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (OFFER.test(text)) return 'question';
   const { times, rest } = timesIn(text);
   const numbers = numbersIn(rest);
-  // After a check, or about one: no numbers or times, which the engine's words carry.
+  // After a check, or about one: no question, and no numbers or times, which the engine's
+  // words carry.
+  if (sentence.includes('?')) return 'question';
   if (times.length > 0) return 'time';
   if (numbers.length > 0) return 'number';
   return null;
