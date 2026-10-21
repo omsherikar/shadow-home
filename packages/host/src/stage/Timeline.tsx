@@ -1,15 +1,16 @@
 'use client';
 
 import { type KeyboardEvent, type PointerEvent, useRef } from 'react';
-import type { Run } from '../house/playback.ts';
+import type { Run, Speed } from '../house/playback.ts';
+import { SPEEDS } from '../house/playback.ts';
 import { fractionOf, type Marker, type SeekPhase, timeAtFraction } from '../house/timeline.ts';
 
 const HOUR_MS = 3_600_000;
 
 /**
- * The strip under the house while a plan plays: the home's clock, and the run's hours with its
- * nights shaded, a mark wherever something happens (red where a house rule breaks) and the
- * playhead, which can be dragged to any moment of the run.
+ * The strip under the house while a plan plays: play and pause, the speed, the home's clock, and
+ * the run's hours with its nights shaded, a mark wherever something happens (red where a house
+ * rule breaks) and the playhead, which can be dragged to any moment of the run.
  */
 export function Timeline(props: {
   run: Run;
@@ -18,6 +19,15 @@ export function Timeline(props: {
   clock: string;
   markers: Marker[];
   nights: { fromMs: number; toMs: number }[];
+  playing: boolean;
+  done: boolean;
+  /** Shows only where each run ends (less motion asked for, or a slow renderer): no playing. */
+  calm: boolean;
+  speed: Speed;
+  onPlay(): void;
+  onPause(): void;
+  onReplay(): void;
+  onSpeed(speed: Speed): void;
   /** The person is dragging, or stepping with the keys, to a home time. */
   onSeek(homeMs: number, phase: SeekPhase): void;
 }) {
@@ -64,7 +74,32 @@ export function Timeline(props: {
   };
 
   return (
-    <div className="timeline glass">
+    <div className="timeline glass" data-playing={props.playing && !props.done ? 'yes' : 'no'}>
+      {props.calm ? null : (
+        <div className="timeline-controls">
+          <button
+            type="button"
+            className="timeline-play"
+            aria-label={props.done ? 'Play again' : props.playing ? 'Pause' : 'Play'}
+            onClick={props.done ? props.onReplay : props.playing ? props.onPause : props.onPlay}
+          >
+            <span aria-hidden="true">{props.done ? '↻' : props.playing ? '❚❚' : '▶'}</span>
+          </button>
+          <div className="timeline-speeds">
+            {SPEEDS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                aria-pressed={props.speed === s}
+                aria-label={`${s}x speed`}
+                onClick={() => props.onSpeed(s)}
+              >
+                {s}×
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <p className="timeline-clock">{props.clock}</p>
       <div
         ref={track}
