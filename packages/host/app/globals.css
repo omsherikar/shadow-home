@@ -12,14 +12,6 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-.room {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 24px 16px 40px;
-}
-
 .device {
   position: relative;
   width: min(94vw, 1180px, calc((100vh - 200px) * 1.6));
