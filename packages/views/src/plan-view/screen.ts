@@ -166,11 +166,15 @@ export function previewScreen(
   };
 }
 
+/**
+ * The verdict as icon, colour and word. The data says SAFE, UNSAFE and UNPROVEN; the screen says
+ * what a person would.
+ */
 function badge(p: Preview): Pick<Screen, 'tone' | 'icon' | 'word'> {
-  if (p.tier === 'T5') return { tone: 'blocked', icon: '✋', word: 'UNSAFE' };
-  if (p.verdict === 'UNSAFE') return { tone: 'blocked', icon: '✕', word: 'UNSAFE' };
-  if (p.verdict === 'UNPROVEN') return { tone: 'unsure', icon: '?', word: 'UNPROVEN' };
-  return { tone: 'safe', icon: '✓', word: 'SAFE' };
+  if (p.tier === 'T5') return { tone: 'blocked', icon: '✋', word: 'Not safe' };
+  if (p.verdict === 'UNSAFE') return { tone: 'blocked', icon: '✕', word: 'Not safe' };
+  if (p.verdict === 'UNPROVEN') return { tone: 'unsure', icon: '?', word: "Can't confirm" };
+  return { tone: 'safe', icon: '✓', word: 'Safe' };
 }
 
 /** The alternative the spoken question offers; the same choice the engine's speech makes. */

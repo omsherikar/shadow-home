@@ -600,7 +600,7 @@ describe('the plan view', () => {
     expect(preview.repair?.changes).toContainEqual(
       expect.objectContaining({ rule: 'R1', kind: 'leave_out', target: 'plug_garage_freezer' }),
     );
-    expect(s).toMatchObject({ tone: 'blocked', word: 'UNSAFE', rowsTitle: 'With 4 fixes' });
+    expect(s).toMatchObject({ tone: 'blocked', word: 'Not safe', rowsTitle: 'With 4 fixes' });
     expect(s.rows.length).toBeLessThanOrEqual(planScreen.MAX_ROWS);
     expect(s.cards.map((c) => [c.cause, c.at, c.breaks, c.author, c.fix])).toEqual([
       [
