@@ -178,3 +178,9 @@ export interface Replay {
   violations?: Violation[];
   unknowns?: string[];
 }
+
+/**
+ * Where the server puts replays, plan ID to `Replay`, for each preview a result carries: the
+ * plan's own and its repair's.
+ */
+export const REPLAY_META_KEY = 'shadow-home/replay';
