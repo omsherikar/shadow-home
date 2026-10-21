@@ -80,6 +80,16 @@ describe('an answer as it streams', () => {
     m = withEvent(m, { type: 'done', turn: { say: 'Done: 10 changes.', calls: [commit] } }, 0);
     expect(m).toMatchObject({ text: 'Done: 10 changes.', phase: 'done', verdict: 'DONE' });
   });
+
+  test('an error keeps when to come back, from the time it arrived', () => {
+    const m = withEvent(
+      start(),
+      { type: 'error', message: 'Too many requests.', retryable: true, retryAfterMs: 60_000 },
+      1_000,
+    );
+    expect(m).toMatchObject({ phase: 'failed' });
+    expect(m.problem).toEqual({ message: 'Too many requests.', retryable: true, retryAt: 61_000 });
+  });
 });
 
 describe('the details view', () => {
