@@ -86,7 +86,7 @@ function Scene({ home, onLabels, shift = 0 }: HouseProps) {
 function Finish() {
   return (
     <EffectComposer multisampling={4}>
-      <N8AO halfRes aoRadius={0.6} distanceFalloff={0.8} intensity={3} color="#1b130d" />
+      <N8AO halfRes aoRadius={0.9} distanceFalloff={0.7} intensity={3.6} color="#1b130d" />
       <Bloom mipmapBlur luminanceThreshold={1.6} luminanceSmoothing={0.2} intensity={0.9} />
       <ToneMapping mode={ToneMappingMode.AGX} />
     </EffectComposer>
