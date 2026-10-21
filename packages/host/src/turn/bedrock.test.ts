@@ -544,6 +544,41 @@ describe("the live session's turns", () => {
   });
 });
 
+describe('while a blocked check is open, and after its fix is committed', () => {
+  const weekend = {
+    planId: 'p1',
+    verdict: 'UNSAFE',
+    tier: 'T3',
+    speech: {
+      headline: 'Blocked: that breaks 4 house rules.',
+      reason: "The garage would freeze. That's Om's rule.",
+      ask: 'Do it with 4 fixes instead?',
+    },
+    violations: [{ rule: 'R3', text: 'Keep the garage above 4 °C', author: 'om' }],
+    repair: { planId: 'p2', verdict: 'SAFE', tier: 'T1' },
+    safePart: null,
+  };
+  const blocked: Remembered[] = [
+    { name: 'heard', arguments: { text: "I'm away for the weekend" } },
+    { name: 'preview_plan', arguments: {}, structuredContent: weekend },
+    { name: 'said', arguments: { text: 'Blocked.' } },
+  ];
+  const reply = async (heard: string, history: Remembered[], words: string) => {
+    const { converse } = fakeConverse(text(words));
+    return bedrockModel({ converse, tools, home }).next(input({ text: heard, history }));
+  };
+  const BLOCKED = "Blocked: that breaks 4 house rules. The garage would freeze. That's Om's rule.";
+
+  test.each([
+    ['Is that safe?', "It's fine, nothing to worry about."],
+    ['How bad is it?', "It's not bad at all, you're good."],
+    ['What happens to the garage?', 'No problem, everything will be okay.'],
+    ['Should I worry?', 'Not really, it should be okay.'],
+  ])('"%s" leads with the check, and "%s" is never said', async (heard, words) => {
+    expect(await reply(heard, blocked, words)).toEqual({ say: BLOCKED });
+  });
+});
+
 describe('the demo', () => {
   test('every line in order, each beat followed by the answer the person gives', () => {
     const steps = demoSteps([
