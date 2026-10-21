@@ -5,6 +5,8 @@ import {
   carriesPreview,
   changesBy,
   devicesAt,
+  homeClock,
+  homeIso,
   playhead,
   presenceAt,
   REPLAY_META_KEY,
@@ -342,5 +344,11 @@ describe('drawing it', () => {
     expect(roomOf(layout, 'plug_coffee_maker')).toBe('kitchen');
     expect(roomOf(layout, 'light_porch')).toBe('living_room');
     expect(roomOf(layout, 'no_such_device')).toBeUndefined();
+  });
+
+  test('the clock reads in the home’s own offset', () => {
+    expect(homeClock(at('2027-01-16T22:37:00'), '-06:00')).toBe('Sat 10:37 PM');
+    expect(homeClock(at('2027-01-17T00:05:00'), '-06:00')).toBe('Sun 12:05 AM');
+    expect(homeIso(at('2027-01-16T22:37:00'), '-06:00')).toBe('2027-01-16T22:37:00-06:00');
   });
 });
