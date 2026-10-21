@@ -26,10 +26,11 @@ export function GET(): Response {
 }
 
 /**
- * One conversational turn (src/turn/respond.ts). A live model decides by default (the Anthropic
- * API, or Bedrock with MODEL_PROVIDER=bedrock); DEMO_MODE=1 (the replayed demo) and MOCK_MODEL=1
- * (no model key) use the scripted model, which makes no model calls. With DEMO_CLOCK=1, a demo
- * line first moves home time to its scene.
+ * One conversational turn (src/turn/respond.ts), streamed as it happens when the client asks for
+ * `text/event-stream`. A live model decides by default (the Anthropic API, or Bedrock with
+ * MODEL_PROVIDER=bedrock); DEMO_MODE=1 (the replayed demo) and MOCK_MODEL=1 (no model key) use the
+ * scripted model, which makes no model calls. With DEMO_CLOCK=1, a demo line first moves home time
+ * to its scene.
  */
 export async function POST(request: Request): Promise<Response> {
   const scripted = process.env.DEMO_MODE === '1' || process.env.MOCK_MODEL === '1';
