@@ -287,7 +287,7 @@ test('a hidden tab pauses the microphone, and showing it again resumes', async (
 test('Stop while she asks her question opens no window for an answer', async ({ page }) => {
   await fakeMic(page);
   // Each sentence takes a while to say, so Stop comes in the middle of her question.
-  await stubSpeech(page, 4000);
+  await stubSpeech(page, 30_000);
   const sent = turnsSent(page);
   await page.goto('/?speak=1');
   await pill(page).click();
