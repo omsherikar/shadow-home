@@ -168,6 +168,16 @@ type Turn =
 const ASKS_ABOUT =
   /\b(?:why|what|how|explain|which|who|when|tell me more|tell me about|more about|go on)\b/;
 
+/** A question, asked any way: "Is that safe?", "how bad is it", "what happens to the garage". */
+function isQuestion(text: string): boolean {
+  return (
+    text.includes('?') ||
+    /^(?:is|are|was|were|am|can|could|should|shall|would|will|do|does|did|has|have|how|what|why|when|where|who|which|whats|hows|wheres|whos)\b/.test(
+      normalise(text),
+    )
+  );
+}
+
 /**
  * Which turn a reply belongs to (guard.ts, Context). A turn with no call is about the last check
  * only when the person asks about it; thanks, a no or a greeting is plain conversation.
