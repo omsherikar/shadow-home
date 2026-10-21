@@ -563,6 +563,20 @@ describe('while a blocked check is open, and after its fix is committed', () => 
     { name: 'preview_plan', arguments: {}, structuredContent: weekend },
     { name: 'said', arguments: { text: 'Blocked.' } },
   ];
+  const fixed: Remembered[] = [
+    ...blocked,
+    { name: 'heard', arguments: { text: 'yes' } },
+    {
+      name: 'commit_plan',
+      arguments: { planId: 'p2', confirmed: true },
+      structuredContent: {
+        status: 'committed',
+        planId: 'p2',
+        speech: { headline: 'Done: the weekend plan, with 4 fixes.' },
+      },
+    },
+    { name: 'said', arguments: { text: 'Done.' } },
+  ];
   const reply = async (heard: string, history: Remembered[], words: string) => {
     const { converse } = fakeConverse(text(words));
     return bedrockModel({ converse, tools, home }).next(input({ text: heard, history }));
@@ -576,6 +590,17 @@ describe('while a blocked check is open, and after its fix is committed', () => 
     ['Should I worry?', 'Not really, it should be okay.'],
   ])('"%s" leads with the check, and "%s" is never said', async (heard, words) => {
     expect(await reply(heard, blocked, words)).toEqual({ say: BLOCKED });
+  });
+
+  test('"Why?" after its fix was committed leads with the commit, not "Blocked"', async () => {
+    expect(
+      await reply('Why?', fixed, 'Om set that rule to keep the garage pipes from freezing.'),
+    ).toEqual({
+      say: 'Done: the weekend plan, with 4 fixes. Om set that rule to keep the garage pipes from freezing.',
+    });
+    expect(await reply('Why?', fixed, "It's fine now.")).toEqual({
+      say: "Done: the weekend plan, with 4 fixes. The garage would freeze. That's Om's rule.",
+    });
   });
 });
 
