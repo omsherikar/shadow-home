@@ -546,6 +546,40 @@
   overflow-y: auto;
 }
 
+/* Beside the device, one card runs across the top of the panel and the house sits below it. */
+.stage.split .house-card {
+  right: 24px;
+  padding: 14px 18px 12px;
+}
+
+.stage.split .card-head {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.stage.split .house-name {
+  font-size: 24px;
+}
+
+.stage.split .house-time {
+  margin: 0;
+}
+
+.stage.split .card-now {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.stage.split .card-now .run-chip,
+.stage.split .card-now .house-zones {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lightbar.on {
     animation: none;
