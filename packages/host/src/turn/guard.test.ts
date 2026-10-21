@@ -41,6 +41,19 @@ describe('plain conversation: small talk is free, claims about the home are not'
   });
 });
 
+describe('what can be spoken at all', () => {
+  test.each([
+    ['The garage gets cold 🚫.', 'plain'],
+    ['- the coffee maker', 'plain'],
+    ['1) the garage.', 'plain'],
+    ['See https://example.test/rules.', 'plain'],
+    ['The plug_coffee_maker stays on.', 'plain'],
+    [`The garage ${'gets colder and '.repeat(9)}colder.`, 'long'],
+  ])('%s', (sentence, why) => {
+    expect(dropReason(sentence, CHAT)).toBe(why);
+  });
+});
+
 describe('times and numbers as people say them', () => {
   test('times on the 24-hour clock', () => {
     const keys = (t: string) => timesIn(t).times;
