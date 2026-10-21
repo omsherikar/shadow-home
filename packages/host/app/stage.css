@@ -29,7 +29,20 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at 45% 58%, #3d3129 0%, #241c17 55%, #15110e 100%);
+  background: #15110e;
+}
+
+/* The sky behind the house: its colours follow the house's clock (set from the page). */
+.sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--sky-top, #352f5c) 0%,
+    var(--sky-horizon, #b77a6a) 30%,
+    var(--sky-ground, #232a22) 47%,
+    #0d0b09 100%
+  );
 }
 
 .glass {
