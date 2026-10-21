@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
@@ -67,6 +67,8 @@ const VIEWS = {
   house: { azimuth: 33, elevation: 40 },
   split: { azimuth: 82, elevation: 44 },
 } as const;
+/** How far a drag may turn the house: around, and up or down. */
+const TURN_LIMIT = { azimuth: 30, elevation: 14 };
 /** How far the camera drifts around the house over a run. */
 const DOLLY_DEG = 10;
 
@@ -211,7 +213,8 @@ const ALONE: Band = { center: 0.08, half: 0.92 };
  * Frames the whole house for the canvas's size, or one room when there's something to look at,
  * gliding between them, in the part of the panel nothing covers; and keeps everything pinned to
  * the house where it shows on screen, hiding what would fall outside that part rather than cut it.
- * While a run plays the camera drifts slowly around the house with it.
+ * While a run plays the camera drifts slowly around the house with it, and a drag turns the house
+ * a little way either side.
  */
 function CameraRig(props: {
   mode: HouseProps['mode'];
@@ -226,14 +229,16 @@ function CameraRig(props: {
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const invalidate = useThree((s) => s.invalidate);
+  const canvas = useThree((s) => s.gl.domElement);
   const room = props.focus ? ROOMS.get(props.focus) : undefined;
   const { top, bottom } = props.inset;
+  const turn = useDragTurn(canvas, invalidate);
   // The drift is tied to how far the run has got, so a paused run holds still.
   const drift = props.still || props.dolly === null ? 0 : (props.dolly - 0.5) * DOLLY_DEG;
   const goal = useMemo(() => {
     const aspect = width / Math.max(1, height);
     const base = VIEWS[props.mode];
-    const view = direction(base.azimuth + drift, base.elevation);
+    const view = direction(base.azimuth + turn.azimuth + drift, base.elevation + turn.elevation);
     const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
     if (room) {
       const box = {
@@ -244,7 +249,7 @@ function CameraRig(props: {
     }
     const whole = props.mode === 'split' ? houseBounds(layout) : groundBounds(layout);
     return frame(whole, view, FOV, aspect, 0.04, band ?? ALONE);
-  }, [width, height, props.mode, room, top, bottom, drift]);
+  }, [width, height, props.mode, room, top, bottom, turn, drift]);
   const at = useRef<{ position: Vector3; target: Vector3 } | null>(null);
   const tmp = useMemo(() => new Vector3(), []);
 
@@ -287,6 +292,51 @@ function CameraRig(props: {
     if (now.position.distanceToSquared(goal.position) > 1e-4) invalidate();
   });
   return null;
+}
+
+/**
+ * A drag on the house turns it, within limits: around by dragging across, up or down by dragging
+ * along. A mouse or a pen only, so a finger still scrolls the page.
+ */
+function useDragTurn(canvas: HTMLCanvasElement, invalidate: () => void) {
+  const [turn, setTurn] = useState({ azimuth: 0, elevation: 0 });
+  useEffect(() => {
+    let from: { x: number; y: number; azimuth: number; elevation: number } | null = null;
+    let now = { azimuth: 0, elevation: 0 };
+    const clamp = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v));
+    const down = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' || e.button !== 0) return;
+      from = { x: e.clientX, y: e.clientY, ...now };
+      canvas.setPointerCapture(e.pointerId);
+      canvas.dataset.turning = 'yes';
+    };
+    const move = (e: PointerEvent) => {
+      if (!from) return;
+      now = {
+        azimuth: clamp(from.azimuth - (e.clientX - from.x) * 0.2, TURN_LIMIT.azimuth),
+        elevation: clamp(from.elevation + (e.clientY - from.y) * 0.12, TURN_LIMIT.elevation),
+      };
+      setTurn(now);
+      invalidate();
+    };
+    const up = (e: PointerEvent) => {
+      if (!from) return;
+      from = null;
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      delete canvas.dataset.turning;
+    };
+    canvas.addEventListener('pointerdown', down);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
+    return () => {
+      canvas.removeEventListener('pointerdown', down);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointercancel', up);
+    };
+  }, [canvas, invalidate]);
+  return turn;
 }
 
 /**
