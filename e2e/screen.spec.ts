@@ -414,7 +414,10 @@ test('a replay the house can’t read leaves it showing the home, and the turn c
   // The weekend preview comes back with its fix's replay broken: a timeline that isn't a list.
   let broken = 0;
   await page.route('**/api/turn', async (route) => {
-    const response = await route.fetch();
+    // As JSON, which the page reads as well as a stream, so the test can change the result.
+    const response = await route.fetch({
+      headers: { ...route.request().headers(), accept: 'application/json' },
+    });
     const turn = (await response.json()) as {
       calls: { result: { _meta?: Record<string, Record<string, { timeline?: unknown }>> } }[];
     };
