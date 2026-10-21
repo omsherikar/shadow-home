@@ -101,6 +101,9 @@ describe('plain conversation: small talk is free, claims about the home are not'
   });
 
   test.each([
+    ['The front door is now unlocked.', 'state'],
+    ['The front door is unlocked now.', 'state'],
+    ['Unlocking the front door.', 'state'],
     ["It's taken care of.", 'action'],
     ["I've locked the front door.", 'action'],
     ['Done.', 'action'],
@@ -231,5 +234,18 @@ describe('a bare yes or no says nothing, in any turn', () => {
 
   test('"No problem." is not a bare no', () => {
     expect(dropReason('No problem.', home('chat'))).toBeNull();
+  });
+});
+
+describe('plain conversation: no claim about the home', () => {
+  test.each([
+    'The garage is warm.',
+    'The front door is secure.',
+    'Your doors are all secure.',
+    'The house is in away mode.',
+    'The heat is down.',
+    'Nobody is home right now.',
+  ])('%s', (sentence) => {
+    expect(dropReason(sentence, home('chat'))).toBe('state');
   });
 });
