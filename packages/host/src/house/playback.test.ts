@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { houseLayout as layout } from './layout.ts';
 import type { LiveDevice } from './looks.ts';
 import {
+  advance,
   carriesPreview,
   changesBy,
   chartOf,
@@ -18,6 +19,7 @@ import {
   roomOf,
   runsFrom,
   type ShowTiming,
+  SPEEDS,
   sampleDay,
   schedule,
   showLength,
@@ -861,6 +863,43 @@ describe('the clock’s pace', () => {
       .filter((seg) => seg.toMs > seg.fromMs)
       .reduce((sum, seg) => sum + seg.realMs, 0);
     expect(swept).toBeCloseTo(12_000, 6);
+  });
+});
+
+describe('playing, pausing, speeding up and dragging', () => {
+  const runs = runsFrom('preview_plan', preview, meta);
+  const timing: ShowTiming = {
+    plan: { sweepMs: 8000, holdMs: 1000, stepMs: 300 },
+    fixed: { sweepMs: 4000, holdMs: 1000, stepMs: 300 },
+    pauseMs: 500,
+    rewindMs: 500,
+  };
+  const total = showLength(runs, timing);
+  // The plan settles (300), turns the freezer off (300) and stops on R1 (1000).
+  const r1 = 600;
+
+  test('at normal speed the show moves on by the time that passed', () => {
+    expect(advance(runs, timing, 0, 250, 1)).toBe(250);
+    expect(advance(runs, timing, 2000, 500, 1)).toBeCloseTo(2500, 6);
+  });
+
+  test('faster, the clock and the steps go faster; a stop on a break lasts as long', () => {
+    // Settling and the step at four times: 150 ms of real time.
+    expect(advance(runs, timing, 0, 150, 4)).toBeCloseTo(r1, 6);
+    // The stop on R1 takes its full second at any speed.
+    expect(advance(runs, timing, r1, 500, 4)).toBeCloseTo(r1 + 500, 6);
+    expect(advance(runs, timing, r1, 1000, 4)).toBeCloseTo(r1 + 1000, 6);
+    // Then the clock runs four times as fast.
+    expect(advance(runs, timing, r1 + 1000, 100, 4)).toBeCloseTo(r1 + 1400, 6);
+  });
+
+  test('it never goes past the end', () => {
+    expect(advance(runs, timing, total - 10, 5000, 4)).toBe(total);
+    expect(advance(runs, timing, Number.POSITIVE_INFINITY, 16, 1)).toBe(total);
+  });
+
+  test('the speeds on offer', () => {
+    expect([...SPEEDS]).toEqual([1, 2, 4]);
   });
 });
 
