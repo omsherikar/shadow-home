@@ -2,7 +2,7 @@
 
 import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
-import type { Mesh, Object3D } from 'three';
+import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { HouseLayout, Prop } from './layout.ts';
 import { palette } from './palette.ts';
@@ -33,13 +33,22 @@ function Placed({ prop, scene }: { prop: Prop; scene: Object3D }) {
   const object = useMemo(() => {
     const copy = scene.clone(true);
     copy.traverse((o) => {
-      if ((o as Mesh).isMesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-      }
+      const mesh = o as Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      const tint = prop.tint;
+      const own = (m: Material) => {
+        if (!tint) return m;
+        // This copy only: other placements of the same model keep its own colours.
+        const c = m.clone() as MeshStandardMaterial;
+        c.color.set(tint.color).multiplyScalar(tint.lighten);
+        return c;
+      };
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
     });
     return copy;
-  }, [scene]);
+  }, [scene, prop.tint]);
   return (
     <primitive
       object={object}

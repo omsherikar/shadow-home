@@ -94,6 +94,10 @@ const prop = z.object({
   facing: facing.default(0),
   /** Some sources are authored at another scale. */
   scale: z.number().positive().default(1),
+  /** A colour to multiply the model's own by, and how much to brighten it (the car's cover). */
+  tint: z
+    .object({ color: z.string().regex(/^#[0-9a-f]{6}$/), lighten: z.number().min(1).max(4) })
+    .optional(),
 });
 
 /** Pieces built from simple shapes where no CC0 model fits. */
@@ -349,7 +353,14 @@ export const houseLayout: HouseLayout = houseLayoutSchema.parse({
       facing: -30,
     },
     // Garage.
-    { model: model('covered_car'), room: 'garage', x: 2.7, z: 5.3 },
+    // A lighter cover, so the car doesn't swallow the garage.
+    {
+      model: model('covered_car'),
+      room: 'garage',
+      x: 2.7,
+      z: 5.3,
+      tint: { color: '#c8d0d8', lighten: 2.6 },
+    },
     {
       model: model('steel_frame_shelves_01'),
       room: 'garage',
