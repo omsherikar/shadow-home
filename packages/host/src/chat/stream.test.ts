@@ -284,4 +284,15 @@ describe('a turn as it streams', () => {
     }
     expect(events.map((e) => e.type)).toEqual(['text']);
   });
+
+  test('aborted while JSON is read, it gives nothing', async () => {
+    const controller = new AbortController();
+    const turn = { say: 'Okay.', calls: [] };
+    const late = (async () => {
+      const res = Response.json(turn);
+      controller.abort();
+      return res;
+    }) as unknown as typeof fetch;
+    expect(await all(streamTurn(REQUEST, { fetch: late, signal: controller.signal }))).toEqual([]);
+  });
 });
