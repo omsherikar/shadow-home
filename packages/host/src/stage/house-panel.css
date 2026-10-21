@@ -1,6 +1,106 @@
 /*
- * The house panel while a plan plays: the step being acted out and a device's name as it changes.
+ * The house panel while a plan plays: the timeline under the house, the step being acted out and
+ * a device's name as it changes. The page around it can place the timeline with --timeline-left,
+ * --timeline-right and --timeline-bottom.
  */
+
+/* Beside the device: across the panel, above the buttons along its bottom. */
+.timeline-dock {
+  position: absolute;
+  right: var(--timeline-right, 24px);
+  bottom: var(--timeline-bottom, 70px);
+  left: var(--timeline-left, 24px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/*
+ * Alone: along the bottom, clear of the button in the bottom left corner, and leaving the bottom
+ * right (about 420 by 260 px) to the page.
+ */
+.stage.house-only .timeline-dock {
+  right: var(--timeline-right, 468px);
+  bottom: var(--timeline-bottom, 20px);
+  left: var(--timeline-left, 196px);
+  justify-content: flex-start;
+}
+
+.timeline {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 720px;
+  padding: 7px 16px 7px 8px;
+  border-radius: 999px;
+  pointer-events: auto;
+}
+
+.timeline-clock {
+  flex: 0 0 auto;
+  min-width: 96px;
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timeline-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 30px;
+  outline: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.timeline-track:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--done);
+  outline-offset: 2px;
+}
+
+.timeline-rail {
+  position: absolute;
+  top: 12px;
+  right: 0;
+  left: 0;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(255 236 210 / 26%);
+}
+
+/* Night outside: the rail darkens, so the days read at a glance. */
+.timeline-night {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgb(12 16 38 / 75%);
+}
+
+.timeline-done {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: rgb(255 236 210 / 28%);
+}
+
+.timeline-head {
+  position: absolute;
+  top: 3px;
+  z-index: 2;
+  width: 4px;
+  height: 24px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px rgb(20 16 13 / 60%);
+  pointer-events: none;
+}
 
 /* The plan's change being acted out: a ring round the device and what happens, in words. */
 .act-ring {
