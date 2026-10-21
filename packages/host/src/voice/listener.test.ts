@@ -126,6 +126,27 @@ describe('the microphone, listening without a break', () => {
     expect(l.sessions).toHaveLength(GIVE_UP_AFTER);
   });
 
+  test('turned on again after it gave up, it starts with a clean slate', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    for (let i = 0; i < GIVE_UP_AFTER; i++) {
+      vi.advanceTimersByTime(2000);
+      l.sessions.at(-1)?.fail('network');
+      vi.advanceTimersByTime(restartDelay(i + 1));
+    }
+    expect(l.errors.at(-1)).toEqual([GAVE_UP, true]);
+    // On again: one failure is one failure, not the last straw.
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    const before = l.sessions.length;
+    vi.advanceTimersByTime(2000);
+    l.sessions.at(-1)?.fail('network');
+    vi.advanceTimersByTime(restartDelay(1));
+    expect(l.sessions).toHaveLength(before + 1);
+    expect(l.errors.filter(([e]) => e === GAVE_UP)).toHaveLength(1);
+  });
+
   test('a refused microphone stops it for good, and says so', () => {
     const l = listening();
     l.listener.resume();
