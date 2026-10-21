@@ -430,3 +430,10 @@ export function homeClock(ms: number, offset: string): string {
   const mi = local.getUTCMinutes();
   return `${day} ${h % 12 || 12}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
+
+/** An instant as ISO 8601 in the home's offset, for the light outside at that time. */
+export function homeIso(ms: number, offset: string): string {
+  const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
+  const minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+  return `${new Date(ms + minutes * MINUTE_MS).toISOString().slice(0, 19)}${offset}`;
+}
