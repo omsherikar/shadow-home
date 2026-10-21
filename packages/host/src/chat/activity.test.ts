@@ -27,4 +27,10 @@ describe('with hands-free on', () => {
     expect(shownActivity('idle', false, 'answer')).toBe('awaiting');
     expect(shownActivity('idle', false, 'idle')).toBe('idle');
   });
+
+  test('her voice and a turn still show over it', () => {
+    expect(shownActivity('idle', true, 'answer')).toBe('speaking');
+    expect(shownActivity('thinking', false, 'awake')).toBe('thinking');
+    expect(shownActivity('listening', false, 'answer')).toBe('listening');
+  });
 });
