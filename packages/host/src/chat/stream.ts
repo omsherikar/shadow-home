@@ -130,3 +130,31 @@ export function eventParser(): { push(chunk: string, last?: boolean): TurnEvent[
     },
   };
 }
+
+/** What to say when the turn route refuses before it starts. */
+export function refusal(status: number, retryAfter?: string | null): TurnEvent {
+  if (status === 400) {
+    return {
+      type: 'error',
+      message: "I couldn't take that request. Try saying it a shorter or simpler way.",
+      retryable: false,
+    };
+  }
+  if (status === 403) {
+    return {
+      type: 'error',
+      message: 'This page lost its connection to Alexa. Reload the page, then try again.',
+      retryable: false,
+    };
+  }
+  if (status === 429) {
+    const seconds = Number(retryAfter);
+    return {
+      type: 'error',
+      message: "I've had a lot of requests. Try again in a little while.",
+      retryable: true,
+      ...(Number.isFinite(seconds) && seconds > 0 ? { retryAfterMs: seconds * 1000 } : {}),
+    };
+  }
+  return { type: 'error', message: 'Something went wrong on my side. Try again.', retryable: true };
+}
