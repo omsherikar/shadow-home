@@ -52,6 +52,49 @@ describe('a reply with several sentences', () => {
   });
 });
 
+/** An audio element that plays nothing: the test says when it has its length, errs or ends. */
+class FakeAudio {
+  static made: FakeAudio[] = [];
+  onended: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  onloadedmetadata: (() => void) | null = null;
+  onplaying: (() => void) | null = null;
+  duration = Number.NaN;
+  paused = true;
+  constructor(readonly src: string) {
+    FakeAudio.made.push(this);
+  }
+  play() {
+    this.paused = false;
+    return Promise.resolve();
+  }
+  pause() {
+    this.paused = true;
+  }
+}
+
+/** The voice module fresh, with every clip arriving (or, `stalled`, never) and FakeAudio to play it. */
+async function voiceWithAudio(stalled = false) {
+  vi.resetModules();
+  FakeAudio.made = [];
+  const fetch = vi.fn(
+    (_url: string, init: RequestInit) =>
+      new Promise<Response>((resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('', 'AbortError')));
+        if (!stalled) resolve(new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+      }),
+  );
+  vi.stubGlobal('fetch', fetch);
+  vi.stubGlobal('Audio', FakeAudio);
+  const voice = await import('./voice.ts');
+  const speaking: boolean[] = [];
+  voice.speech.watch((on) => speaking.push(on));
+  return { ...voice, fetch, speaking };
+}
+
+/** Lets the clips arrive and the next one start. */
+const flush = () => vi.advanceTimersByTimeAsync(0);
+
 describe('a clip that never finishes properly still counts as finished', () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
@@ -68,5 +111,22 @@ describe('a clip that never finishes properly still counts as finished', () => {
     expect(playLimitMs(0.1)).toBe(2100);
     expect(playLimitMs(Number.NaN)).toBe(10_000);
     expect(playLimitMs(Number.POSITIVE_INFINITY)).toBe(10_000);
+  });
+
+  test('a clip that errs: the next sentence plays, and she stops speaking at the end', async () => {
+    const { speak, speaking } = await voiceWithAudio();
+    let result: boolean | undefined;
+    void speak('Blocked: that breaks 4 house rules. Shall I fix it?').then((r) => {
+      result = r;
+    });
+    await flush();
+    FakeAudio.made[0]?.onerror?.();
+    await flush();
+    expect(FakeAudio.made).toHaveLength(2);
+    FakeAudio.made[1]?.onended?.();
+    await flush();
+    // Over, but not all of it heard.
+    expect(result).toBe(false);
+    expect(speaking).toEqual([true, false]);
   });
 });
