@@ -450,7 +450,19 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
   if (context === 'chat') {
+    // After a check, small talk doesn't talk about it ("Thanks." can't get "The plan is safe.").
     if (facts.afterPlan && PLAN_TALK.test(text)) return 'verdict';
+    // While it's still open, small talk can't reassure about it either: the verdict, softening
+    // and negation lists all apply ("It's fine, nothing to worry about." drops), and only the
+    // pleasantries above pass whole. Once it's closed, small talk is free again.
+    if (
+      facts.checkOpen &&
+      (VERDICT.test(text) ||
+        NEGATED_HARM.some((p) => p.test(text)) ||
+        SOFTENING.some((p) => p.test(text)))
+    ) {
+      return 'verdict';
+    }
     if (STATE.test(text)) return 'state';
     return null;
   }
