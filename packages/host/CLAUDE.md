@@ -51,5 +51,7 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   only there), keys from Secret Manager. Amplify Hosting is no longer supported, since turns stream
   (amplify.yml and the stack's HostComputeRoleArn remain); behind Amplify's proxy the site's host
   arrives as X-Forwarded-Host.
-- What the device says comes from the server's speech fields when a tool returned them.
+- After a tool that speaks, the device says the server's headline, the model's explanation and the
+  server's question, and a later "why?" leads with that headline; every model sentence goes through
+  the sentence filter for its turn first (src/turn/guard.ts, decision 108).
 - The screen is read from across a room: at most 5 diff rows, large type, verdict as icon + word + color.
