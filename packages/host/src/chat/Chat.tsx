@@ -28,6 +28,8 @@ export interface ChatProps {
   placeholder: string;
   /** A line from the page itself: the demo finished, the mic is blocked. */
   notice: string | null;
+  /** Something to tap beside the notice ("Tap to hear Alexa"). */
+  action?: { label: string; act(): void } | null;
   onSend(says: string, label?: string): void;
   onMic(): void;
   /** Stop the answer coming in, or the voice. */
@@ -136,6 +138,13 @@ export function Chat(props: ChatProps) {
           )}
         </ol>
         {props.notice ? <p className="chat-notice">{props.notice}</p> : null}
+        {props.action ? (
+          <p className="chat-notice">
+            <button type="button" className="retry" onClick={props.action.act}>
+              {props.action.label}
+            </button>
+          </p>
+        ) : null}
       </div>
       <p className="sr-only" aria-live="polite">
         {finished ? finished.text : ''}
