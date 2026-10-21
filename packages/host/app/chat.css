@@ -159,6 +159,34 @@
   line-height: 1.45;
 }
 
+.verdict-pill {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0 0 6px;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.verdict-pill.safe {
+  color: var(--safe);
+}
+
+.verdict-pill.blocked {
+  color: var(--blocked);
+}
+
+.verdict-pill.unsure {
+  color: var(--unsure);
+}
+
+.verdict-pill.done {
+  color: var(--done);
+}
+
 /* Three dots while she thinks. */
 .dots {
   display: inline-flex;
