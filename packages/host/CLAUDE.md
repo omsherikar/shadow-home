@@ -40,6 +40,10 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - Render MCP App views in a sandboxed iframe through @modelcontextprotocol/ext-apps/app-bridge.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
+- Hands-free (src/voice/): one tap turns it on (and after a reload, one tap resumes it), then
+  "Alexa" wakes her and a question she was heard asking takes a spoken answer with no wake word.
+  A pure state machine (machine.ts) decides, the microphone listens only in the states that
+  listen and while the page is in view, and requests go through the same `say` as typed ones.
 - Demo mode (DEMO_MODE=1) replays fixtures/demo-script.json with recorded plans, no model calls.
 - MOCK_MODEL=1 swaps the live model for a scripted one so the app runs with no keys.
 - DEMO_CLOCK=1: before a turn, move home time to the scene of the demo line heard (server needs
