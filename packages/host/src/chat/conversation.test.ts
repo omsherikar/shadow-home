@@ -306,4 +306,15 @@ describe('the conversation across a reload', () => {
     const answer: Message = { ...done('a', 'Hi.'), request: { text: 'hi', history: [] } };
     expect(toKeep([answer], []).messages[0]).not.toHaveProperty('request');
   });
+
+  test('drops the oldest history past its cap', () => {
+    const big = {
+      name: 'get_activity_log',
+      arguments: {},
+      structuredContent: { x: 'y'.repeat(50_000) },
+    };
+    const kept = toKeep([], [big, big, big, { name: 'heard', arguments: { text: 'last' } }]);
+    expect(kept.history.length).toBeLessThan(4);
+    expect(kept.history.at(-1)).toEqual({ name: 'heard', arguments: { text: 'last' } });
+  });
 });
