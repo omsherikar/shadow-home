@@ -34,16 +34,10 @@ const MAX_LINES = 3;
 export function HomeCard({ home, problem }: { home: HomeState | null; problem: string | null }) {
   if (problem) return <p className="card-message">{problem}</p>;
   if (!home) return <p className="card-message">Connecting to Shadow Home…</p>;
-  const people = Object.entries(home.presence);
-  const inHouse = people.filter(([, p]) => p === 'home').map(([id]) => capitalise(id));
   return (
     <div className="home-card">
       <p className="mode">{capitalise(home.mode)} mode</p>
-      <p className="people">
-        {inHouse.length === 0
-          ? 'Nobody is home'
-          : `${inHouse.join(', ')} ${inHouse.length === 1 ? 'is' : 'are'} home`}
-      </p>
+      <p className="people">{peopleHome(home)}</p>
       <ul className="zones">
         {home.zones.map((z) => (
           <li key={z.id}>
@@ -86,8 +80,17 @@ export function LogCard({ log, names }: { log: LogState; names: Names | undefine
   );
 }
 
-function capitalise(s: string): string {
+export function capitalise(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** "Om, Maya, Sam are home", or "Nobody is home". */
+export function peopleHome(home: Pick<HomeState, 'presence'>): string {
+  const inHouse = Object.entries(home.presence)
+    .filter(([, p]) => p === 'home')
+    .map(([id]) => capitalise(id));
+  if (inHouse.length === 0) return 'Nobody is home';
+  return `${inHouse.join(', ')} ${inHouse.length === 1 ? 'is' : 'are'} home`;
 }
 
 const RULE_STATUS: Record<RuleState['status'], string> = {
