@@ -10,6 +10,7 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
+import { sessionPace } from '../house/pace.ts';
 import {
   carriesPreview,
   guardFrom,
@@ -84,13 +85,41 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const askedHouse = useRef(false);
   const showEnds = useRef(0);
 
-  /** Ask the house to play something, or with `null` to show the home as it is. */
+  // During a turn the house waits for the screen: what it's asked to play goes to it once the plan
+  // view has the result, so drawing the house never holds up the device.
+  const holding = useRef(false);
+  const held = useRef<Omit<HouseRequest, 'id'> | null>(null);
+
+  /**
+   * Ask the house to play something, or with `null` to show the home as it is. It waits for the
+   * screen to draw what it was last sent, so the verdict is up before the house draws anything.
+   */
   const ask = useCallback((play: Omit<HouseRequest, 'id'>) => {
-    requests.current += 1;
     askedHouse.current = true;
-    showEnds.current = play.play ? performance.now() + showLength(play.play, SHOW_TIMING) : 0;
-    setHouseRequest({ id: requests.current, ...play });
+    if (holding.current) {
+      held.current = play;
+      return;
+    }
+    requests.current += 1;
+    const id = requests.current;
+    const apply = () => {
+      // A later request has taken its place.
+      if (id !== requests.current) return;
+      showEnds.current = play.play ? performance.now() + showLength(play.play, SHOW_TIMING) : 0;
+      setHouseRequest({ id, ...play });
+    };
+    const drawing = host.current?.drawn();
+    if (drawing) void drawing.then(apply);
+    else apply();
   }, []);
+
+  /** Pass on what the house was asked during the turn. */
+  const release = useCallback(() => {
+    holding.current = false;
+    const play = held.current;
+    held.current = null;
+    if (play) ask(play);
+  }, [ask]);
 
   // Kept within what the turn route accepts, so one large result can't refuse every later turn.
   const note = useCallback((entry: Remembered) => {
@@ -257,22 +286,25 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         // What was said goes in before what it led to: a turn with no calls ("no") closes the question.
         note({ name: 'heard', arguments: { text: words } });
         askedHouse.current = false;
+        holding.current = true;
         for (const call of turn.calls) remember(call);
         // A turn that played nothing ("no", the activity log) leaves the house showing the home.
         if (!askedHouse.current) ask({ play: null });
         await show(turn.calls);
+        release();
         if (client) await refreshHome(client);
         answer = turn.say;
       } catch (e) {
         note({ name: 'heard', arguments: { text: words } });
         answer = `Sorry, something went wrong: ${e instanceof Error ? e.message : String(e)}`;
       } finally {
+        release();
         working.current = false;
         setBusy(false);
       }
       await reply(answer);
     },
-    [client, line, note, refreshHome, remember, reply, show, ask],
+    [client, line, note, refreshHome, remember, reply, show, ask, release],
   );
 
   const toggleMic = useCallback(async () => {
@@ -318,7 +350,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     for (const step of demo) {
       await say(step.line);
       // Out loud (the recorded demo), each plan finishes playing in the house before the next line.
-      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const still =
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches || sessionPace() === 'still';
       const left = silent || still ? 0 : showEnds.current - performance.now();
       await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS + Math.max(0, left)));
     }

@@ -1,6 +1,6 @@
 import type { App } from '@modelcontextprotocol/ext-apps';
 import { useApp } from '@modelcontextprotocol/ext-apps/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Control, type Screen, screenFor, type Timeline } from './screen.ts';
 import { TemperatureView } from './TemperatureView.tsx';
 import { temperaturesFrom } from './temperature.ts';
@@ -60,6 +60,16 @@ export function PlanView() {
       created.ontoolresult = (r) => show(r as ToolResult);
     },
   });
+
+  // Each result drawn is reported with the view's size, so the host can tell it's on screen: the
+  // Echo Show host waits for it before the house beside the screen draws anything heavy.
+  useEffect(() => {
+    if (!app || shown.kind === 'waiting') return;
+    const page = document.documentElement;
+    app
+      .sendSizeChanged({ width: page.scrollWidth, height: page.scrollHeight })
+      .catch(() => undefined);
+  }, [app, shown]);
 
   const run = useCallback(
     async (control: Control) => {
