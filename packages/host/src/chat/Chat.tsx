@@ -37,6 +37,8 @@ export interface ChatProps {
   onRetry(m: Message): void;
   /** The small menu: "Play the demo", a new conversation. */
   menu: ReactNode;
+  /** Hands-free, always in view beside her name. */
+  voiceControl?: ReactNode;
 }
 
 const ACTIVITY_WORDS: Record<Activity, string> = {
@@ -114,6 +116,7 @@ export function Chat(props: ChatProps) {
             {ACTIVITY_WORDS[activity]}
           </span>
         </p>
+        {props.voiceControl}
         {props.menu}
       </header>
       <div className="chat-scroll" ref={list} onScroll={onScroll}>
