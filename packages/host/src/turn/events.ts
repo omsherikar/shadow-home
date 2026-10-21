@@ -47,3 +47,6 @@ export function encodeEvent({ event, data }: TurnEvent): string {
   // JSON.stringify escapes line breaks inside strings, so the data stays on one line.
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+
+/** A comment line: clients ignore it, and it keeps an idle connection open through proxies. */
+export const KEEP_ALIVE = ': keep-alive\n\n';
