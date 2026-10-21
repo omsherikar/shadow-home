@@ -1,7 +1,7 @@
 /*
- * The house panel while a plan plays: the timeline under the house, the step being acted out and
- * a device's name as it changes. The page around it can place the timeline with --timeline-left,
- * --timeline-right and --timeline-bottom.
+ * The house panel while a plan plays: the timeline under the house, the step being acted out, a
+ * device's name as it changes, and the card that says what each run came to. The page around it
+ * can place the timeline with --timeline-left, --timeline-right and --timeline-bottom.
  */
 
 /* Beside the device: across the panel, above the buttons along its bottom. */
@@ -268,4 +268,46 @@
 .pins[data-moving="yes"] .room-label:not(.with-temp),
 .pins[data-moving="yes"] .dot-name:not(.recent) {
   opacity: 0;
+}
+
+/* What each run came to, at the end, each beside the button that plays it again. */
+.house-card .end-card {
+  display: grid;
+  gap: 8px;
+  max-width: 600px;
+  margin-top: 12px;
+}
+
+.end-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.end-row button,
+.end-label {
+  flex: 0 0 auto;
+}
+
+.end-label {
+  font-size: 13px;
+}
+
+.end-row.verdict-SAFE .end-label {
+  color: var(--safe);
+}
+
+.end-row.verdict-UNSAFE .end-label {
+  color: var(--blocked);
+}
+
+.end-row.verdict-UNPROVEN .end-label {
+  color: var(--unsure);
+}
+
+.end-words {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.35;
 }
