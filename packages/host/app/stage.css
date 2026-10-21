@@ -78,7 +78,7 @@
 
 .house-zones {
   display: flex;
-  gap: 22px;
+  gap: 16px;
   margin: 12px 0 0;
 }
 
@@ -95,7 +95,7 @@
 .house-zones dd {
   margin: 0;
   font-family: var(--serif);
-  font-size: 22px;
+  font-size: 20px;
   font-variant-numeric: tabular-nums;
 }
 
