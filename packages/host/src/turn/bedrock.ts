@@ -179,23 +179,31 @@ function isQuestion(text: string): boolean {
 }
 
 /**
- * Which turn a reply belongs to (guard.ts, Context). A turn with no call is about the last check
- * only when the person asks about it; thanks, a no or a greeting is plain conversation.
+ * Which turn a reply belongs to (guard.ts, Context). With no call this turn, a turn is about a
+ * check when a check is still open and the person asks anything at all ("Is that safe?", "How
+ * bad is it?"), or when they ask about the last one (ASKS_ABOUT); thanks, a no, a greeting or
+ * small talk is plain conversation.
  */
 function turnOf(input: ModelInput): Turn {
   // The last call that spoke, even if the model called something quieter after it.
   const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
   if (spoke) return { context: 'plan', spoke };
   if (input.thisTurn.length > 0) return { context: 'read' };
-  const anchor = input.history.findLast((h) => hasSpeech(h.structuredContent));
-  if (anchor && ASKS_ABOUT.test(normalise(input.text))) {
+  const open = openCheck(input.history);
+  const last = input.history.findLast((h) => hasSpeech(h.structuredContent));
+  const anchor =
+    open && isQuestion(input.text)
+      ? open
+      : ASKS_ABOUT.test(normalise(input.text))
+        ? last?.structuredContent
+        : undefined;
+  if (anchor) {
     return {
       context: 'anchored',
-      anchor: anchor.structuredContent as { speech: { headline: string; reason?: string } },
+      anchor: anchor as { speech: { headline: string; reason?: string } },
     };
   }
-  const checkOpen = openCheck(input.history) !== undefined;
-  return { context: 'chat', afterPlan: anchor !== undefined, checkOpen };
+  return { context: 'chat', afterPlan: last !== undefined, checkOpen: open !== undefined };
 }
 
 /**
