@@ -23,6 +23,15 @@ async function status(options: AppOptions, host: string, origin?: string) {
   return res.status;
 }
 
+test('answers /health, which Cloud Run passes through, as it answers /healthz', async () => {
+  const app = createApp(service);
+  for (const path of ['/health', '/healthz']) {
+    const res = await app.request(path, { headers: { host: 'localhost:3000' } });
+    expect(res.status, path).toBe(200);
+    expect(await res.json(), path).toEqual({ ok: true });
+  }
+});
+
 describe('which requests the app accepts', () => {
   test("by default, only localhost: a rebinding page can't reach a local server", async () => {
     expect(await status({}, 'localhost:3000')).toBe(200);
