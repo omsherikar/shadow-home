@@ -1,7 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { type Anchor, NEAR_EVENT, paceSlices, speedAt } from './pacing.ts';
+import {
+  type Anchor,
+  NEAR_EVENT,
+  offsetMinutes,
+  paceSlices,
+  speedAt,
+  twilightsBetween,
+} from './pacing.ts';
 
 const HOUR = 3_600_000;
+const at = (local: string) => Date.parse(`${local}-06:00`);
 
 describe('the clock’s speed', () => {
   const event: Anchor = { atMs: 10 * HOUR, ...NEAR_EVENT };
@@ -41,5 +49,21 @@ describe('slices of a run’s clock', () => {
 
   test('a run of no length has nothing to slice', () => {
     expect(paceSlices(5, 5, [], 1000)).toEqual([]);
+  });
+});
+
+describe('dusk and dawn', () => {
+  test('fall in the morning and the evening, on the home’s own clock', () => {
+    const turns = twilightsBetween(at('2027-01-15T17:53:00'), at('2027-01-17T18:00:00'), '-06:00');
+    // Saturday's dawn and dusk, Sunday's dawn and dusk; Friday's dusk was before the start.
+    expect(turns).toHaveLength(4);
+    const hours = turns.map((t) => new Date(t - 6 * HOUR).getUTCHours());
+    expect(hours).toEqual([7, 17, 7, 17]);
+  });
+
+  test('offsets read as minutes east of UTC; anything else is UTC', () => {
+    expect(offsetMinutes('-06:00')).toBe(-360);
+    expect(offsetMinutes('+05:30')).toBe(330);
+    expect(offsetMinutes('Z')).toBe(0);
   });
 });
