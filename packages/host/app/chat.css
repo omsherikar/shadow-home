@@ -327,3 +327,52 @@
 .menu-items button:hover:not(:disabled) {
   background: rgb(255 238 214 / 8%);
 }
+
+/* Over the house, compact: smaller type, one row of suggestions that scrolls sideways. */
+.house-only .chat-head {
+  padding: 7px 10px 6px 12px;
+}
+
+.house-only .chat-title {
+  font-size: 16px;
+}
+
+.house-only .chat-scroll {
+  padding: 8px 12px 4px;
+}
+
+.house-only .msg.you {
+  font-size: 14px;
+}
+
+.house-only .msg.alexa .said {
+  font-size: 16px;
+}
+
+.house-only .offers {
+  flex-wrap: nowrap;
+  padding: 6px 12px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.house-only .offer {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.house-only .composer {
+  padding: 8px 10px 10px;
+}
+
+.house-only .composer input {
+  height: 40px;
+  font-size: 15px;
+}
+
+.house-only .round {
+  width: 40px;
+  height: 40px;
+}
