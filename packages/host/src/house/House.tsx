@@ -102,6 +102,9 @@ export default function House(props: HouseProps) {
       camera={{ fov: FOV, near: 0.5, far: 300, position: [0, 30, 30] }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
+        // Shadows are drawn again only when something that casts them moves (see Shadows).
+        gl.shadowMap.autoUpdate = false;
+        gl.shadowMap.needsUpdate = true;
         gl.domElement.addEventListener('webglcontextlost', props.onFail, { once: true });
       }}
     >
@@ -118,6 +121,7 @@ function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) 
     <>
       <Environment intensity={light.sky} />
       <KeyLight light={light} />
+      <Shadows light={light} devices={view.devices} presence={view.presence} />
       <CameraRig
         mode={mode}
         focus={view.focus}
@@ -136,6 +140,26 @@ function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) 
       {lean ? null : <Finish />}
     </>
   );
+}
+
+/**
+ * Draws the shadows again only when they change: the sun or moon moving, a device changing (a
+ * window swinging open), someone coming or going (they keep it drawn while they walk). The rest
+ * of the time the last shadows are reused, which saves a pass over the whole house each frame.
+ */
+function Shadows(props: {
+  light: Daylight;
+  devices: HouseView['devices'];
+  presence: HouseView['presence'];
+}) {
+  const gl = useThree((s) => s.gl);
+  // To half a degree: a sun that hasn't visibly moved keeps its shadows.
+  const sun = props.light.direction.map((v) => Math.round(v * 115)).join(',');
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each of these is a reason to redraw.
+  useLayoutEffect(() => {
+    gl.shadowMap.needsUpdate = true;
+  }, [gl, sun, props.devices, props.presence]);
+  return null;
 }
 
 /**
