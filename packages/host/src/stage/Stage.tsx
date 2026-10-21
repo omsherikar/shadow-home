@@ -49,7 +49,7 @@ export function Stage(props: StageProps) {
   const [drawer, setDrawer] = useState(false);
   const panel = useRef<HTMLElement>(null);
   const scale = useFit(panel);
-  const still = useReducedMotion();
+  const still = useMedia('(prefers-reduced-motion: reduce)');
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
   useEffect(() => {
@@ -138,17 +138,17 @@ class Contained extends Component<{ onError(): void; children: ReactNode }, { fa
   }
 }
 
-/** Whether the person asked for less motion, following the setting as it changes. */
-function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
+/** Whether a media query matches, following it as it changes: less motion, a phone's width. */
+export function useMedia(query: string): boolean {
+  const [matches, setMatches] = useState(false);
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReduced(query.matches);
+    const list = window.matchMedia(query);
+    const update = () => setMatches(list.matches);
     update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return reduced;
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
 }
 
 /** How far to scale the device down to fit its panel. */
