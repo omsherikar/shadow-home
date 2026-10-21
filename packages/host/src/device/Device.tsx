@@ -48,9 +48,10 @@ export interface DeviceProps {
 }
 
 /**
- * A simulated Echo Show and a chat beside it. What's said goes to the assistant; the screen draws
- * each result, the chat shows her answer, and then she says it. Results with a view go to the view;
- * the home, the activity log and new house rules the host draws itself.
+ * A simulated Echo Show and a chat beside it. What's said goes to the assistant as a stream: her
+ * words and steps show as they come, the screen draws each result as soon as its check is done, and
+ * then she says the answer. Results with a view go to the view; the home, the activity log and new
+ * house rules the host draws itself.
  */
 export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [client, setClient] = useState<Client | null>(null);
@@ -254,10 +255,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   }, []);
 
   /**
-   * One turn: the request goes to the assistant. Each call it made goes on screen (the house plays
-   * once the screen has drawn it), and her answer shows in the chat; then she says it. Saying
-   * something stops the device mid-sentence. `said` is what the chat shows as the person's line
-   * (what they tapped, when it differs from the words sent).
+   * One turn: the request goes to the assistant, and what comes back shows as it happens. Each
+   * finished call goes on screen at once (the house plays once the screen has drawn it); then
+   * she says the answer. Saying something stops the device mid-sentence. `said` is what the chat
+   * shows as the person's line (what they tapped, when it differs from the words sent).
    */
   const send = useCallback(
     async (request: TurnRequest, said: string) => {
@@ -275,6 +276,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       screenNote.current = undefined;
       askedHouse.current = false;
       holding.current = true;
+      const calls: ToolCall[] = [];
       // What was said goes in before what it led to, once it has led to something. A turn that
       // fails before then leaves the conversation as it was, and a question still open stays open.
       let heard = false;
@@ -283,10 +285,14 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         heard = true;
         note({ name: 'heard', arguments: { text: request.text } });
       };
+      // What she's doing, from the stream: a step running, then writing, until it ends.
+      const running = new Set<string>();
+      let wrote = false;
       let answer: string | null = null;
       let failure: string | null = null;
       const take = async (call: ToolCall) => {
         hear();
+        calls.push(call);
         remember(call);
         if (await show(call)) {
           // The screen has it: the house may play what it was asked, then waits for the next.
@@ -296,18 +302,21 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       };
       try {
         for await (const event of streamTurn(request)) {
-          // How the turn ends: its calls and answer, or what went wrong.
+          if (event.type === 'call') await take(event.call);
           if (event.type === 'done') {
-            for (const call of event.turn.calls) await take(call);
+            // A server that doesn't stream sends every call here; one that does, the same calls.
+            for (const call of event.turn.calls.slice(calls.length)) await take(call);
             hear();
             answer = event.turn.say;
           }
           if (event.type === 'error') failure = event.message;
-          if (event.type === 'done' || event.type === 'error') {
-            setMessages((m) =>
-              replace(m, alexa, (msg) => withEvent(msg, event, Date.now(), names.current)),
-            );
-          }
+          setMessages((m) =>
+            replace(m, alexa, (msg) => withEvent(msg, event, Date.now(), names.current)),
+          );
+          if (event.type === 'step' && event.state === 'running') running.add(event.id);
+          if (event.type === 'step' && event.state !== 'running') running.delete(event.id);
+          if (event.type === 'text') wrote = true;
+          setActivity(running.size > 0 ? 'working' : wrote ? 'answering' : 'thinking');
         }
       } catch (e) {
         if (process.env.NODE_ENV !== 'production') console.error('The turn failed:', e);
