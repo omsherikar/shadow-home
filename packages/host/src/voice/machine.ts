@@ -23,7 +23,8 @@ export type HandsFreeEvent =
   | { type: 'on' }
   | { type: 'off' }
   /** A final transcript from the microphone. */
-  | { type: 'heard'; text: string };
+  | { type: 'heard'; text: string }
+  | { type: 'timeout'; epoch: number };
 
 export type Effect =
   | { kind: 'send'; text: string }
@@ -84,5 +85,10 @@ export function next(state: HandsFree, event: HandsFreeEvent): Step {
       if (request) return send(state, request);
       return wake.woke ? waitFor(state, 'awake', true) : stay(state);
     }
+    case 'timeout':
+      if (event.epoch !== state.epoch || (state.mode !== 'awake' && state.mode !== 'answer')) {
+        return stay(state);
+      }
+      return stay({ ...state, mode: 'idle' });
   }
 }
