@@ -186,6 +186,16 @@ function Answer({ m }: { m: Message }) {
         </p>
       ) : null}
       {steps.length > 0 ? <Steps steps={steps} open={!finished} /> : null}
+      {m.details && m.details.length > 0 ? (
+        <details className="more">
+          <summary>Details</summary>
+          <ul>
+            {m.details.map((d) => (
+              <li key={d}>{d}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </li>
   );
 }
