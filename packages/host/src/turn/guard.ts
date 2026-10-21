@@ -38,6 +38,9 @@ export interface FilterFacts {
 
 /** The most one sentence may hold: the longest speech field (decision 40). */
 export const MAX_SENTENCE_WORDS = 25;
+const MAX_SENTENCES = 3;
+const MAX_WORDS_AFTER_RESULT = 40;
+const MAX_WORDS = 65;
 
 /**
  * Says, or denies, a verdict or its outcome: whether a plan is safe, allowed, needed or breaks a
@@ -311,4 +314,38 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (times.length > 0) return 'time';
   if (numbers.length > 0) return 'number';
   return null;
+}
+
+/**
+ * A reply's sentences, checked in their turn: the ones that may be said, in order, and why the
+ * others were dropped. A sentence ends at ., ! or ? before a space, or at a line break. Past
+ * three sentences, or the word budget (40 words after a result, 65 otherwise), the rest is
+ * dropped.
+ */
+export function filterReply(
+  words: string,
+  facts: FilterFacts,
+): { kept: string[]; dropped: Dropped[] } {
+  const kept: string[] = [];
+  const dropped: Dropped[] = [];
+  const budget =
+    facts.context === 'chat' || facts.context === 'read' ? MAX_WORDS : MAX_WORDS_AFTER_RESULT;
+  let count = 0;
+  for (const raw of words.split(/(?<=[.!?]["')\]]*)\s+|\n+/)) {
+    const sentence = raw.trim();
+    if (!sentence) continue;
+    const reason = dropReason(sentence, facts);
+    if (reason) {
+      dropped.push(reason);
+      continue;
+    }
+    const n = sentence.split(/\s+/).length;
+    if (kept.length >= MAX_SENTENCES || count + n > budget) {
+      dropped.push('long');
+      continue;
+    }
+    count += n;
+    kept.push(sentence);
+  }
+  return { kept, dropped };
 }
