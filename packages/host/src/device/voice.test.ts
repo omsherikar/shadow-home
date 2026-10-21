@@ -51,3 +51,22 @@ describe('a reply with several sentences', () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('a clip that never finishes properly still counts as finished', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  test('how long a clip may play: its length and a margin, or 10 s while unknown', async () => {
+    const { playLimitMs } = await import('./voice.ts');
+    expect(playLimitMs(3)).toBe(5000);
+    expect(playLimitMs(0.1)).toBe(2100);
+    expect(playLimitMs(Number.NaN)).toBe(10_000);
+    expect(playLimitMs(Number.POSITIVE_INFINITY)).toBe(10_000);
+  });
+});
