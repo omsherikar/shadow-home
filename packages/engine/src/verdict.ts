@@ -104,7 +104,8 @@ export interface CheckResult {
  *
  * UNSAFE: lint fails, or a rule breaks in the nominal run.
  * UNPROVEN: the nominal run holds but another run breaks a rule, or anything is unknown
- * (an untrusted sensor a rule depends on, a stretch of time the simulation can't cover).
+ * (an untrusted sensor a rule depends on, a stretch of time the simulation can't cover, or who's
+ * away when the plan sets away mode without saying).
  * SAFE: every run holds and every check is known.
  */
 export function check(home: Home, plan: Plan): CheckResult {
