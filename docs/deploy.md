@@ -126,6 +126,11 @@ the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only 
    and the same for `shadow-home-mcp` with `<mcp name>` (`gcloud components install beta` first).
    The domain-mapping API takes the same request without the beta component:
    `curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" -H 'content-type: application/json' https://us-central1-run.googleapis.com/apis/domains.cloudrun.com/v1/namespaces/<project>/domainmappings -d '{"apiVersion": "domains.cloudrun.com/v1", "kind": "DomainMapping", "metadata": {"name": "<host name>", "namespace": "<project>"}, "spec": {"routeName": "shadow-home-host"}}'`.
+3. At the DNS, a CNAME for each subdomain to `ghs.googlehosted.com`. A root domain can't have a
+   CNAME: give it the A and AAAA records Cloud Run lists for its mapping instead
+   (`gcloud beta run domain-mappings describe`, below).
+4. If the domain has CAA records, they must allow `pki.goog` and `letsencrypt.org`, which issue
+   the certificates.
 
 ### If a deploy goes wrong
 
