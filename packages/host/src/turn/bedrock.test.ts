@@ -394,16 +394,23 @@ describe('fixes for a live session', () => {
     expect(messages[0]?.content?.some((b) => b.toolResult)).toBe(false);
   });
 
-  test('a quieter call after the preview doesn’t replace the engine’s question', async () => {
-    const { converse } = fakeConverse(text('Want me to go ahead and fix things for you?'));
-    const model = bedrockModel({ converse, tools, home });
+  // Decision 108 replaces decision 65 here too: the headline and question are still the preview's,
+  // and the model's words are filtered, even with a quieter call after it.
+  test('a quieter call after the preview: the reply still speaks for the preview', async () => {
     const quiet: ToolCall = {
       name: 'get_home_state',
       arguments: {},
       result: { content: [{ type: 'text', text: 'state' }], structuredContent: { mode: 'home' } },
     };
-    expect(await model.next(input({ thisTurn: [previewCall, quiet] }))).toEqual({
-      say: 'Safe: TV off.',
+    const { converse } = fakeConverse(
+      text('Want me to go ahead and fix things for you?'),
+      text("That's the TV in the living room."),
+    );
+    const model = bedrockModel({ converse, tools, home });
+    const turn = input({ thisTurn: [previewCall, quiet] });
+    expect(await model.next(turn)).toEqual({ say: 'Safe: TV off.' });
+    expect(await model.next(turn)).toEqual({
+      say: "Safe: TV off. That's the TV in the living room.",
     });
   });
 
