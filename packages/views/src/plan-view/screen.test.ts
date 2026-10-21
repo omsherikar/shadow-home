@@ -609,4 +609,24 @@ describe('plain words on screen', () => {
       }).word,
     ).toBe('Nothing to undo');
   });
+
+  test('the timeline marks broken rules without their numbers', () => {
+    const v = (rule: string, firstAt: string) => ({
+      rule,
+      text: `Rule ${rule}.`,
+      author: 'om',
+      priority: 'comfort',
+      run: 'nominal',
+      firstAt,
+    });
+    const s = previewScreen(
+      preview('UNSAFE', 'T3', {
+        horizon: { start: NOW, end: '2027-01-17T18:00:00-06:00' },
+        violations: [v('R1', NOW), v('R2', NOW), v('R3', '2027-01-16T22:37:00-06:00')],
+      }),
+      names,
+    );
+    const rules = s.timeline?.lanes.find((l) => l.label === 'House rules');
+    expect(rules?.marks.map((m) => m.label)).toEqual(['2 rules break', 'A rule breaks']);
+  });
 });
