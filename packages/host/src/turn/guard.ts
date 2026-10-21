@@ -67,6 +67,9 @@ const OFFER =
 /** A bare yes or no, which says nothing on its own: "Yes.", "No, it isn't.", "Yep". */
 const FRAGMENT =
   /^(?:yes|yeah|yep|yup|no|nope|nah)\b[\s,.!]*(?:(?:it|that|this|they|he|she|the [\w\s']+?)\s+(?:is|isn't|are|aren't|was|wasn't|does|doesn't|did|didn't|can|can't|will|won't)\b)?[\s.!]*$/;
+/** Says a device, the home or the household is in some state, or got there. */
+const STATE =
+  /\b(?:(?:is|are|was|were|be|been|being|stays?|stayed|turns?|turned|switch(?:es|ed)?|left|leaves|keeps?|kept|goes|went|comes|came|gets?|got|remains?|remained|still)\s+(?:on|off|open|closed|shut|locked|unlocked|running|down|up|low|high|warm|cold|cool|hot|empty|home|away|out)|locked|unlocked|(?:un)?locking|turning (?:on|off)|switching (?:on|off)|set to|setting|on now|off now|right now|now (?:on|off|open|closed|locked|unlocked|set|running|in)|is now|are now|(?:in|to) (?:\w+ )?mode|secure|secured|insecure|unsecured|dim|dimmed|dimmer|brighter|lowered|raised|engaged|disengaged|armed|disarmed|heating|cooling|occupied|vacant|(?:nobody|no one|someone|everyone|everybody|anyone|somebody)\s+(?:is|'s)\s+(?:home|away|here|out|in))\b|°\s?[cf]\b/;
 
 const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
 const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
@@ -243,9 +246,10 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (OFFER.test(text)) return 'question';
   const { times, rest } = timesIn(text);
   const numbers = numbersIn(rest);
-  // After a check, or about one: no question, and no numbers or times, which the engine's
-  // words carry.
+  // After a check, or about one: no question, a state only as what would happen (nothing has
+  // run), and no numbers or times, which the engine's words carry.
   if (sentence.includes('?')) return 'question';
+  if (STATE.test(text) && !/\b(?:would|if)\b/.test(text)) return 'state';
   if (times.length > 0) return 'time';
   if (numbers.length > 0) return 'number';
   return null;
