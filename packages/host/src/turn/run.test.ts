@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from 'vitest';
+import type { TurnEvent } from './events.ts';
 import { runTurn, TurnDeadlineError, TurnStoppedError, within } from './run.ts';
 import type { Model } from './types.ts';
 
@@ -89,6 +90,64 @@ describe('a call left behind at the deadline', () => {
     await expect(within(failsLater, 0)).rejects.toBeInstanceOf(TurnDeadlineError);
     await new Promise((r) => setTimeout(r, 50));
     expect(unhandled).toEqual([]);
+  });
+});
+
+/** The events as the screen would follow them: consecutive words joined into one. */
+function followed(events: TurnEvent[]) {
+  const out: unknown[] = [];
+  for (const e of events) {
+    const last = out.at(-1) as { text?: string } | undefined;
+    if (e.event === 'text' && last?.text !== undefined) last.text += e.data.delta;
+    else if (e.event === 'text') out.push({ text: e.data.delta });
+    else if (e.event === 'step') out.push({ step: `${e.data.id} ${e.data.tool} ${e.data.state}` });
+    else out.push({ [e.event]: e.event === 'call' ? e.data.call.name : e.data });
+  }
+  return out;
+}
+
+describe('a turn as it happens', () => {
+  test('a tool call that fails or answers with an error is a failed step', async () => {
+    const events: TurnEvent[] = [];
+    const model: Model = {
+      async next(input) {
+        return input.thisTurn.length === 0
+          ? { call: { name: 'commit_plan', arguments: { planId: 'old' } } }
+          : { say: 'That plan has changed.' };
+      },
+    };
+    await runTurn(
+      model,
+      {
+        callTool: async () => ({ content: [{ type: 'text', text: 'stale' }], isError: true }),
+        resourceUriFor: () => undefined,
+      },
+      { text: 'yes', history: [] },
+      { emit: (e) => events.push(e) },
+    );
+    expect(followed(events).slice(0, 2)).toEqual([
+      { step: 's1 commit_plan running' },
+      { step: 's1 commit_plan failed' },
+    ]);
+
+    const thrown: TurnEvent[] = [];
+    await expect(
+      runTurn(
+        model,
+        {
+          callTool: async () => {
+            throw new Error('timed out');
+          },
+          resourceUriFor: () => undefined,
+        },
+        { text: 'yes', history: [] },
+        { emit: (e) => thrown.push(e) },
+      ),
+    ).rejects.toThrow('timed out');
+    expect(followed(thrown)).toEqual([
+      { step: 's1 commit_plan running' },
+      { step: 's1 commit_plan failed' },
+    ]);
   });
 });
 
