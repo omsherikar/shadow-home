@@ -16,6 +16,18 @@ export interface ModelStream extends AsyncIterable<Anthropic.MessageStreamEvent>
   finalMessage(): Promise<Anthropic.Message>;
 }
 
+/**
+ * For the voice loop's own model: no thinking, at the lowest effort. A person waits on every step,
+ * the steps are small (pick a tool, explain a result in a sentence or two), and Claude Haiku 5.5
+ * thinks by default. It accepts thinking turned off at effort low, medium or high; low is the
+ * least. Another model (ANTHROPIC_MODEL_ID) gets the API's defaults, since not every model takes
+ * these (Claude Sonnet 5.5 refuses thinking off).
+ */
+const QUICK = {
+  thinking: { type: 'disabled' as const },
+  output_config: { effort: 'low' as const },
+};
+
 /** The one call the loop makes, so tests can stand in for the API. */
 export interface MessagesApi {
   messages: {
@@ -75,10 +87,12 @@ export function toRequest(input: ConverseCommandInput): Anthropic.MessageStreamP
       : [],
   );
   const choice = input.toolConfig?.toolChoice;
+  const model = input.modelId ?? ANTHROPIC_MODEL_ID;
   return {
-    model: input.modelId ?? ANTHROPIC_MODEL_ID,
+    model,
     max_tokens: input.inferenceConfig?.maxTokens ?? 1024,
     // No temperature: the current Claude models refuse it (deprecated) and pick their own.
+    ...(model === ANTHROPIC_MODEL_ID ? QUICK : {}),
     ...(system ? { system } : {}),
     messages: (input.messages ?? []).map(toMessage),
     ...(tools.length === 0
