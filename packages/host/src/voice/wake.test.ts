@@ -23,6 +23,15 @@ describe('the wake word', () => {
     }
   });
 
+  test('as speech recognition often writes it, when that is the first thing said', () => {
+    for (const heard of ['Alexia', 'a lexa', 'Alexis', 'Elexa', "Alexa's", 'hey Alexia']) {
+      expect(parseWake(`${heard} what did you change`), heard).toEqual({
+        woke: true,
+        request: 'what did you change',
+      });
+    }
+  });
+
   test('anything without it is not for her', () => {
     for (const heard of [
       "I'm away for the weekend",
