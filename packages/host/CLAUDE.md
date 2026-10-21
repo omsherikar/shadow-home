@@ -32,7 +32,9 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   it doesn't play. Keep the number of lights fixed (dark when off): changing it rebuilds every
   shader mid-playback. The house never holds up the device: it plays only after the plan view
   reports it drew the result, and where frames are slow (src/house/pace.ts; software WebGL draws
-  lean) it shows each run's end instead of sweeping.
+  lean) it shows each run's end instead of sweeping. It acts out the plan's own changes first, then
+  runs the clock at its pace (src/house/pacing.ts) under a timeline (src/stage/Timeline.tsx) that
+  pauses, speeds up and drags; its styles live in src/stage/house-panel.css.
 - Render MCP App views in a sandboxed iframe through @modelcontextprotocol/ext-apps/app-bridge.
   If a tool result has no `_meta.ui.resourceUri`, draw its structuredContent yourself.
 - Every on-screen control has a spoken equivalent ("undo", "yes", "just the lights").
