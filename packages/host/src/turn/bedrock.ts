@@ -5,6 +5,7 @@ import type {
   Message,
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
+import { log } from '../log.ts';
 import { filterFacts, filterReply } from './guard.ts';
 import { normalise, spokenFrom } from './scripted.ts';
 import type {
@@ -68,7 +69,8 @@ const MAX_SAY_CHARS = 600;
  * Every sentence of the model's goes through the sentence filter first. The model's words are held
  * until its call ends: words before a tool call are never said (the step's label says what's
  * happening), and the reply's sentences go out once they've passed. The start of the model's first
- * tool call is passed on, when that's a tool on offer, since that's the one that runs.
+ * tool call is passed on, when that's a tool on offer, since that's the one that runs. Only how
+ * many sentences were kept and why the others were dropped is logged.
  */
 export function bedrockModel(options: {
   converse: Converse;
@@ -110,7 +112,13 @@ export function bedrockModel(options: {
         .join(' ')
         .trim();
       const turn = turnOf(input);
-      const { kept } = filterReply(words, factsFor(input, options.home, turn));
+      const { kept, dropped } = filterReply(words, factsFor(input, options.home, turn));
+      log('INFO', 'reply', {
+        context: turn.context,
+        kept: kept.length,
+        dropped: dropped.length,
+        why: [...new Set(dropped)].join(',') || undefined,
+      });
       const say = (text: string) => step.onEvent?.({ text });
       switch (turn.context) {
         case 'plan': {
