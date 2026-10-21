@@ -87,4 +87,12 @@ describe('a turn, her voice, and the answer', () => {
     const { state } = run([{ type: 'timeout', epoch: waiting.epoch }], waiting);
     expect(state.mode).toBe('idle');
   });
+
+  test('a typed request while listening goes through as a turn too', () => {
+    const waiting = run([{ type: 'turn-ended', asked: true }], asking()).state;
+    const { state } = run([{ type: 'turn-started' }], waiting);
+    expect(state.mode).toBe('thinking');
+    // Its timer no longer applies.
+    expect(run([{ type: 'timeout', epoch: waiting.epoch }], state).state.mode).toBe('thinking');
+  });
 });
