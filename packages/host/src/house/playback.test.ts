@@ -4,6 +4,7 @@ import type { LiveDevice } from './looks.ts';
 import {
   carriesPreview,
   changesBy,
+  chartOf,
   devicesAt,
   guardFrom,
   guarding,
@@ -497,5 +498,17 @@ describe('a new house rule’s sample day', () => {
         device: 'front_door_lock',
       },
     ]);
+  });
+});
+
+describe('the zone chart', () => {
+  const chart = chartOf(trace, 'garage', { minC: 4 }, 200, 80);
+
+  test('runs across the whole width, with the expected line inside the three runs’ spread', () => {
+    expect(chart.line.startsWith('M0.0,')).toBe(true);
+    expect(chart.line).toContain('L200.0,');
+    expect(chart.band.endsWith('Z')).toBe(true);
+    expect(chart.x(Date.parse(FRI))).toBe(0);
+    expect(chart.x(Date.parse(SUN))).toBe(200);
   });
 });
