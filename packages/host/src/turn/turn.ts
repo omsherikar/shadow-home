@@ -19,6 +19,7 @@ function namesOf(home: HomeBrief): Names {
  * up and the model's steps share the turn's `deadline` (ms since the epoch), so the person always
  * hears something before the host's own request timeout. On any failure before something ran,
  * past the deadline included, they hear the apology; `failure` says what went wrong, for the log.
+ * `signal` stops the turn (runTurn), setting up included.
  */
 export async function takeTurn(
   input: TurnRequest,
@@ -26,20 +27,21 @@ export async function takeTurn(
     connect: (deadline: number) => Promise<Tools>;
     model: (tools: Tools, home: HomeBrief) => Promise<Model>;
     deadline: number;
+    signal?: AbortSignal;
   },
 ): Promise<{ turn: TurnResponse & { error?: string }; failure?: unknown }> {
-  const { deadline } = options;
+  const { deadline, signal } = options;
   const left = () => deadline - Date.now();
   let tools: Tools | undefined;
   const connecting = options.connect(deadline);
   try {
-    tools = await within(connecting, left());
-    const home = await within(tools.homeBrief(), left());
+    tools = await within(connecting, left(), signal);
+    const home = await within(tools.homeBrief(), left(), signal);
     // Names come from the home itself, so what "the thermostat" means never depends on what the
     // browser happened to see before (a reload, a log with no names).
     const request: TurnRequest = { ...input, names: namesOf(home) };
-    const model = await within(options.model(tools, home), left());
-    return { turn: await runTurn(model, tools, request, { deadline }) };
+    const model = await within(options.model(tools, home), left(), signal);
+    return { turn: await runTurn(model, tools, request, { deadline, signal }) };
   } catch (e) {
     const error = e instanceof Error ? e.name : 'Error';
     return { turn: { say: APOLOGY, calls: [], error }, failure: e };
