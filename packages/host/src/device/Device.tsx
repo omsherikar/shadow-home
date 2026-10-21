@@ -74,11 +74,14 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const screenNote = useRef<string | undefined>(undefined);
   const working = useRef(false);
   const turnSeq = useRef(0);
+  const taps = useRef(0);
   const mic = useRef<{ stop(): void } | null>(null);
   const homeNow = useRef<LiveHome | null>(null);
   const requests = useRef(0);
   const askedHouse = useRef(false);
   const showEnds = useRef(0);
+  // Calls a tap on screen made, until the view says what the tap ended on.
+  const tapped = useRef<ToolCall[]>([]);
 
   // During a turn the house waits for the screen: what it's asked to play goes to it once the plan
   // view has the result, so drawing the house never holds up the device.
@@ -205,20 +208,41 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     const screenHost = new ScreenHost(viewBox.current, client, {
       onViewCall: (call) => {
         remember(call, 'screen');
+        tapped.current.push(call);
         void refreshHome(client);
       },
       onModelContext: (text, structured) => {
         screenNote.current = text;
+        const calls = tapped.current;
+        tapped.current = [];
         // A tap that changed nothing (Cancel, OK) closes the question on screen, and the house goes
         // back to the home as it is.
         if (structured?.closed === true) {
           note({ name: 'closed', arguments: {} });
           ask({ play: null });
         }
-        // Say what the tap ended on, once: not each call it made on the way there.
-        if (typeof structured?.say === 'string') {
-          note({ name: 'said', arguments: { text: structured.say } });
-          void voice(structured.say);
+        // The tap shows in the chat as the person's answer, and what it ended on as Alexa's.
+        taps.current += 1;
+        const id = `tap${taps.current}`;
+        const label = typeof structured?.tapped === 'string' ? structured.tapped : null;
+        const say = typeof structured?.say === 'string' ? structured.say : null;
+        setMessages((m) => {
+          let next = label ? [...m, { id: `${id}-you`, who: 'you' as const, text: label }] : m;
+          if (say) {
+            const answer: Message = { id: `${id}-alexa`, who: 'alexa', text: '', steps: [] };
+            const done = withEvent(
+              answer,
+              { type: 'done', turn: { say, calls } },
+              0,
+              names.current,
+            );
+            next = [...next, done];
+          }
+          return next;
+        });
+        if (say) {
+          note({ name: 'said', arguments: { text: say } });
+          void voice(say);
         }
       },
     });
