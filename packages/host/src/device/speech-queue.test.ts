@@ -179,7 +179,7 @@ describe('following a turn as it streams', () => {
       text(' Do it with 4 fixes instead?'),
       done(say),
     ];
-    let said: Promise<void> | null = null;
+    let said: Promise<boolean> | null = null;
     for (const event of events) said = speech.follow(event) ?? said;
     await v.drain();
     await said;
@@ -203,7 +203,7 @@ describe('following a turn as it streams', () => {
     // The clip arrives after the step, still before any done: the step alone keeps it unsaid.
     await v.arrive();
     expect(v.played).toEqual([]);
-    let said: Promise<void> | null = null;
+    let said: Promise<boolean> | null = null;
     for (const event of [step('done'), text('Done: TV off.'), done('Done: TV off.')]) {
       said = speech.follow(event) ?? said;
     }

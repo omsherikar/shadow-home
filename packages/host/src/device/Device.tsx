@@ -396,7 +396,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       let answer: string | null = null;
       let failure: string | null = null;
       // Her voice, a sentence at a time: what streams is spoken as each sentence is finished.
-      let spoken: Promise<void> | null = null;
+      let spoken: Promise<boolean> | null = null;
       const take = async (call: ToolCall) => {
         if (gone()) return;
         hear();
