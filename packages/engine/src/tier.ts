@@ -8,6 +8,7 @@ import { expandWrites } from './writes.ts';
  * How Alexa should confirm, highest that applies:
  * - T5 the plan breaks a rule that forbids it outright: refuse (never a plan with no actions)
  * - T3 UNSAFE: block, cite the rule, offer the safe part
+ * - T5 it sets away mode without saying who's away: refuse until a new preview says who
  * - T4 UNPROVEN: offer the proven part, ask one question
  * - T2 SAFE but irreversible, or it weakens security: one yes/no naming the consequence
  * - T1 SAFE and it reaches beyond the person asking: act, say who it affects
