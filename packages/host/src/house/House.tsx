@@ -3,7 +3,7 @@
 import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
@@ -120,7 +120,7 @@ function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
  * The finish: ambient occlusion where things meet, a glow on whatever is lit, and filmic tone
  * mapping. Nothing here needs a worker or WebAssembly.
  */
-function Finish() {
+const Finish = memo(function Finish() {
   return (
     <EffectComposer multisampling={4}>
       <N8AO halfRes aoRadius={0.9} distanceFalloff={0.7} intensity={3.6} color="#1b130d" />
@@ -128,7 +128,7 @@ function Finish() {
       <ToneMapping mode={ToneMappingMode.AGX} />
     </EffectComposer>
   );
-}
+});
 
 /** The sky's light on everything, from a local HDR file (nothing is fetched elsewhere). */
 function Environment({ intensity }: { intensity: number }) {

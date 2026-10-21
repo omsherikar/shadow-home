@@ -1,7 +1,7 @@
 'use client';
 
 import { useFrame, useLoader } from '@react-three/fiber';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import {
   CanvasTexture,
   type Material,
@@ -19,7 +19,13 @@ import { palette } from './palette.ts';
 const deg = (d: number) => (d * Math.PI) / 180;
 
 /** The house without its furniture and devices: ground, floors, walls, doors and built pieces. */
-export function Shell({ layout, devices }: { layout: HouseLayout; devices: LiveDevice[] | null }) {
+export const Shell = memo(function Shell({
+  layout,
+  devices,
+}: {
+  layout: HouseLayout;
+  devices: LiveDevice[] | null;
+}) {
   const device = (id: string | undefined) => devices?.find((d) => d.id === id);
   return (
     <>
@@ -45,7 +51,7 @@ export function Shell({ layout, devices }: { layout: HouseLayout; devices: LiveD
       ))}
     </>
   );
-}
+});
 
 /** Lets a JSX material take part in the shadow twin. */
 const twin = (m: Material | null) => ghostly(m);
