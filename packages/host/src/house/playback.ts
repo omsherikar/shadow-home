@@ -373,6 +373,8 @@ export interface Schedule {
   segments: Segment[];
 }
 
+const schedules = new WeakMap<Run, WeakMap<Timing, Schedule>>();
+
 /**
  * How a run plays in real time. It settles for a moment, then acts out the plan's own changes at
  * their time, one at a time, stopping after one that breaks a rule right then. Between them the
@@ -381,6 +383,8 @@ export interface Schedule {
  * stop).
  */
 export function schedule(run: Run, timing: Timing): Schedule {
+  const known = schedules.get(run)?.get(timing);
+  if (known) return known;
   const start = run.startMs;
   const end = Math.max(run.endMs, start);
   const clamp = (t: number) => Math.min(Math.max(t, start), end);
@@ -428,7 +432,11 @@ export function schedule(run: Run, timing: Timing): Schedule {
     at = t;
   }
   if (end > at) segments.push(...sweep(slices, at, end));
-  return { totalMs: segments.reduce((sum, s) => sum + s.realMs, 0), segments };
+  const made = { totalMs: segments.reduce((sum, s) => sum + s.realMs, 0), segments };
+  const forRun = schedules.get(run) ?? new WeakMap<Timing, Schedule>();
+  forRun.set(timing, made);
+  schedules.set(run, forRun);
+  return made;
 }
 
 /** The clock running from one home time to another, at the run's pace. */
