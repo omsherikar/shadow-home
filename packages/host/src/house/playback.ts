@@ -19,6 +19,15 @@ export interface Change {
   action?: number;
 }
 
+/**
+ * One of the plan's own changes acted out before the clock moves on: one device, or the devices
+ * one action changes the same way at the same moment (all the lights off).
+ */
+export interface Step {
+  atMs: number;
+  changes: Change[];
+}
+
 /** A moment worth stopping on: a rule breaking, or something the twin couldn't establish. */
 export interface Break {
   /** A rule broken, a rule that may break, a reading that can't be trusted, or a rule's hours starting. */
@@ -128,6 +137,8 @@ export interface Run {
   offset: string;
   /** Every change, in the order the house makes them: by time, the plan's own first. */
   changes: Change[];
+  /** The plan's own changes, acted out one at a time when the clock reaches them. */
+  steps: Step[];
   breaks: Break[];
   trace: Trace | null;
   /** Each zone's temperature limits from the house rules (the garage: 4 °C at least). */
@@ -186,6 +197,7 @@ export function runsFrom(
       )
       // By time; at the same moment the plan's own changes come first, as they're acted out.
       .sort((a, b) => a.atMs - b.atMs || Number(!actedOut(a)) - Number(!actedOut(b)));
+    const breaks = breaksOf(replay, startMs);
     return {
       planId,
       label,
@@ -195,7 +207,8 @@ export function runsFrom(
       endMs: Date.parse(preview.horizon.end),
       offset: preview.horizon.start.slice(-6),
       changes,
-      breaks: breaksOf(replay, startMs),
+      steps: stepsOf(changes, breaks),
+      breaks,
       trace: traces[planId] ?? null,
       limits,
       presence: presence.map((w) => ({
@@ -240,6 +253,38 @@ function previewIn(tool: string, sc: Record<string, unknown> | undefined): unkno
 /** Whether a change is one of the plan's own that the house acts out: a device, not the mode. */
 function actedOut(c: Change): boolean {
   return c.source === 'plan' && c.device !== 'home';
+}
+
+/**
+ * The plan's own changes as steps to act out. Changes one action makes the same way at the same
+ * moment play together (the lights going off), except one that breaks a rule right then: it gets
+ * a step of its own, so the stop on that rule follows it (the freezer, then "never turn off the
+ * garage freezer").
+ */
+export function stepsOf(changes: Change[], breaks: Break[]): Step[] {
+  const breaking = new Set(
+    breaks.filter((b) => b.kind !== 'unknown' && b.device).map((b) => `${b.atMs}|${b.device}`),
+  );
+  const steps: (Step & { alone: boolean })[] = [];
+  for (const c of changes) {
+    if (!actedOut(c)) continue;
+    const alone = breaking.has(`${c.atMs}|${c.device}`);
+    const last = steps.at(-1);
+    const before = last?.changes.at(-1);
+    const together =
+      last &&
+      before &&
+      !alone &&
+      !last.alone &&
+      before.atMs === c.atMs &&
+      before.action !== undefined &&
+      before.action === c.action &&
+      before.attr === c.attr &&
+      before.to === c.to;
+    if (together) last.changes.push(c);
+    else steps.push({ atMs: c.atMs, changes: [c], alone });
+  }
+  return steps.map(({ atMs, changes: made }) => ({ atMs, changes: made }));
 }
 
 /**
@@ -657,6 +702,7 @@ export function sampleDay(guard: Guard, nowIso: string): Run {
     endMs,
     offset,
     changes: [],
+    steps: [],
     breaks: [{ kind: 'guard', atMs: begins, text: guard.words, device: guard.device }],
     trace: null,
     limits: {},
