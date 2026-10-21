@@ -103,4 +103,15 @@ describe('speaking an answer as it streams', () => {
     await said;
     expect(v.played).toHaveLength(4);
   });
+
+  test('when the end says the same with other spacing, nothing is said twice', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.write('Done:  10 changes. ');
+    speech.write('Anything else?');
+    const said = speech.finish('Done: 10 changes.\nAnything else?');
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual(['Done: 10 changes.', 'Anything else?']);
+  });
 });
