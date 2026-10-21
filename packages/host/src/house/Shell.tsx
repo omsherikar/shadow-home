@@ -212,7 +212,7 @@ function Floor({ room, layout }: { room: Room; layout: HouseLayout }) {
   );
 }
 
-/** The walls: solid in the real house, half see-through in the twin. */
+/** The walls: solid in the real house, a little see-through in the twin. */
 function Walls({ layout }: { layout: HouseLayout }) {
   const pieces = useMemo(() => wallPieces(layout), [layout]);
   const plaster = useMemo(() => {
@@ -231,7 +231,7 @@ function Walls({ layout }: { layout: HouseLayout }) {
   }, []);
   // Always blended, so turning see-through costs no shader rebuild mid-playback.
   useFrame(() => {
-    for (const m of [plaster, cut]) m.opacity = 1 - 0.5 * ghost.value;
+    for (const m of [plaster, cut]) m.opacity = 1 - 0.2 * ghost.value;
   });
   return (
     <group>
