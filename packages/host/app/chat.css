@@ -189,6 +189,65 @@
   }
 }
 
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+
+.step-mark {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+
+.step.running .step-mark {
+  border: 2px solid var(--ring);
+  border-top-color: transparent;
+  animation: ring-turn 0.8s linear infinite;
+}
+
+.step.done .step-mark {
+  background: var(--safe);
+  -webkit-mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5 5 9l5-6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  mask:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5 5 9l5-6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.step.failed {
+  color: var(--ink-muted);
+}
+
+.step.failed .step-mark {
+  border: 2px solid var(--ink-muted);
+}
+
+.steps-done {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.steps-done summary {
+  width: fit-content;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
 .chat-notice {
   margin: 12px 0 0;
   color: var(--ink-muted);
