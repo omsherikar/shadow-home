@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { TurnRequest } from '../turn/types.ts';
-import { eventFrom, eventParser, streamTurn, type TurnEvent } from './stream.ts';
+import { eventFrom, eventParser, refusal, streamTurn, type TurnEvent } from './stream.ts';
 
 const CALL = {
   name: 'preview_plan',
@@ -222,5 +222,23 @@ describe('a turn as it streams', () => {
     expect(events[0]).toEqual({ type: 'text', delta: 'Let me' });
     expect(events[1]).toMatchObject({ type: 'error', retryable: true });
     expect(events).toHaveLength(2);
+  });
+
+  test('a refusal before streaming is plain words, never a status code', async () => {
+    for (const status of [400, 403, 500, 502]) {
+      const { fake } = answering('{"error":"Bad turn request"}', {
+        status,
+        type: 'application/json',
+      });
+      const events = await all(streamTurn(REQUEST, { fetch: fake }));
+      expect(events).toHaveLength(1);
+      const [e] = events;
+      expect(e?.type).toBe('error');
+      if (e?.type !== 'error') continue;
+      expect(e.message).not.toMatch(/\d{3}|failed|error/i);
+      expect(e.retryable).toBe(status >= 500);
+    }
+    expect(refusal(429, '90')).toMatchObject({ retryable: true, retryAfterMs: 90_000 });
+    expect(refusal(429, null)).not.toHaveProperty('retryAfterMs');
   });
 });
