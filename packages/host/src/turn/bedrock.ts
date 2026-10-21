@@ -5,8 +5,17 @@ import type {
   Message,
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
+import { filterFacts, filterReply } from './guard.ts';
 import { spokenFrom } from './scripted.ts';
-import type { Model, ModelEvent, ModelInput, ModelStep, Remembered, StepOptions } from './types.ts';
+import type {
+  Model,
+  ModelEvent,
+  ModelInput,
+  ModelStep,
+  Remembered,
+  StepOptions,
+  ToolCall,
+} from './types.ts';
 
 /**
  * One Converse call. The real one goes to Bedrock or, translated, to the Anthropic API; tests pass
@@ -38,12 +47,18 @@ export const DEFAULT_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 const MAX_TOKENS = 1024;
 const HISTORY = 30;
 
+/** The longest line /api/speak will say. */
+const MAX_SAY_CHARS = 600;
+
 /**
  * The Converse loop as a `Model` (Bedrock, or the Anthropic API through anthropic.ts): one step
- * per call. It returns the first tool the model asks for, or, once it answers in words, the
- * server's speech fields for what it just did (its own words only when no tool spoke, such as the
- * activity log). As the model writes, its words are passed on, and so is the start of its first
- * tool call when that's a tool on offer, since that's the one that runs.
+ * per call. It returns the first tool the model asks for, or, once it answers, what's said
+ * (decision 108). After a call that spoke this turn (a check, a commit, an undo, a rule), that's
+ * the engine's headline, the model's sentences that pass the sentence filter (guard.ts), and the
+ * engine's question; with none, the engine's template. With no call that spoke, it's the model's
+ * own words. The model's words are held until its call ends: words before a tool call are never
+ * said (the step's label says what's happening). The start of the model's first tool call is
+ * passed on, when that's a tool on offer, since that's the one that runs.
  */
 export function bedrockModel(options: {
   converse: Converse;
@@ -57,11 +72,10 @@ export function bedrockModel(options: {
     async next(input: ModelInput, step: StepOptions = {}): Promise<ModelStep> {
       let firstTool = true;
       const onEvent = (event: ModelEvent) => {
-        if ('text' in event) step.onEvent?.(event);
-        else if (firstTool) {
-          firstTool = false;
-          if (offered.has(event.tool)) step.onEvent?.(event);
-        }
+        // Words are read once the call ends; only the start of the first tool call goes now.
+        if ('text' in event || !firstTool) return;
+        firstTool = false;
+        if (offered.has(event.tool)) step.onEvent?.(event);
       };
       const out = await options.converse(
         {
@@ -81,16 +95,46 @@ export function bedrockModel(options: {
           call: { name: use.name, arguments: (use.input ?? {}) as Record<string, unknown> },
         };
       }
-      // The last call that spoke, even if the model called something quieter after it.
-      const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
-      if (spoke) return { say: spokenFrom(structuredOf(spoke), spoke.result.content) };
       const words = blocks
         .map((b) => b.text ?? '')
         .join(' ')
         .trim();
+      // The last call that spoke, even if the model called something quieter after it.
+      const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
+      if (spoke) {
+        const { kept } = filterReply(words, factsFor(input, options.home, spoke));
+        return { say: sandwich(spoke, kept) };
+      }
       return { say: words || 'Okay.' };
     },
   };
+}
+
+/**
+ * The engine's headline, the model's sentences, and the engine's question. With no sentence of
+ * the model's, or too long to say, the engine's own words, as before.
+ */
+function sandwich(spoke: ToolCall, kept: string[]): string {
+  const sc = structuredOf(spoke) as Record<string, unknown>;
+  const template = spokenFrom(sc, spoke.result.content);
+  if (kept.length === 0) return template;
+  const speech = sc.speech as { headline: string; ask?: string };
+  const said = [speech.headline, ...kept, speech.ask].filter(Boolean).join(' ');
+  return said.length > MAX_SAY_CHARS ? template : said;
+}
+
+/**
+ * The facts a reply after a check is checked against: the home's names, and the check itself
+ * (for its quotes).
+ */
+function factsFor(input: ModelInput, home: HomeBrief, spoke: ToolCall) {
+  return filterFacts({
+    context: 'plan',
+    results: input.thisTurn.map((c) => c.result.structuredContent ?? c.result.content),
+    devices: home.devices,
+    routines: home.routines.map((r) => r.name),
+    about: structuredOf(spoke),
+  });
 }
 
 function structuredOf(c: { result: { structuredContent?: unknown } }) {
