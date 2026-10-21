@@ -440,4 +440,10 @@ describe('a new house rule’s sample day', () => {
       words: added.readBack,
     });
   });
+
+  test('shows nothing for words the server compiled, or a rule that wasn’t added', () => {
+    expect(guardFrom('add_house_rule', { text: args.text }, added)).toBeNull();
+    expect(guardFrom('add_house_rule', args, { status: 'unclear' })).toBeNull();
+    expect(guardFrom('preview_plan', args, added)).toBeNull();
+  });
 });
