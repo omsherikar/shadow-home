@@ -202,6 +202,11 @@ export function runsFrom(
   return runs;
 }
 
+/** Whether a tool result carries a preview: the house plays it, or shows the home as it is. */
+export function carriesPreview(tool: string, sc: Record<string, unknown> | undefined): boolean {
+  return previewIn(tool, sc) !== undefined;
+}
+
 function previewIn(tool: string, sc: Record<string, unknown> | undefined): unknown {
   if (!sc) return undefined;
   if (tool === 'preview_plan') return sc;
