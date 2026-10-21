@@ -50,7 +50,7 @@ export interface Row {
 
 /** One broken rule, as a chain: what caused it, when it breaks, whose rule, and the fix. */
 export interface Card {
-  /** The rule's ID, which the timeline marks too. */
+  /** The rule's ID: a key only, since rule numbers stay off the screen. */
   id: string;
   cause: string;
   at: string;

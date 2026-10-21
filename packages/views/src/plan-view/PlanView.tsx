@@ -228,7 +228,7 @@ function ScreenView({
               {s.cards.map((c) => (
                 <li key={c.id} className="card">
                   <div className="cause">
-                    <span className="tag">{c.id}</span> {c.cause} <span className="at">{c.at}</span>
+                    {c.cause} <span className="at">{c.at}</span>
                   </div>
                   {c.breaks ? <div className="breaks">{c.breaks}</div> : null}
                   <div className="rule">
