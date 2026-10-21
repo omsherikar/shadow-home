@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { LiveDevice } from './looks.ts';
 import { type Run, runsFrom } from './playback.ts';
-import { fractionOf, markersOf, nightsOf, timeAtFraction } from './timeline.ts';
+import { fractionOf, markersOf, nightsOf, seeking, timeAtFraction } from './timeline.ts';
 
 const at = (local: string) => Date.parse(`${local}-06:00`);
 const FRI = '2027-01-15T17:53:00-06:00';
@@ -99,5 +99,27 @@ describe('along the timeline', () => {
     expect(timeAtFraction(run, fractionOf(run, saturday))).toBe(saturday);
     expect(timeAtFraction(run, -1)).toBe(run.startMs);
     expect(timeAtFraction(run, 2)).toBe(run.endMs);
+  });
+});
+
+describe('moving the timeline', () => {
+  const playing = { playing: true, resume: false };
+
+  test('a drag holds the show while held, and it plays on after if it was playing', () => {
+    const held = seeking(playing, 'start');
+    expect(held).toEqual({ playing: false, resume: true });
+    expect(seeking(held, 'move')).toEqual(held);
+    expect(seeking(held, 'end')).toEqual({ playing: true, resume: false });
+    // Paused when the drag began, it stays paused.
+    const paused = { playing: false, resume: false };
+    expect(seeking(seeking(paused, 'start'), 'end')).toEqual(paused);
+  });
+
+  test('a step with the keys leaves playing as it is, whatever a drag did before', () => {
+    // Drag while playing, let go, pause, then step with a key: still paused.
+    let state = seeking(seeking(playing, 'start'), 'end');
+    state = { ...state, playing: false };
+    expect(seeking(state, 'key')).toEqual({ playing: false, resume: false });
+    expect(seeking(playing, 'key')).toEqual(playing);
   });
 });
