@@ -10,7 +10,14 @@ import {
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
-import { carriesPreview, guardFrom, runsFrom, sampleDay } from '../house/playback.ts';
+import {
+  carriesPreview,
+  guardFrom,
+  runsFrom,
+  SHOW_TIMING,
+  sampleDay,
+  showLength,
+} from '../house/playback.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
@@ -75,11 +82,13 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const homeNow = useRef<LiveHome | null>(null);
   const requests = useRef(0);
   const askedHouse = useRef(false);
+  const showEnds = useRef(0);
 
   /** Ask the house to play something, or with `null` to show the home as it is. */
   const ask = useCallback((play: Omit<HouseRequest, 'id'>) => {
     requests.current += 1;
     askedHouse.current = true;
+    showEnds.current = play.play ? performance.now() + showLength(play.play, SHOW_TIMING) : 0;
     setHouseRequest({ id: requests.current, ...play });
   }, []);
 
@@ -303,14 +312,18 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     screenNote.current = undefined;
     setTranscript([]);
     setChip(null);
+    ask({ play: null });
     setScreen({ kind: 'home' });
     if (client) await refreshHome(client);
     for (const step of demo) {
       await say(step.line);
-      await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS));
+      // Out loud (the recorded demo), each plan finishes playing in the house before the next line.
+      const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const left = silent || still ? 0 : showEnds.current - performance.now();
+      await new Promise((r) => setTimeout(r, DEMO_PAUSE_MS + Math.max(0, left)));
     }
     setDemoState('finished');
-  }, [client, demo, demoState, refreshHome, say]);
+  }, [client, demo, demoState, refreshHome, say, ask, silent]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
