@@ -6,10 +6,12 @@ import {
   detailsFor,
   followUpsFor,
   glanceFor,
+  KEEP_MESSAGES,
   type Message,
   problemWords,
   splitFollowUps,
   stopped,
+  toKeep,
   withEvent,
 } from './conversation.ts';
 
@@ -277,5 +279,26 @@ describe('the details view', () => {
     expect(detailsFor(call('preview_plan', preview({ violations: [v] })), names)).toEqual([
       'R2: “Keep the aquarium heater on.” Maya’s rule, comfort priority.',
     ]);
+  });
+});
+
+describe('the conversation across a reload', () => {
+  const done = (id: string, text: string): Message => ({
+    id,
+    who: 'alexa',
+    text,
+    phase: 'done',
+    steps: [],
+  });
+
+  test('keeps the last messages only, each cut short, and none still coming in', () => {
+    const many = Array.from({ length: KEEP_MESSAGES + 10 }, (_, i) =>
+      done(`m${i}`, 'x'.repeat(2000)),
+    );
+    const coming: Message = { id: 'live', who: 'alexa', text: 'Che', phase: 'talking' };
+    const kept = toKeep([...many, coming], []);
+    expect(kept.messages).toHaveLength(KEEP_MESSAGES);
+    expect(kept.messages.at(-1)?.id).toBe(`m${KEEP_MESSAGES + 9}`);
+    expect(kept.messages.every((m) => m.text.length <= 1200)).toBe(true);
   });
 });
