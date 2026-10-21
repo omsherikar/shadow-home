@@ -612,6 +612,21 @@ describe('while a blocked check is open, and after its fix is committed', () => 
       ),
     ).toEqual({ say: "Good morning! I'm doing well, thank you for asking." });
   });
+
+  test('a no to a blocked plan leaves it standing: reassurance still drops, and only a newer check replaces it', async () => {
+    const declined: Remembered[] = [
+      ...blocked,
+      { name: 'heard', arguments: { text: 'No.' } },
+      { name: 'said', arguments: { text: "Okay, I'll leave everything as it is." } },
+    ];
+    expect(await reply('Thanks.', declined, "You're good, it's not bad at all.")).toEqual({
+      say: NOT_SURE,
+    });
+    // A newer check (here, the fix committed) replaces it, and small talk is free again.
+    expect(await reply('Thanks.', fixed, "You're good, it's not bad at all.")).toEqual({
+      say: "You're good, it's not bad at all.",
+    });
+  });
 });
 
 describe('the demo', () => {
