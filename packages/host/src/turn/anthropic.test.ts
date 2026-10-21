@@ -1,3 +1,4 @@
+import type Anthropic from '@anthropic-ai/sdk';
 import type { ConverseCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
 import {
@@ -154,7 +155,18 @@ describe('the Anthropic API behind the Converse loop', () => {
     });
     expect(await model.next(input)).toEqual({ say: 'Here is your log.' });
     expect(sent[0]?.model).toBe('m');
-    expect(sent[0]?.system).toContain('- plug_tv: TV (Living room)');
+    // The instructions are cached, and the home's time after them isn't.
+    const [instructions, now] = (sent[0]?.system ?? []) as Anthropic.TextBlockParam[];
+    expect(instructions?.text).toContain('- plug_tv: TV (Living room)');
+    expect(instructions?.cache_control).toEqual({ type: 'ephemeral' });
+    expect(now).toEqual({
+      type: 'text',
+      text: "The home's time now is 2027-01-15T17:45:00-06:00, and the home is in home mode.",
+    });
+    expect(sent[0]?.tools?.at(-1)).toMatchObject({
+      name: 'commit_plan',
+      cache_control: { type: 'ephemeral' },
+    });
     expect(sent[0]?.messages).toEqual([
       { role: 'user', content: [{ type: 'text', text: 'turn off the TV' }] },
     ]);

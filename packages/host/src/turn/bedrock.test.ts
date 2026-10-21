@@ -83,10 +83,13 @@ describe('the Bedrock model', () => {
     expect(await model.next(input())).toEqual({
       call: { name: 'preview_plan', arguments: { intent: 'tv off' } },
     });
-    expect(sent[0]?.toolConfig?.tools?.map((t) => t.toolSpec?.name)).toEqual([
+    const offered = sent[0]?.toolConfig?.tools ?? [];
+    expect(offered.flatMap((t) => (t.toolSpec ? [t.toolSpec.name] : []))).toEqual([
       'preview_plan',
       'commit_plan',
     ]);
+    // The tools are cached, with a cache point after the last one.
+    expect(offered.at(-1)).toEqual({ cachePoint: { type: 'default' } });
     expect(sent[0]?.inferenceConfig?.temperature).toBe(0);
   });
 
