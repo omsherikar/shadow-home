@@ -208,6 +208,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const held = m?.held ?? [];
   const focusDevice = held.find((b) => b.device)?.device;
   const focus = !calm && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
+  const moving = !!show && begun && !calm && !done;
 
   const view: HouseView = {
     devices,
@@ -252,6 +253,7 @@ export const HousePanel = memo(function HousePanel(props: {
         pinned={pinned}
         inset={docked ? { top: cardBottom, bottom: 76 } : NO_INSET}
         still={calm}
+        moving={moving}
         onFail={props.onFail}
         lean={lean}
       />
