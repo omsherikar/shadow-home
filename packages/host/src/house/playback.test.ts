@@ -5,6 +5,7 @@ import {
   carriesPreview,
   changesBy,
   devicesAt,
+  guardFrom,
   homeClock,
   homeIso,
   moment,
@@ -408,5 +409,35 @@ describe('a show', () => {
       },
     });
     expect(withRules[0]?.limits).toEqual({ garage: { minC: 4, maxC: null } });
+  });
+});
+
+describe('a new house rule’s sample day', () => {
+  const args = {
+    text: 'Never unlock the front door between 10 PM and 6 AM unless I’m home.',
+    rule: {
+      template: 'never_when',
+      params: {
+        x: { device: 'front_door_lock', attr: 'lockState', eq: 'UNLOCKED' },
+        when: {
+          all: [
+            { time: { from: '22:00', to: '06:00' } },
+            { not: { presence: { member: 'om', is: 'home' } } },
+          ],
+        },
+      },
+    },
+  };
+  const added = {
+    status: 'added',
+    readBack: 'Between 10 PM and 6 AM the front door stays locked unless Om is home.',
+  };
+
+  test('guards the device the compiled rule names, in the hours it names', () => {
+    expect(guardFrom('add_house_rule', args, added)).toEqual({
+      device: 'front_door_lock',
+      windows: [{ from: 22 * 60, to: 6 * 60 }],
+      words: added.readBack,
+    });
   });
 });
