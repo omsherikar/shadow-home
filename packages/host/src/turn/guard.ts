@@ -93,6 +93,13 @@ const STATE =
 /** After a check, plain conversation may still not talk about it: "Thanks." can't get "It's safe." */
 const PLAN_TALK =
   /\b(?:safe|unsafe|risk\w*|danger\w*|allow\w*|approv\w*|block\w*|break\w*|broke\w*|violat\w*|rule|rules|plan|plans|fix|fixes|fixed|verdict|check|checked|proven|unproven|confirm\w*)\b/;
+/** What may be said to a no while a check waits, word for word. */
+const DECLINES = [
+  "okay, i'll leave everything as it is.",
+  "okay, i'll leave things as they are.",
+  "okay, i'll leave it as it is.",
+  'okay, nothing changed.',
+];
 
 const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
 const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
@@ -298,6 +305,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (said.split(/\s+/).filter(Boolean).length > MAX_SENTENCE_WORDS) return 'long';
   if (FRAGMENT.test(said)) return 'fragment';
   const { context } = facts;
+  if (context === 'chat' && facts.afterPlan && DECLINES.includes(said)) return null;
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time), and a rule's
   // own words are a quote ("Never turn off the garage freezer.").
   let text = said.replace(/[.!?]+$/, '');
