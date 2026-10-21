@@ -3,6 +3,7 @@ import {
   drawsInSoftware,
   type Judging,
   judge,
+  judgeFrame,
   NEW_PLAYBACK,
   paceFrom,
   SLOW_FRAME_MS,
@@ -92,5 +93,27 @@ describe('each playback finds its own pace', () => {
 
   test('so does less motion asked for', () => {
     expect(showsEnds('animate', true, false)).toBe(true);
+  });
+});
+
+describe('the frames that judge a playback', () => {
+  test('frames of the clock running decide it', () => {
+    const swept = [30, 17, 16, 17].reduce((j, gap) => judgeFrame(j, gap, true), NEW_PLAYBACK);
+    expect(swept.pace).toBe('animate');
+    const slow = [30, 200, 180, 220].reduce((j, gap) => judgeFrame(j, gap, true), NEW_PLAYBACK);
+    expect(slow.pace).toBe('still');
+  });
+
+  test('frames while the plan is acted out or stopped on a break don’t, unless far too slow', () => {
+    // Quick frames while the house acts out the plan settle nothing...
+    const acting = [16, 16, 16, 16, 16].reduce((j, gap) => judgeFrame(j, gap, false), NEW_PLAYBACK);
+    expect(acting.pace).toBe('unsure');
+    // ...so slow frames of the clock running still stop the sweep.
+    const thenSlow = [30, 200, 180, 220].reduce((j, gap) => judgeFrame(j, gap, true), acting);
+    expect(thenSlow.pace).toBe('still');
+    // A second or more a frame, as software WebGL draws, settles it whatever is on screen.
+    const crawling = [1000, 1000, 1000].reduce((j, gap) => judgeFrame(j, gap, false), NEW_PLAYBACK);
+    expect(crawling.pace).toBe('still');
+    expect(SLOW_FRAME_MS * 4).toBeLessThan(1000);
   });
 });
