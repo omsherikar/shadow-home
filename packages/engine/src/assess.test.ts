@@ -690,4 +690,14 @@ describe("away mode without saying who's away", () => {
     expect(a.tier.tier).toBe('T5');
     expect(a.speech).toEqual(WHO_IS_AWAY);
   });
+
+  test('saying who is away changes nothing: the weekend plan is UNSAFE with the four fixes', () => {
+    const a = assess(home, bench('P001'), { requestedBy: 'om' });
+    expect(a.check.unknowns).not.toContain(AWAY_UNSTATED);
+    expect(a.check.verdict).toBe('UNSAFE');
+    expect(a.tier.tier).toBe('T3');
+    expect(a.repaired?.check.verdict).toBe('SAFE');
+    expect(a.repaired?.detail.repairs).toHaveLength(4);
+    expect(a.speech.ask).toBe('Do it with 4 fixes instead?');
+  });
 });
