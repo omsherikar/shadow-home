@@ -3,13 +3,14 @@
 import { useFrame, useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import {
+  CanvasTexture,
   type Material,
   MeshStandardMaterial,
   RepeatWrapping,
   SRGBColorSpace,
   TextureLoader,
 } from 'three';
-import { groundBounds, houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
+import { houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
 import { ghost, ghostly } from './ghost.ts';
 import type { Built, HouseLayout, Opening, Room } from './layout.ts';
 import { type LiveHome, lookOf } from './looks.ts';
@@ -49,29 +50,48 @@ export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | 
 /** Lets a JSX material take part in the shadow twin. */
 const twin = (m: Material | null) => ghostly(m);
 
-/** A diorama plinth: lawn on top, soil at the sides, a drive to the garage and a path to the door. */
+/**
+ * The ground: a lawn that fades out into the sky behind it, a soft shadow where the house meets
+ * it, a drive to the garage and a path to the front door.
+ */
 function Grounds({ layout }: { layout: HouseLayout }) {
-  const { max } = houseBounds(layout);
-  const ground = groundBounds(layout);
-  const x0 = ground.min.x;
-  const x1 = ground.max.x;
-  const z0 = ground.min.z;
-  const z1 = ground.max.z;
+  const { min, max } = houseBounds(layout);
+  const cx = (min.x + max.x) / 2;
+  const cz = (min.z + max.z) / 2;
+  const fade = useMemo(() => radialFade(), []);
+  const shade = useMemo(() => softShadow(), []);
   const garageDoor = layout.openings.find((o) => o.kind === 'garage_door');
   const frontDoor = layout.openings.find((o) => o.kind === 'door' && o.from.z === max.z);
+  const reach = max.z + 4.5;
   return (
     <group>
-      <mesh position={[(x0 + x1) / 2, -0.18, (z0 + z1) / 2]} receiveShadow>
-        <boxGeometry args={[x1 - x0, -ground.min.y, z1 - z0]} />
-        <meshStandardMaterial color={palette.soil} roughness={1} />
+      <mesh rotation-x={-Math.PI / 2} position={[cx, 0, cz]} receiveShadow>
+        <circleGeometry args={[19, 64]} />
+        <meshStandardMaterial
+          color={palette.lawn}
+          roughness={1}
+          alphaMap={fade}
+          transparent
+          depthWrite={false}
+        />
       </mesh>
-      <Slab x0={x0} x1={x1} z0={z0} z1={z1} y={0.001} color={palette.lawn} />
+      {/* Where the house sits on the ground, a soft darkening around its footprint. */}
+      <mesh rotation-x={-Math.PI / 2} position={[cx, 0.002, cz]}>
+        <planeGeometry args={[max.x - min.x + 4, max.z - min.z + 4]} />
+        <meshBasicMaterial
+          color="#000000"
+          alphaMap={shade}
+          transparent
+          opacity={0.6}
+          depthWrite={false}
+        />
+      </mesh>
       {garageDoor ? (
         <Slab
           x0={garageDoor.from.x - 0.1}
           x1={garageDoor.to.x + 0.1}
           z0={max.z}
-          z1={z1}
+          z1={reach}
           y={0.004}
           color={palette.paving}
         />
@@ -82,7 +102,7 @@ function Grounds({ layout }: { layout: HouseLayout }) {
             x0={frontDoor.from.x + 0.05}
             x1={frontDoor.to.x - 0.05}
             z0={max.z}
-            z1={z1}
+            z1={reach}
             y={0.004}
             color={palette.path}
           />
@@ -98,6 +118,42 @@ function Grounds({ layout }: { layout: HouseLayout }) {
       ) : null}
     </group>
   );
+}
+
+/** White in the middle, fading to nothing at the rim: the lawn's edge melting into the haze. */
+function radialFade(): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext('2d');
+  if (g) {
+    const r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    r.addColorStop(0, '#ffffff');
+    r.addColorStop(0.5, '#ffffff');
+    r.addColorStop(1, '#000000');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 256, 256);
+  }
+  return new CanvasTexture(c);
+}
+
+/** A blurred rectangle the shape of the house's footprint, built up in soft steps. */
+function softShadow(): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 256;
+  const g = c.getContext('2d');
+  if (g) {
+    g.fillStyle = '#000000';
+    g.fillRect(0, 0, 256, 256);
+    const steps = 24;
+    for (let i = 0; i < steps; i++) {
+      const inset = 4 + i * 2.2;
+      g.fillStyle = `rgba(255, 255, 255, ${0.06})`;
+      g.fillRect(inset, inset, 256 - 2 * inset, 256 - 2 * inset);
+    }
+  }
+  return new CanvasTexture(c);
 }
 
 function Slab(p: { x0: number; x1: number; z0: number; z1: number; y: number; color: string }) {

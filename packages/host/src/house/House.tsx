@@ -93,7 +93,7 @@ function Finish() {
   );
 }
 
-/** The dusk sky's light on everything, from a local HDR file (nothing is fetched elsewhere). */
+/** The sky's light on everything, from a local HDR file (nothing is fetched elsewhere). */
 function Environment({ intensity }: { intensity: number }) {
   const hdr = useLoader(HDRLoader, layout.environment);
   const scene = useThree((s) => s.scene);
