@@ -511,4 +511,12 @@ describe('the zone chart', () => {
     expect(chart.x(Date.parse(FRI))).toBe(0);
     expect(chart.x(Date.parse(SUN))).toBe(200);
   });
+
+  test('draws the rule’s limit inside the chart, in the temperatures it spans', () => {
+    expect(chart.rangeC[0]).toBeLessThanOrEqual(1);
+    expect(chart.rangeC[1]).toBeGreaterThanOrEqual(9);
+    expect(chart.limitY).toBeGreaterThan(0);
+    expect(chart.limitY).toBeLessThan(80);
+    expect(chartOf(trace, 'garage', undefined, 200, 80).limitY).toBeNull();
+  });
 });
