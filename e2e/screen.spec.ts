@@ -65,6 +65,15 @@ async function fastFrames(page: Page) {
   for (let i = 0; i < 12; i++) await page.clock.fastForward(16);
 }
 
+/** Closes the demo controls' drawer, which covers the bottom of the house and its timeline. */
+async function closeControls(page: Page) {
+  const hide = page.getByRole('button', { name: 'Hide demo controls', exact: true });
+  if (await hide.isVisible()) await hide.click();
+}
+
+/** The house's clock running (not acting out the plan, nor stopped on a break). */
+const sweeping = (page: Page) => page.locator('.pins[data-phase="sweep"]');
+
 /**
  * Has WebGL give `name` as its renderer, whatever really draws: the house knows software WebGL
  * from it, so a GPU's name lets a test see the sweep in CI too, where SwiftShader draws.
@@ -176,7 +185,22 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   await page.getByRole('button', { name: WEEKEND }).click();
   const house = page.getByRole('region', { name: 'The house' });
   await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
-  // The playback judges its pace by its first frames; these come as fast as a GPU draws them.
+  // Before the clock moves, the plan's own changes happen one at a time, each named at its
+  // device; the freezer going off breaks R1, and the playback stops on it right then.
+  await stepUntil(page, house.getByText('Garage freezer off', { exact: true }), 200, 5000);
+  const r1 = house
+    .getByRole('status')
+    .filter({ hasText: /^Breaks Fri \d+:\d\d PM/ })
+    .filter({ hasText: 'Never turn off the garage freezer.' })
+    .filter({ hasText: 'Om’s rule' });
+  await stepUntil(page, r1, 200, 3000);
+  // The rest at four times the pace, so the test draws as few frames as before (stops on a
+  // break still last as long).
+  await closeControls(page);
+  await house.getByRole('button', { name: '4x speed' }).click();
+  // The playback judges its pace by the frames of its clock running; these come as fast as a GPU
+  // draws them.
+  await stepUntil(page, sweeping(page), 500, 10_000);
   await fastFrames(page);
   // The engine's own run: the playback stops where R3 breaks, its clock on the minute, and the
   // house's card gives the rule's words and whose rule it is.
