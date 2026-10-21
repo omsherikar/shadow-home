@@ -84,4 +84,27 @@ describe('a streamed response', () => {
       { event: 'error', data: { message: 'Sorry, something went wrong.', retryable: true } },
     ]);
   });
+
+  test('a client that goes away stops the turn: the request aborts, or the stream is cancelled', async () => {
+    const left = new AbortController();
+    let signal: AbortSignal | undefined;
+    eventStream(
+      async (_, s) => {
+        signal = s;
+        await new Promise(() => {});
+      },
+      { signal: left.signal },
+    );
+    expect(signal?.aborted).toBe(false);
+    left.abort();
+    expect(signal?.aborted).toBe(true);
+
+    let cancelled: AbortSignal | undefined;
+    const response = eventStream(async (_, s) => {
+      cancelled = s;
+      await new Promise(() => {});
+    });
+    await response.body?.cancel();
+    expect(cancelled?.aborted).toBe(true);
+  });
 });
