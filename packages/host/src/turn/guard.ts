@@ -36,6 +36,9 @@ export interface FilterFacts {
   names: string[];
   /** The rule texts and reasons of the check the turn is about, taken out too (they're quotes). */
   quotes: string[];
+  /** In a read turn: the times ("hour:minute", 24-hour) and numbers in this turn's results. */
+  times: Set<string>;
+  numbers: Set<number>;
 }
 
 /** The most one sentence may hold: the longest speech field (decision 40). */
@@ -238,10 +241,16 @@ export function numbersIn(text: string): number[] {
   return found;
 }
 
+const ISO_TIME = /^\d{4}-\d{2}-\d{2}T(\d{2}):(\d{2})/;
+/** Fields that hold IDs, counters and positions, not facts to say. */
+const NOT_FACTS = /(?:id|index|version|token|dropped|expiresat)$/i;
+
 /**
- * The facts a turn's sentences are checked against: the home's device and routine names, and the
+ * The facts a turn's sentences are checked against: the home's device and routine names; the
  * rule texts and reasons of the check the turn is about (this turn's, or the one a "why?" asks
- * about), which are quotes.
+ * about), which are quotes; and in a read turn, the times and numbers in this turn's results
+ * (each value, a decimal also rounded; ISO times as times, never numbers; IDs, counters and list
+ * lengths left out).
  */
 export function filterFacts(input: {
   context: Context;
@@ -257,11 +266,36 @@ export function filterFacts(input: {
     .map(lower)
     .sort((a, b) => b.length - a.length);
   const quotes = quotesOf(input.about).sort((a, b) => b.length - a.length);
+  const times = new Set<string>();
+  const numbers = new Set<number>();
+  const visit = (value: unknown, key = '') => {
+    if (NOT_FACTS.test(key)) return;
+    if (typeof value === 'number') {
+      numbers.add(Math.abs(value));
+      numbers.add(Math.round(Math.abs(value)));
+    } else if (typeof value === 'string') {
+      const iso = ISO_TIME.exec(value);
+      if (iso) times.add(`${Number(iso[1])}:${Number(iso[2])}`);
+      else {
+        const found = timesIn(value);
+        for (const keys of found.times) for (const k of keys) times.add(k);
+        for (const n of numbersIn(found.rest)) numbers.add(n);
+      }
+    } else if (Array.isArray(value)) {
+      for (const v of value) visit(v);
+    } else if (typeof value === 'object' && value !== null) {
+      const o = value as Record<string, unknown>;
+      for (const [k, v] of Object.entries(o)) visit(v, k);
+    }
+  };
+  if (input.context === 'read') for (const r of input.results) visit(r);
   return {
     context: input.context,
     afterPlan: input.afterPlan ?? false,
     names,
     quotes,
+    times,
+    numbers,
   };
 }
 
@@ -323,6 +357,11 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (OFFER.test(text)) return 'question';
   const { times, rest } = timesIn(text);
   const numbers = numbersIn(rest);
+  if (context === 'read') {
+    if (times.some((keys) => !keys.some((k) => facts.times.has(k)))) return 'time';
+    if (numbers.some((n) => !facts.numbers.has(n))) return 'number';
+    return null;
+  }
   // After a check, or about one: nothing that softens it, no question, a state only as what
   // would happen (nothing has run), and no numbers or times, which the engine's words carry.
   if (SOFTENING.some((p) => p.test(text))) return 'verdict';
