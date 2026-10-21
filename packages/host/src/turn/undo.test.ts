@@ -161,6 +161,63 @@ describe('undo after the weekend fix, against the real server', () => {
     expect(sc(undone, 1)).toMatchObject({ status: 'committed' });
     expect(undone.say).toMatch(/^Done: /);
   });
+
+  test("an undo that needs a yes says the engine's question, and a yes commits it", async () => {
+    const history: Remembered[] = [];
+    // The demo's weekend plan locks the doors; putting it back unlocks the front door: T2.
+    const script = JSON.parse(
+      readFileSync(join(import.meta.dirname, '../../../../fixtures/demo-script.json'), 'utf8'),
+    ) as { beats: { say: string; draftPlanExample: unknown[] }[] };
+    const beat = script.beats[0] as { say: string; draftPlanExample: unknown[] };
+    await turn(
+      history,
+      beat.say,
+      model(
+        callTool('preview_plan', () => ({
+          intent: beat.say,
+          requestedBy: 'om',
+          actions: beat.draftPlanExample,
+          ...AWAY,
+        })),
+        saying(''),
+      ),
+    );
+    await turn(
+      history,
+      'Yes.',
+      model(
+        callTool('commit_plan', () => ({ planId: findRepair(history), confirmed: true })),
+        saying(''),
+      ),
+    );
+    const asked = await turn(
+      history,
+      'Undo that.',
+      model(
+        callTool('undo', () => ({ token: 'last' })),
+        saying(''),
+      ),
+    );
+    expect(asked.calls.map((c) => c.name)).toEqual(['undo']);
+    const undo = sc(asked, 0) as {
+      speech: { headline: string; ask: string };
+      preview: { tier: string; planId: string };
+    };
+    expect(undo.preview.tier).toBe('T2');
+    expect(asked.say.startsWith(undo.speech.headline)).toBe(true);
+    expect(asked.say.endsWith(undo.speech.ask)).toBe(true);
+    // The history the page keeps gives the model the undo's plan ID for the yes.
+    const yes = await turn(
+      history,
+      'Yes.',
+      model(
+        callTool('commit_plan', () => ({ planId: undo.preview.planId, confirmed: true })),
+        saying(''),
+      ),
+    );
+    expect(sc(yes, 0)).toMatchObject({ status: 'committed' });
+    expect(yes.say).toMatch(/^Done: /);
+  });
 });
 
 /** The fix on offer in the last check the page kept. */
