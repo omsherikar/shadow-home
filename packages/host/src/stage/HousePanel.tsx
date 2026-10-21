@@ -197,13 +197,21 @@ export const HousePanel = memo(function HousePanel(props: {
         : (home?.devices ?? null),
     [show, run, applied, home],
   );
+  // While the clock winds back for the fixes, everyone stays where the next run starts them.
+  const next = show && m?.rewinding ? show.runs[m.run + 1] : undefined;
   const presenceNow =
-    show && run ? presenceAt(show.presence, run.presence, homeMs) : home?.presence;
+    show && run
+      ? next
+        ? presenceAt(show.presence, next.presence, next.startMs)
+        : presenceAt(show.presence, run.presence, homeMs)
+      : home?.presence;
   const presenceKey = JSON.stringify(presenceNow ?? null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: the same people, kept as one object.
   const presence = useMemo(() => presenceNow, [presenceKey]);
   const temps = run?.trace ? temperaturesAt(run.trace, homeMs) : null;
   const time = run ? homeIso(homeMs, run.offset) : (home?.now ?? '');
+  // Winding back, the sky stays where the run ended rather than flicker through two days.
+  const lightTime = run && m?.rewinding ? homeIso(run.endMs, run.offset) : time;
   const held = m?.held ?? [];
   const focusDevice = held.find((b) => b.device)?.device;
   const focus = !calm && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
@@ -212,7 +220,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const view: HouseView = {
     devices,
     presence,
-    time,
+    time: lightTime,
     zonesC: temps?.zonesC ?? null,
     shadow: m ? 1 : 0,
     focus,
@@ -220,7 +228,7 @@ export const HousePanel = memo(function HousePanel(props: {
     dolly: run && !calm ? fractionOf(run, homeMs) : null,
   };
 
-  const sky = skyColors(daylight(time));
+  const sky = skyColors(daylight(lightTime));
   const skyStyle = {
     '--sky-top': sky.top,
     '--sky-horizon': sky.horizon,
