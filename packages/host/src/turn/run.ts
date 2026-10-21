@@ -36,10 +36,13 @@ export class TurnStoppedError extends Error {
  *
  * `emit` hears the turn as it happens (decision 107): a step for each tool call (running from
  * when the model begins it, then done or failed), each call once it returns, and the words. Words
- * go out as pieces joined with a space. When the model answers, what's said follows on from the
- * words sent since its step began: only the part not yet sent goes out, or all of it when it
- * doesn't follow on. When `signal` aborts, the model stops writing and no further tool call
- * starts. A model step left behind is stopped too, and nothing it writes afterwards is sent.
+ * go out as pieces joined with a space, the engine's headline among them as soon as a call that
+ * speaks returns (decision 108).
+ * When the model answers, what's said follows on from the words sent since that headline (or
+ * since the model began, with no call speaking): only the part not yet sent goes out, such as the
+ * engine's question, or all of it when it doesn't follow on. When `signal` aborts, the model
+ * stops writing and no further tool call starts. A model step left behind is stopped too, and
+ * nothing it writes afterwards is sent.
  */
 export async function runTurn(
   model: Model,
@@ -64,8 +67,9 @@ export async function runTurn(
     if (!over) options.emit?.(event);
   };
   let anySaid = false;
-  // The pieces what's said will follow on from: the words sent since the model's step began.
+  // The pieces what's said will follow on from: since the last headline, or since the model began.
   let since: string[] = [];
+  let headlined = false;
   const say = (piece: string) => {
     const text = piece.trim();
     if (!text) return;
@@ -101,7 +105,7 @@ export async function runTurn(
       // step starts, since its answer would be thrown away and it costs a model call.
       if (now() >= deadline) throw new TurnDeadlineError('The turn ran out of time');
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
-      since = [];
+      if (!headlined) since = [];
       const step = await within(
         model.next({ ...request, thisTurn: calls }, { signal: stop.signal, onEvent }),
         deadline - now(),
@@ -126,6 +130,13 @@ export async function runTurn(
       const call: ToolCall = { ...step.call, result, ...(resourceUri ? { resourceUri } : {}) };
       calls.push(call);
       emit({ event: 'call', data: { call } });
+      // The engine's verdict, said as soon as it's known.
+      const headline = headlineOf(result);
+      if (headline) {
+        since = [];
+        headlined = true;
+        say(headline);
+      }
     }
     return finish(lastSpoken(calls) ?? UNFINISHED);
   } catch (e) {
@@ -164,6 +175,12 @@ export function within<T>(promise: Promise<T>, ms: number, signal?: AbortSignal)
     clearTimeout(timer);
     if (stopped) signal?.removeEventListener('abort', stopped);
   });
+}
+
+function headlineOf(result: CallToolResult): string | undefined {
+  const headline = (result.structuredContent as { speech?: { headline?: unknown } } | undefined)
+    ?.speech?.headline;
+  return typeof headline === 'string' ? headline : undefined;
 }
 
 function lastSpoken(calls: ToolCall[]): string | undefined {
