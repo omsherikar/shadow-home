@@ -13,6 +13,7 @@ import {
   homeIso,
   moment,
   playhead,
+  positionAt,
   presenceAt,
   REPLAY_META_KEY,
   type Run,
@@ -896,6 +897,34 @@ describe('playing, pausing, speeding up and dragging', () => {
   test('it never goes past the end', () => {
     expect(advance(runs, timing, total - 10, 5000, 4)).toBe(total);
     expect(advance(runs, timing, Number.POSITIVE_INFINITY, 16, 1)).toBe(total);
+  });
+
+  test('dragging to a time lands where the run shows that time', () => {
+    const plan = runs[0] as Run;
+    const saturdayNoon = at('2027-01-16T12:00:00');
+    const there = positionAt(runs, timing, 0, saturdayNoon);
+    expect(moment(runs, timing, there).homeMs).toBeCloseTo(saturdayNoon, -2);
+    expect(moment(runs, timing, there).phase).toBe('sweep');
+    // On a moment the clock stops at: the start of the stop, with its card.
+    const r3 = positionAt(runs, timing, 0, at('2027-01-16T22:37:00'));
+    expect(moment(runs, timing, r3)).toMatchObject({ phase: 'hold', held: [plan.breaks[1]] });
+    // Before the run, its start (before the steps); after it, its end.
+    expect(positionAt(runs, timing, 0, plan.startMs - 60_000)).toBe(0);
+    expect(moment(runs, timing, positionAt(runs, timing, 0, plan.endMs + 1)).homeMs).toBe(
+      plan.endMs,
+    );
+  });
+
+  test('dragging the plan with its fixes lands in its own part of the show', () => {
+    const fixed = runs[1] as Run;
+    const planLength = schedule(runs[0] as Run, timing.plan).totalMs;
+    const there = positionAt(runs, timing, 1, at('2027-01-16T12:00:00'));
+    expect(there).toBeGreaterThan(planLength + timing.pauseMs + timing.rewindMs);
+    expect(moment(runs, timing, there)).toMatchObject({ run: 1 });
+    // Played on its own, the same time sits at the same place in that run.
+    const alone = positionAt(runs, timing, 1, at('2027-01-16T12:00:00'), 1);
+    expect(moment(runs, timing, alone, 1).homeMs).toBeCloseTo(at('2027-01-16T12:00:00'), -2);
+    expect(fixed.startMs).toBe(Date.parse(FRI));
   });
 
   test('the speeds on offer', () => {
