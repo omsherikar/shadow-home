@@ -28,6 +28,12 @@ export type Dropped =
   | 'plain'
   | 'long';
 
+export interface FilterFacts {
+  context: Context;
+  /** The home's device and routine names, taken out before a sentence is checked. */
+  names: string[];
+}
+
 const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
 const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
 const TEEN_WORDS =
@@ -163,4 +169,20 @@ export function numbersIn(text: string): number[] {
     } else found.push(n);
   }
   return found;
+}
+
+/** The facts a turn's sentences are checked against: the home's device and routine names. */
+export function filterFacts(input: {
+  context: Context;
+  results: unknown[];
+  devices: { id: string; name: string }[];
+  routines: string[];
+}): FilterFacts {
+  const names = [...input.devices.map((d) => d.name), ...input.routines]
+    .map(lower)
+    .sort((a, b) => b.length - a.length);
+  return {
+    context: input.context,
+    names,
+  };
 }
