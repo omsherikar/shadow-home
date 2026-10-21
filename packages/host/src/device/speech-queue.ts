@@ -42,13 +42,14 @@ function round(): Round {
 }
 
 export function speechQueue(voice: Voice) {
-  const now = round();
+  let now = round();
 
   const queue = (r: Round, sentence: string) => {
     const text = line(sentence);
     const { signal } = r.controller;
     // One request at a time, in order.
     const clip = r.asked.then(async (): Promise<Clip> => {
+      if (signal.aborted) return { kind: 'browser', refused: false };
       return voice.fetch(text, signal).catch((): Clip => ({ kind: 'browser', refused: false }));
     });
     r.asked = clip;
@@ -59,12 +60,20 @@ export function speechQueue(voice: Voice) {
   const play = async (r: Round) => {
     const { signal } = r.controller;
     // Sentences queued while one plays join the same run.
-    for (let next = r.waiting.shift(); next; next = r.waiting.shift()) {
+    for (let next = r.waiting.shift(); next && !signal.aborted; next = r.waiting.shift()) {
       const clip = await next.clip;
+      if (signal.aborted) break;
       // A clip that can't play is skipped, not a reason to stop the rest.
       await voice.play(clip, next.text, signal).catch(() => undefined);
     }
     r.playing = null;
+  };
+
+  /** Stop at once: the sentence playing, every one waiting, and every clip on its way. */
+  const clear = () => {
+    now.controller.abort();
+    now.waiting.length = 0;
+    now = round();
   };
 
   return {
@@ -72,5 +81,6 @@ export function speechQueue(voice: Voice) {
     write(words: string): void {
       for (const sentence of now.split.push(words)) queue(now, sentence);
     },
+    clear,
   };
 }
