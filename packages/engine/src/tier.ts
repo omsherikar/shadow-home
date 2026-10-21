@@ -1,4 +1,5 @@
 import type { Home, Plan, Value } from '@shadow-home/twin';
+import { whoIsAwayUnknown } from './presence.ts';
 import type { ActionTag } from './reversibility.ts';
 import type { CheckResult } from './verdict.ts';
 import { expandWrites } from './writes.ts';
@@ -56,6 +57,11 @@ export function confirmationTier(
   }
   if (result.verdict === 'UNSAFE') {
     return { tier: 'T3', why: 'the plan is UNSAFE', affects: [], sensitive: [] };
+  }
+  // A yes to "Who's away?" says nothing about who's away, so it must not commit a plan whose
+  // rules for an empty house were never checked: only a new preview with presence can.
+  if (whoIsAwayUnknown(result)) {
+    return { tier: 'T5', why: "who's away isn't given", affects: [], sensitive: [] };
   }
   if (result.verdict === 'UNPROVEN') {
     return { tier: 'T4', why: 'the plan is UNPROVEN', affects: [], sensitive: [] };
