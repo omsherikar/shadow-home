@@ -123,4 +123,25 @@ describe('a turn over HTTP', () => {
     // `done` is the whole turn, as the JSON answer has it.
     expect(events[4]?.data).toEqual({ say: SAID, calls: [call] });
   });
+
+  test('a turn that fails with nothing done ends with an error the person can retry', async () => {
+    const route: TurnRoute = {
+      ...scriptedRoute(),
+      take: (input, options) =>
+        takeTurn(input, {
+          ...options,
+          connect: () => Promise.reject(new Error('connection refused')),
+          model: async () => scriptedModel(beats),
+        }),
+    };
+    const events = await readEvents(
+      await respondToTurn(turnRequest({ text: WEEKEND, history: [] }, STREAM), route),
+    );
+    expect(events).toEqual([
+      {
+        event: 'error',
+        data: { message: "Sorry, I can't reach my assistant model right now.", retryable: true },
+      },
+    ]);
+  });
 });
