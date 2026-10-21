@@ -7,6 +7,7 @@ import { houseLayout as layout } from '../house/layout.ts';
 import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../house/looks.ts';
 import { judge, NEW_PLAYBACK, type Pace, showsEnds } from '../house/pace.ts';
 import {
+  advance,
   type Break,
   chartOf,
   devicesAt,
@@ -104,15 +105,20 @@ export const HousePanel = memo(function HousePanel(props: {
   // frame comes after it however long that frame takes.
   const [begun, setBegun] = useState(false);
   const [only, setOnly] = useState<number | undefined>(undefined);
-  const [elapsed, setElapsed] = useState(0);
+  // Where the show is, in real milliseconds.
+  const [position, setPosition] = useState(0);
   // Whether this playback's frames come fast enough to sweep through the plan: found from its
   // first frames, afresh for every playback.
   const [pace, setPace] = useState<Pace>('unsure');
   const paceNow = useRef(pace);
   paceNow.current = pace;
-  const started = useRef(0);
+  const positionNow = useRef(position);
+  positionNow.current = position;
   const homeNow = useRef(home);
   homeNow.current = home;
+  // Known before a playback's frames: less motion asked for, or software WebGL.
+  const calmFromStart = useRef(still || lean);
+  calmFromStart.current = still || lean;
 
   // A new request starts a show from the house as it is now, or ends one.
   const requestId = request?.id;
@@ -133,12 +139,9 @@ export const HousePanel = memo(function HousePanel(props: {
       presence: live.presence,
     });
     setOnly(undefined);
-    setElapsed(0);
+    setPosition(calmFromStart.current ? Number.POSITIVE_INFINITY : 0);
     setPace('unsure');
-    const begin = () => {
-      started.current = performance.now();
-      setBegun(true);
-    };
+    const begin = () => setBegun(true);
     if (typeof requestIdleCallback === 'function') {
       const id = requestIdleCallback(begin, { timeout: 1000 });
       return () => cancelIdleCallback(id);
@@ -151,10 +154,10 @@ export const HousePanel = memo(function HousePanel(props: {
   // each run is shown where it ends: the plan first, then whichever is chosen.
   const calm = showsEnds(pace, still, lean);
   const shown = calm ? (only ?? 0) : only;
-  const m =
-    show && begun
-      ? moment(show.runs, SHOW_TIMING, calm ? Number.POSITIVE_INFINITY : elapsed, shown)
-      : null;
+  useEffect(() => {
+    if (calm) setPosition(Number.POSITIVE_INFINITY);
+  }, [calm]);
+  const m = show && begun ? moment(show.runs, SHOW_TIMING, position, shown) : null;
   // Waiting to begin isn't done: nothing about the show is on the house or its card yet.
   const done = show ? (m?.done ?? false) : true;
 
@@ -166,25 +169,29 @@ export const HousePanel = memo(function HousePanel(props: {
     let last = performance.now();
     let frame = requestAnimationFrame(function tick() {
       const now = performance.now();
+      const gap = now - last;
+      last = now;
+      const at = positionNow.current;
       if (judging) {
-        judging = judge(judging, now - last);
-        last = now;
+        judging = judge(judging, gap);
         if (judging.pace !== 'unsure') {
           setPace(judging.pace);
           if (judging.pace === 'still') return;
           judging = undefined;
         }
       }
-      setElapsed(now - started.current);
+      const next = advance(show.runs, SHOW_TIMING, at, gap, 1, shown);
+      positionNow.current = next;
+      setPosition(next);
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
-  }, [show, begun, calm, done]);
+  }, [show, begun, calm, done, shown]);
 
+  /** Play one run again from its start (in calm, show where it ends). */
   const replay = (i: number) => {
     setOnly(i);
-    started.current = performance.now();
-    setElapsed(0);
+    setPosition(calm ? Number.POSITIVE_INFINITY : 0);
   };
 
   const run = show && m ? show.runs[m.run] : undefined;
