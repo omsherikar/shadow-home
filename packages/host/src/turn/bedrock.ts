@@ -6,7 +6,7 @@ import type {
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
 import { filterFacts, filterReply } from './guard.ts';
-import { spokenFrom } from './scripted.ts';
+import { normalise, spokenFrom } from './scripted.ts';
 import type {
   Model,
   ModelEvent,
@@ -58,6 +58,9 @@ const MAX_SAY_CHARS = 600;
  * (decision 108), which depends on the turn (guard.ts):
  * - after a call that spoke this turn (a check, a commit, an undo, a rule): the engine's
  *   headline, the model's sentences, the engine's question; with none, the engine's template;
+ * - with no call this turn, when the person asks about a call that spoke earlier ("why?",
+ *   "what does that mean?"): that call's headline, then the model's sentences; with none, its
+ *   headline and reason;
  * - after read-only calls (the home's state, the log): the model's sentences; with none, the
  *   log's own summary, or NOT_SURE;
  * - in plain conversation (a greeting, thanks, a no, small talk): the model's sentences, or
@@ -115,6 +118,13 @@ export function bedrockModel(options: {
           kept.forEach(say);
           return { say: sandwich(turn.spoke, kept) };
         }
+        case 'anchored': {
+          const speech = turn.anchor.speech;
+          say(speech.headline);
+          kept.forEach(say);
+          const middle = kept.length > 0 ? kept : [speech.reason ?? ''];
+          return { say: [speech.headline, ...middle].filter(Boolean).join(' ') };
+        }
         default: {
           kept.forEach(say);
           if (kept.length > 0) return { say: kept.join(' ') };
@@ -131,16 +141,30 @@ export function bedrockModel(options: {
 
 type Turn =
   | { context: 'plan'; spoke: ToolCall }
+  | { context: 'anchored'; anchor: { speech: { headline: string; reason?: string } } }
   | { context: 'read' }
   | { context: 'chat'; afterPlan: boolean };
 
-/** Which turn a reply belongs to (guard.ts, Context). */
+/** Words that ask about the check on screen: "why?", "what does that mean?", "tell me more". */
+const ASKS_ABOUT =
+  /\b(?:why|what|how|explain|which|who|when|tell me more|tell me about|more about|go on)\b/;
+
+/**
+ * Which turn a reply belongs to (guard.ts, Context). A turn with no call is about the last check
+ * only when the person asks about it; thanks, a no or a greeting is plain conversation.
+ */
 function turnOf(input: ModelInput): Turn {
   // The last call that spoke, even if the model called something quieter after it.
   const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
   if (spoke) return { context: 'plan', spoke };
   if (input.thisTurn.length > 0) return { context: 'read' };
   const anchor = input.history.findLast((h) => hasSpeech(h.structuredContent));
+  if (anchor && ASKS_ABOUT.test(normalise(input.text))) {
+    return {
+      context: 'anchored',
+      anchor: anchor.structuredContent as { speech: { headline: string; reason?: string } },
+    };
+  }
   return { context: 'chat', afterPlan: anchor !== undefined };
 }
 
@@ -167,7 +191,12 @@ function factsFor(input: ModelInput, home: HomeBrief, turn: Turn) {
     results: input.thisTurn.map((c) => c.result.structuredContent ?? c.result.content),
     devices: home.devices,
     routines: home.routines.map((r) => r.name),
-    about: turn.context === 'plan' ? structuredOf(turn.spoke) : undefined,
+    about:
+      turn.context === 'plan'
+        ? structuredOf(turn.spoke)
+        : turn.context === 'anchored'
+          ? turn.anchor
+          : undefined,
     heard: input.text,
     afterPlan: turn.context === 'chat' && turn.afterPlan,
   });
