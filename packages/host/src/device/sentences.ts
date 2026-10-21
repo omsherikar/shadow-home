@@ -46,3 +46,23 @@ export function finishedSentences(text: string): { sentences: string[]; rest: st
   }
   return { sentences, rest: text.slice(start) };
 }
+
+/**
+ * Sentences from words arriving in pieces cut anywhere: `push` gives each sentence once it's
+ * finished, and `end` the last one, when no more words are coming.
+ */
+export function sentenceSplitter() {
+  let buffer = '';
+  return {
+    push(words: string): string[] {
+      const { sentences, rest } = finishedSentences(buffer + words);
+      buffer = rest;
+      return sentences;
+    },
+    end(): string[] {
+      const last = buffer.trim();
+      buffer = '';
+      return last ? [last] : [];
+    },
+  };
+}
