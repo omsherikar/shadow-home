@@ -155,6 +155,19 @@ export function bandBetween(top: number, bottom: number, height: number): Band {
   return { center: (bottom - top) / h, half: Math.max(0.1, (h - top - bottom) / h) };
 }
 
+/** A rectangle on screen, in pixels: a DOMRect is one. */
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Whether two rectangles on screen share any area (touching edges don't count). */
+export function overlaps(a: Box, b: Box): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
 /**
  * Stand the camera along `direction` from the middle of `bounds`, as close as it can be while
  * every corner stays inside the picture, `margin` (a fraction of the half-width or half-height)
