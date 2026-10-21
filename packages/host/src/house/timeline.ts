@@ -79,3 +79,19 @@ export function nightsOf(run: Run): { fromMs: number; toMs: number }[] {
   if (from !== null) out.push({ fromMs: from, toMs: run.endMs });
   return out.filter((n) => n.toMs > n.fromMs);
 }
+
+/** Where a home time sits along the run, from 0 at its start to 1 at its end. */
+export function fractionOf(run: Run, ms: number): number {
+  const span = run.endMs - run.startMs;
+  if (!(span > 0)) return 0;
+  return Math.min(1, Math.max(0, (ms - run.startMs) / span));
+}
+
+/** The home time at a point along the run (0 to 1), on the minute. */
+export function timeAtFraction(run: Run, fraction: number): number {
+  const f = Math.min(1, Math.max(0, fraction));
+  const ms = run.startMs + (run.endMs - run.startMs) * f;
+  if (f === 0) return run.startMs;
+  if (f === 1) return run.endMs;
+  return Math.min(run.endMs, Math.round(ms / 60_000) * 60_000);
+}
