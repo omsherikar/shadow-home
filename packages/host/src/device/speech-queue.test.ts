@@ -296,4 +296,15 @@ describe('stopping', () => {
     await v.drain();
     expect(v.played).toEqual([]);
   });
+
+  test('a new answer after a stop is said from its start', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.write('First answer. Still');
+    speech.clear();
+    const said = speech.say('Second answer.');
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual(['Second answer.']);
+  });
 });
