@@ -25,7 +25,7 @@ import {
   type Value,
   validateHome,
 } from '@shadow-home/twin';
-import type { Names, TemperatureRule } from '@shadow-home/views';
+import type { Names, Replay, TemperatureRule } from '@shadow-home/views';
 import type { z } from 'zod';
 import type { Clock } from './clock.ts';
 import { applyPlan, snapshot, sync } from './live-home.ts';
@@ -87,6 +87,8 @@ const CATCH_UP_LIMIT = 40;
 interface Drawing {
   traces: Record<string, TemperatureTrace>;
   rules: Record<string, TemperatureRule>;
+  /** Who each check took to be home, and the repair's run, which the result itself doesn't carry. */
+  replays: Record<string, Replay>;
 }
 
 /**
@@ -917,6 +919,19 @@ export class ShadowHomeService {
         ...(repairId && repairTrace ? { [repairId]: repairTrace } : {}),
       },
       rules: temperatureRules(home),
+      replays: {
+        [planId]: { presence: presenceOf(plan) },
+        ...(a.repaired && repairId
+          ? {
+              [repairId]: {
+                presence: presenceOf(a.repaired.plan),
+                timeline: a.repaired.check.timeline,
+                violations: violationsOf(a.repaired.check),
+                unknowns: a.repaired.check.unknowns,
+              },
+            }
+          : {}),
+      },
     });
     return out;
   }
@@ -1094,6 +1109,15 @@ function nothingLeft(info: UndoInfo): boolean {
     info.pauses.length === 0 &&
     !info.mode
   );
+}
+
+/** Who a plan's check takes to be home, window by window: its presence schedule, copied. */
+function presenceOf(plan: Plan): Replay['presence'] {
+  return (plan.context.presenceSchedule ?? []).map((w) => ({
+    from: w.from,
+    to: w.to,
+    presence: typeof w.presence === 'string' ? w.presence : { home: [...w.presence.home] },
+  }));
 }
 
 /** The rules a check found broken, in the nominal run or another, as a preview reports them. */
