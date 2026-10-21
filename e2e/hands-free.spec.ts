@@ -179,3 +179,22 @@ test('"Alexa" alone: she listens for the request, which needs no wake word', asy
   await hear(page, 'what did you change while I was away');
   await expect.poll(() => sent).toEqual(['what did you change while I was away']);
 });
+
+test('when the browser ends the session, the microphone starts again by itself', async ({
+  page,
+}) => {
+  await fakeMic(page);
+  await page.goto('/');
+  await pill(page).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { mic: Mic }).mic.starts))
+    .toBe(1);
+  // Chrome ends a session after a while of silence.
+  await page.evaluate(() => {
+    const live = (window as unknown as { mic: { live: { end(): void } | null } }).mic.live;
+    live?.end();
+  });
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { mic: Mic }).mic.starts))
+    .toBe(2);
+});
