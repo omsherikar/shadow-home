@@ -242,4 +242,17 @@ describe('the schedule', () => {
     expect(playhead(s, 0)).toEqual({ homeMs: run.startMs, held: [run.breaks[0]] });
     expect(playhead(s, s.totalMs).homeMs).toBe(run.endMs);
   });
+
+  test('home time only moves forward, and holds still at a break', () => {
+    let last = Number.NEGATIVE_INFINITY;
+    for (let real = 0; real <= s.totalMs; real += 50) {
+      const { homeMs } = playhead(s, real);
+      expect(homeMs).toBeGreaterThanOrEqual(last);
+      last = homeMs;
+    }
+    const r3 = run.breaks[1];
+    const stop = s.segments.find((seg) => seg.hold?.includes(r3 as never));
+    expect(stop?.fromMs).toBe(at('2027-01-16T22:37:00'));
+    expect(stop?.toMs).toBe(stop?.fromMs);
+  });
 });
