@@ -107,4 +107,22 @@ describe('a streamed response', () => {
     await response.body?.cancel();
     expect(cancelled?.aborted).toBe(true);
   });
+
+  test('a comment keeps a quiet connection open while a slow tool runs', async () => {
+    let finish: () => void = () => {};
+    const response = eventStream(
+      async (send) => {
+        await new Promise<void>((r) => {
+          finish = r;
+        });
+        send({ event: 'done', data: { say: 'Done.', calls: [] } });
+      },
+      { keepAliveMs: 5 },
+    );
+    await new Promise((r) => setTimeout(r, 40));
+    finish();
+    const text = await new Response(response.body).text();
+    expect(text.split(KEEP_ALIVE).length - 1).toBeGreaterThanOrEqual(3);
+    expect(text.endsWith('event: done\ndata: {"say":"Done.","calls":[]}\n\n')).toBe(true);
+  });
 });
