@@ -5,7 +5,7 @@ import { type CSSProperties, memo, useCallback, useEffect, useMemo, useRef, useS
 import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
 import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../house/looks.ts';
-import { judge, NEW_PLAYBACK, type Pace, showsEnds } from '../house/pace.ts';
+import { judgeFrame, NEW_PLAYBACK, type Pace, showsEnds } from '../house/pace.ts';
 import {
   advance,
   type Break,
@@ -108,7 +108,7 @@ export const HousePanel = memo(function HousePanel(props: {
   // Where the show is, in real milliseconds.
   const [position, setPosition] = useState(0);
   // Whether this playback's frames come fast enough to sweep through the plan: found from its
-  // first frames, afresh for every playback.
+  // first frames of the clock running, afresh for every playback.
   const [pace, setPace] = useState<Pace>('unsure');
   const paceNow = useRef(pace);
   paceNow.current = pace;
@@ -162,7 +162,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const done = show ? (m?.done ?? false) : true;
 
   // The clock runs while a show plays, then stops. Until this playback's pace is known, the gaps
-  // between its first frames decide it; too slow, and it goes straight to where the run ends.
+  // between its frames of the clock running decide it; too slow, and it goes to where the run ends.
   useEffect(() => {
     if (!show || !begun || calm || done) return;
     let judging = paceNow.current === 'unsure' ? NEW_PLAYBACK : undefined;
@@ -173,7 +173,8 @@ export const HousePanel = memo(function HousePanel(props: {
       last = now;
       const at = positionNow.current;
       if (judging) {
-        judging = judge(judging, gap);
+        const sweeping = moment(show.runs, SHOW_TIMING, at, shown).phase === 'sweep';
+        judging = judgeFrame(judging, gap, sweeping);
         if (judging.pace !== 'unsure') {
           setPace(judging.pace);
           if (judging.pace === 'still') return;
@@ -271,7 +272,7 @@ export const HousePanel = memo(function HousePanel(props: {
         onFail={props.onFail}
         lean={lean}
       />
-      <div className="pins" data-playing={show ? 'yes' : 'no'}>
+      <div className="pins" data-playing={show ? 'yes' : 'no'} data-phase={m?.phase ?? 'none'}>
         {layout.rooms.map((r) => {
           const c = temps?.zonesC[r.zone];
           const showTemp = c !== undefined && (r.id === 'garage' || r.id === 'living_room');
