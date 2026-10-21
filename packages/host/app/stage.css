@@ -110,10 +110,21 @@
   cursor: pointer;
 }
 
-.room-labels {
+.pins {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
+}
+
+/* A point on the house, placed on screen every frame the camera moves. */
+.pin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden;
 }
 
 .room-label {
