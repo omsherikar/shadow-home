@@ -55,3 +55,14 @@
     transform: translate(-50%, 6px);
   }
 }
+
+/* Fewer labels while the clock runs: only rooms with a temperature, and a device as it changes. */
+.room-label,
+.dot-name {
+  transition: opacity 0.3s;
+}
+
+.pins[data-moving="yes"] .room-label:not(.with-temp),
+.pins[data-moving="yes"] .dot-name:not(.recent) {
+  opacity: 0;
+}
