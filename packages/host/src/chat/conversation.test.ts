@@ -405,4 +405,23 @@ describe('the conversation across a reload', () => {
     expect(kept.history.length).toBeLessThan(4);
     expect(kept.history.at(-1)).toEqual({ name: 'heard', arguments: { text: 'last' } });
   });
+
+  test('starts afresh when what was kept is unreadable or storage refuses', () => {
+    const storage = memory();
+    storage.items.set(CONVERSATION_KEY, '{not json');
+    expect(loadConversation(storage)).toEqual({ messages: [], history: [] });
+    storage.items.set(CONVERSATION_KEY, JSON.stringify({ messages: 'many' }));
+    expect(loadConversation(storage)).toEqual({ messages: [], history: [] });
+    const refusing = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+    };
+    expect(loadConversation(refusing)).toEqual({ messages: [], history: [] });
+    expect(() => saveConversation(refusing, { messages: [], history: [] })).not.toThrow();
+    expect(loadConversation(null)).toEqual({ messages: [], history: [] });
+  });
 });
