@@ -13,6 +13,7 @@ import {
   ask as asked,
   type FollowUp,
   followUpsFor,
+  forgetConversation,
   loadConversation,
   type Message,
   replace,
@@ -489,6 +490,19 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
   }, [say]);
 
+  /** Start afresh: no conversation, the home screen, the house as it is. */
+  const forget = useCallback(() => {
+    stop();
+    history.current = [];
+    screenNote.current = undefined;
+    setMessages([]);
+    setFollowUps([]);
+    setNotice(null);
+    forgetConversation(browserStorage());
+    ask({ play: null });
+    setScreen({ kind: 'home' });
+  }, [ask, stop]);
+
   /** The whole demo, start to finish: a fresh home, then every line in order. */
   const playDemo = useCallback(async () => {
     if (!demo || demoState === 'playing' || working.current) return;
@@ -500,13 +514,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       setDemoState('idle');
       return;
     }
-    history.current = [];
-    screenNote.current = undefined;
-    setMessages([]);
-    setFollowUps([]);
-    setNotice(null);
-    ask({ play: null });
-    setScreen({ kind: 'home' });
+    forget();
     demoStopped.current = false;
     if (client) await refreshHome(client);
     for (const step of demo) {
@@ -519,7 +527,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     }
     setDemoState(demoStopped.current ? 'idle' : 'finished');
     setNotice(demoStopped.current ? 'Demo stopped.' : 'Demo finished.');
-  }, [client, demo, demoState, refreshHome, say, ask, silent]);
+  }, [client, demo, demoState, refreshHome, say, forget, silent]);
 
   const ready = client !== null && demoState !== 'playing';
   return (
@@ -591,6 +599,16 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
                     {demoState === 'playing' ? 'Playing the demo…' : 'Play the demo'}
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  disabled={busy || demoState === 'playing'}
+                  onClick={(e) => {
+                    e.currentTarget.closest('details')?.removeAttribute('open');
+                    forget();
+                  }}
+                >
+                  New conversation
+                </button>
               </div>
             </details>
           }

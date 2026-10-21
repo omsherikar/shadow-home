@@ -28,7 +28,7 @@ export interface ChatProps {
   /** Stop the answer coming in, or the voice. */
   onStop(): void;
   onRetry(m: Message): void;
-  /** The small menu: "Play the demo". */
+  /** The small menu: "Play the demo", a new conversation. */
   menu: ReactNode;
 }
 
