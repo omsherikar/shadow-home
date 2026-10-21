@@ -1,0 +1,54 @@
+/*
+ * The chat: Alexa's words in the house's serif, as she'd say them; the person's in the plain sans
+ * of the page. Her mark is the Echo's light ring, which moves only while she listens, thinks or
+ * speaks. Read on video at 1440 x 900, and on a phone with the composer pinned to the bottom.
+ */
+:root {
+  --ring: #67e8f9;
+  --ring-deep: #0ea5e9;
+  --you: #4a3a2d;
+  --well: rgb(255 238 214 / 7%);
+  --well-edge: rgb(255 238 214 / 11%);
+}
+
+.sr-only,
+.chat .who {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.chat-dock {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.chat {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--glass-edge);
+  border-radius: 22px;
+  background: rgb(26 21 17 / 82%);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  color: var(--ink);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* Only the messages give way when the chat is short; its head, suggestions and composer don't. */
+.chat > :not(.chat-scroll) {
+  flex-shrink: 0;
+}
+
+.chat :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
