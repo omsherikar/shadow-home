@@ -291,6 +291,51 @@
   font-size: 12px;
 }
 
+.run-chip {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 4px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.run-chip.plan {
+  color: var(--blocked);
+}
+
+.run-chip.fixed {
+  color: var(--safe);
+}
+
+.run-switch {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.run-switch button {
+  padding: 6px 12px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 25%);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.run-switch button[aria-pressed="true"].plan {
+  border-color: var(--blocked);
+  color: var(--blocked);
+}
+
+.run-switch button[aria-pressed="true"].fixed {
+  border-color: var(--safe);
+  color: var(--safe);
+}
+
 .drawer {
   position: absolute;
   right: 24px;
