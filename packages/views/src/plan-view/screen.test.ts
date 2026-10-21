@@ -268,6 +268,32 @@ describe('controls, each with the words that do the same by voice', () => {
     expect(previewScreen(preview('UNSAFE', 'T5'), names)).toMatchObject({ icon: '✋' });
   });
 
+  test('refused by a rule that breaks only in a colder run: still refused, and reads as not safe', () => {
+    const p = preview('UNPROVEN', 'T5', {
+      speech: {
+        headline: "I can't do that.",
+        reason: "Smoke alarms can never be turned off. That's Om's rule.",
+      },
+      violations: [
+        {
+          rule: 'R12',
+          text: 'Smoke alarms can never be turned off.',
+          author: 'om',
+          priority: 'life-safety',
+          refuse: true,
+          run: 'pessimistic',
+          firstAt: NOW,
+        },
+      ],
+    });
+    expect(said(p)).toEqual([['OK', 'okay', { kind: 'dismiss' }]]);
+    expect(previewScreen(p, names)).toMatchObject({
+      tone: 'blocked',
+      icon: '✋',
+      word: 'Not safe',
+    });
+  });
+
   test(`at most ${MAX_CARDS} cards; the other broken rules are counted`, () => {
     const v = (rule: string) => ({
       rule,
