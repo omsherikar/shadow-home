@@ -812,6 +812,34 @@ describe.each(['legacy', 'modern'] as const)(
       expect(back.status).toBe('committed');
     });
 
+    test('a fresh preview, after a stale plan ID, replays with the presence its own check used', async () => {
+      const stale = await api.call<PreviewOutput>('preview_plan', weekend);
+      const other = await api.call<PreviewOutput>('preview_plan', {
+        intent: 'TV off',
+        requestedBy: 'om',
+        actions: [{ device: 'plug_tv', set: { onOff: false } }],
+      });
+      expect((await api.call<CommitOutput>('commit_plan', { planId: other.planId })).status).toBe(
+        'committed',
+      );
+      const r = await api.client.callTool({
+        name: 'commit_plan',
+        arguments: { planId: stale.planId },
+      });
+      const commit = r.structuredContent as CommitOutput;
+      const fresh = commit.freshPreview;
+      const replays = r._meta?.[REPLAY_META_KEY] as Record<string, Replay>;
+      // Without this, the house would show everyone home all weekend under a verdict that assumed
+      // nobody was.
+      expect(Object.keys(replays).sort()).toEqual([fresh?.planId, fresh?.repair?.planId].sort());
+      for (const replay of Object.values(replays)) {
+        expect(replay.presence).toEqual(weekend.presenceSchedule);
+      }
+      expect(replays).not.toHaveProperty(stale.planId);
+      expect(fresh).not.toHaveProperty('presence');
+      expect(JSON.stringify(r.structuredContent)).not.toContain(REPLAY_META_KEY);
+    });
+
     test('an undo’s preview comes with its own temperatures', async () => {
       const p = await api.call<PreviewOutput>('preview_plan', {
         intent: "Turn off Sam's light.",
