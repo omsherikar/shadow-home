@@ -1,4 +1,5 @@
 import type { HomeBrief } from './bedrock.ts';
+import type { TurnEvent } from './events.ts';
 import type { Tools } from './mcp.ts';
 import { runTurn, within } from './run.ts';
 import type { Model, Names, TurnRequest, TurnResponse } from './types.ts';
@@ -19,7 +20,7 @@ function namesOf(home: HomeBrief): Names {
  * up and the model's steps share the turn's `deadline` (ms since the epoch), so the person always
  * hears something before the host's own request timeout. On any failure before something ran,
  * past the deadline included, they hear the apology; `failure` says what went wrong, for the log.
- * `signal` stops the turn (runTurn), setting up included.
+ * `emit` hears the turn as it happens, and `signal` stops it (runTurn), setting up included.
  */
 export async function takeTurn(
   input: TurnRequest,
@@ -28,9 +29,10 @@ export async function takeTurn(
     model: (tools: Tools, home: HomeBrief) => Promise<Model>;
     deadline: number;
     signal?: AbortSignal;
+    emit?: (event: TurnEvent) => void;
   },
 ): Promise<{ turn: TurnResponse & { error?: string }; failure?: unknown }> {
-  const { deadline, signal } = options;
+  const { deadline, signal, emit } = options;
   const left = () => deadline - Date.now();
   let tools: Tools | undefined;
   const connecting = options.connect(deadline);
@@ -41,7 +43,7 @@ export async function takeTurn(
     // browser happened to see before (a reload, a log with no names).
     const request: TurnRequest = { ...input, names: namesOf(home) };
     const model = await within(options.model(tools, home), left(), signal);
-    return { turn: await runTurn(model, tools, request, { deadline, signal }) };
+    return { turn: await runTurn(model, tools, request, { deadline, signal, emit }) };
   } catch (e) {
     const error = e instanceof Error ? e.name : 'Error';
     return { turn: { say: APOLOGY, calls: [], error }, failure: e };
