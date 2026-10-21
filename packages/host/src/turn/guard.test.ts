@@ -23,6 +23,8 @@ const facts = (context: Context, results: unknown[] = []): FilterFacts =>
   filterFacts({ context, results, devices, routines });
 /** After a check this turn. */
 const PLAN = facts('plan');
+/** "Why?" and the like, with no call this turn, after a check. */
+const ANCHORED = facts('anchored');
 /** Plain conversation: nothing checked anywhere in it. */
 const CHAT = facts('chat');
 /** After get_home_state this turn. */
@@ -100,6 +102,29 @@ describe('after a check: nothing that says or softens the verdict, asks, or give
       expect(dropReason(sentence, PLAN)).toBeNull();
     },
   );
+});
+
+describe('a later "why?": the same rules as after a check', () => {
+  test.each([
+    "Because the garage would drop below 4 °C at 10:37 PM, and that's Om's rule.",
+    "Because it breaks Om's garage rule.",
+    "Actually, the fixes aren't needed.",
+    "Actually, you're covered.",
+    'Want to try it anyway?',
+    'Ready to go?',
+    'The front door is locked now.',
+    'Good morning!',
+    'Sure, I can help.',
+    'No problem.',
+    "I'm doing great, thanks.",
+    'Hello! What can I check for you?',
+  ])('%s is dropped', (sentence) => {
+    expect(dropReason(sentence, ANCHORED)).not.toBeNull();
+  });
+
+  test('an explanation from the facts, without numbers, is said', () => {
+    expect(dropReason("Om's rule is about the coffee maker.", ANCHORED)).toBeNull();
+  });
 });
 
 describe('plain conversation: small talk is free, claims about the home are not', () => {
