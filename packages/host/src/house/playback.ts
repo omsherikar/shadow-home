@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import type { HouseLayout } from './layout.ts';
 import { type LiveDevice, mix, type Value, valueSchema } from './looks.ts';
+import { offsetMinutes } from './pacing.ts';
 
 export interface Change {
   atMs: number;
@@ -431,9 +432,7 @@ export function roomOf(layout: HouseLayout, device: string): string | undefined 
 
 /** "Sat 10:37 PM" for an instant, read in the home's own UTC offset ("-06:00"). */
 export function homeClock(ms: number, offset: string): string {
-  const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
-  const minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
-  const local = new Date(ms + minutes * MINUTE_MS);
+  const local = new Date(ms + offsetMinutes(offset) * MINUTE_MS);
   const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][local.getUTCDay()];
   const h = local.getUTCHours();
   const mi = local.getUTCMinutes();
@@ -442,9 +441,8 @@ export function homeClock(ms: number, offset: string): string {
 
 /** An instant as ISO 8601 in the home's offset, for the light outside at that time. */
 export function homeIso(ms: number, offset: string): string {
-  const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
-  const minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
-  return `${new Date(ms + minutes * MINUTE_MS).toISOString().slice(0, 19)}${offset}`;
+  const local = new Date(ms + offsetMinutes(offset) * MINUTE_MS);
+  return `${local.toISOString().slice(0, 19)}${offset}`;
 }
 
 /** How long each part of a show takes, in real milliseconds. */
