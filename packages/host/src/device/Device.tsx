@@ -12,6 +12,7 @@ import { shownActivity, type TurnActivity } from '../chat/activity.ts';
 import { Chat } from '../chat/Chat.tsx';
 import {
   ask as asked,
+  awaitsAnswer,
   type FollowUp,
   followUpsFor,
   forgetConversation,
@@ -129,7 +130,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   // What hands-free heard asked goes through `say`, like anything typed (set once `say` exists).
   const sayHeard = useRef<(text: string) => void>(() => undefined);
   const handsFree = useHandsFree({ onRequest: (text) => sayHeard.current(text), silent });
-  const { turnStarted } = handsFree;
+  const { turnStarted, turnEnded } = handsFree;
 
   /**
    * Set the plan on screen aside, or bring it back. Set aside, it stays readable but acts on
@@ -472,9 +473,25 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       if (client) await refreshHome(client).catch(() => undefined);
       if (gone()) return;
       // The demo, played out loud, waits for her to finish before its next line.
-      if (spoken) await spoken;
+      const heardAloud = spoken ? await spoken : false;
+      if (gone()) return;
+      // Hands-free: after a question, listen for the answer without the wake word, but only if
+      // the question was heard (not silent, not held back by the browser).
+      turnEnded(answer !== null && awaitsAnswer(answer, calls) && heardAloud);
     },
-    [client, note, refreshHome, remember, show, ask, release, setAside, silent, turnStarted],
+    [
+      client,
+      note,
+      refreshHome,
+      remember,
+      show,
+      ask,
+      release,
+      setAside,
+      silent,
+      turnStarted,
+      turnEnded,
+    ],
   );
 
   /** A turn for words the person said, typed or tapped: `label` is what they tapped. */
