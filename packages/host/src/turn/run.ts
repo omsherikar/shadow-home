@@ -36,8 +36,8 @@ export class TurnStoppedError extends Error {
  *
  * `emit` hears the turn as it happens (decision 107): a step for each tool call (running from
  * when the model begins it, then done or failed), each call once it returns, and the words. Words
- * go out as pieces joined with a space, the engine's headline among them as soon as a call that
- * speaks returns (decision 108).
+ * go out as pieces joined with a space: each sentence of the model's once the sentence filter has
+ * passed it, and, as soon as a call that speaks returns, the engine's headline (decision 108).
  * When the model answers, what's said follows on from the words sent since that headline (or
  * since the model began, with no call speaking): only the part not yet sent goes out, such as the
  * engine's question, or all of it when it doesn't follow on. When `signal` aborts, the model
