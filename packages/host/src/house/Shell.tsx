@@ -367,12 +367,9 @@ function BuiltPiece({ piece: b, glow }: { piece: Built; glow: number }) {
             <meshStandardMaterial
               color={palette.graphite}
               emissive={palette.heat}
-              emissiveIntensity={glow >= 1 ? 2.2 : 0}
+              emissiveIntensity={glow >= 1 ? 2.6 : 0}
             />
           </mesh>
-          {glow >= 1 ? (
-            <pointLight position={[0, 0, 0.4]} color={palette.heat} intensity={1.2} distance={3} />
-          ) : null}
         </group>
       ) : null}
     </group>
