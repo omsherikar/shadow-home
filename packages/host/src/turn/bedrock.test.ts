@@ -88,8 +88,13 @@ describe('the Bedrock model', () => {
       'preview_plan',
       'commit_plan',
     ]);
-    // The tools are cached, with a cache point after the last one.
+    // The tools and the instructions are cached; the home's time comes after them.
     expect(offered.at(-1)).toEqual({ cachePoint: { type: 'default' } });
+    expect(sent[0]?.system?.map((b) => (b.cachePoint ? 'cache' : b.text?.slice(0, 22)))).toEqual([
+      'You are Alexa, the voi',
+      'cache',
+      "The home's time now is",
+    ]);
     expect(sent[0]?.inferenceConfig?.temperature).toBe(0);
   });
 
