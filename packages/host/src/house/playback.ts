@@ -569,3 +569,13 @@ function minuteOfDay(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
 }
+
+/** Whether a guard applies at a home time ("2027-01-15T23:10:00-06:00"). */
+export function guarding(guard: Guard, iso: string): boolean {
+  const m = /T(\d{2}):(\d{2})/.exec(iso);
+  if (!m) return false;
+  const t = Number(m[1]) * 60 + Number(m[2]);
+  return guard.windows.some((w) =>
+    w.from <= w.to ? w.from <= t && t < w.to : t >= w.from || t < w.to,
+  );
+}
