@@ -20,3 +20,11 @@ describe('what the chat shows Alexa doing', () => {
     expect(shownActivity('listening', false)).toBe('listening');
   });
 });
+
+describe('with hands-free on', () => {
+  test('awake after "Alexa", it shows listening; after her question, listening for the answer', () => {
+    expect(shownActivity('idle', false, 'awake')).toBe('listening');
+    expect(shownActivity('idle', false, 'answer')).toBe('awaiting');
+    expect(shownActivity('idle', false, 'idle')).toBe('idle');
+  });
+});
