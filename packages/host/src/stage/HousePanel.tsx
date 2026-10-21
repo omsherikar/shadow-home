@@ -22,6 +22,7 @@ import {
   SHOW_TIMING,
   temperaturesAt,
 } from '../house/playback.ts';
+import { readable } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
 
 // three.js and the scene load in the browser only, and only on this page.
@@ -381,14 +382,6 @@ function useCardBottom(card: { current: HTMLElement | null }): number {
 }
 
 const AUTHOR = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
-
-/** "dishwasher_latch: battery 4% …" with the device's own name: "Dishwasher door latch: …". */
-function readable(text: string, name: (id: string) => string | undefined): string {
-  return text.replace(/^([a-z0-9_]+):/, (whole, id: string) => {
-    const n = name(id);
-    return n ? `${n}:` : whole;
-  });
-}
 
 /** A rule breaking (coral), a rule that may break or a reading that can't be trusted (amber). */
 function BreakCard({
