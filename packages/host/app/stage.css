@@ -147,6 +147,67 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A status dot over a device the story turns on: its colour is its state. */
+.dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    0 0 0 2px rgb(10 8 6 / 70%),
+    0 0 14px 3px currentColor;
+  transform: translate(-50%, -50%);
+  transition: color 0.25s;
+}
+
+.dot-on {
+  color: #fff0c2;
+}
+
+.dot-off {
+  color: #6b7280;
+  box-shadow: 0 0 0 2px rgb(10 8 6 / 70%);
+}
+
+.dot-locked {
+  color: var(--safe);
+}
+
+.dot-unlocked {
+  color: var(--unsure);
+}
+
+.dot-heating {
+  color: #ff8a4c;
+}
+
+.dot-idle {
+  color: #ece6da;
+}
+
+.dot-unknown {
+  color: var(--unsure);
+}
+
+.dot-name {
+  position: absolute;
+  top: -9px;
+  left: 12px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(20 16 13 / 62%);
+  color: var(--ink-soft);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dot-name.left,
+.pin[data-side="left"] .dot-name {
+  right: 12px;
+  left: auto;
+}
+
 .drawer {
   position: absolute;
   right: 24px;
