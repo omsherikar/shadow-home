@@ -47,19 +47,25 @@ export const DEFAULT_MODEL_ID = 'us.anthropic.claude-haiku-4-5-20251001-v1:0';
 const MAX_TOKENS = 1024;
 const HISTORY = 30;
 
+/** What's said in plain conversation when none of the model's sentences may be said. */
+export const NOT_SURE = "Sorry, I'm not sure about that.";
 /** The longest line /api/speak will say. */
 const MAX_SAY_CHARS = 600;
 
 /**
  * The Converse loop as a `Model` (Bedrock, or the Anthropic API through anthropic.ts): one step
  * per call. It returns the first tool the model asks for, or, once it answers, what's said
- * (decision 108). After a call that spoke this turn (a check, a commit, an undo, a rule), that's
- * the engine's headline, the model's sentences that pass the sentence filter (guard.ts), and the
- * engine's question; with none, the engine's template. With no call that spoke, it's the model's
- * own words. The model's words are held until its call ends: words before a tool call are never
- * said (the step's label says what's happening), and the sentences that pass go out once they
- * have. The start of the model's first tool call is passed on, when that's a tool on offer, since
- * that's the one that runs.
+ * (decision 108), which depends on the turn (guard.ts):
+ * - after a call that spoke this turn (a check, a commit, an undo, a rule): the engine's
+ *   headline, the model's sentences, the engine's question; with none, the engine's template;
+ * - after read-only calls (the home's state, the log): the model's sentences; with none, the
+ *   log's own summary, or NOT_SURE;
+ * - in plain conversation (a greeting, thanks, a no, small talk): the model's sentences, or
+ *   NOT_SURE.
+ * Every sentence of the model's goes through the sentence filter first. The model's words are held
+ * until its call ends: words before a tool call are never said (the step's label says what's
+ * happening), and the reply's sentences go out once they've passed. The start of the model's first
+ * tool call is passed on, when that's a tool on offer, since that's the one that runs.
  */
 export function bedrockModel(options: {
   converse: Converse;
@@ -100,18 +106,38 @@ export function bedrockModel(options: {
         .map((b) => b.text ?? '')
         .join(' ')
         .trim();
-      // The last call that spoke, even if the model called something quieter after it.
-      const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
-      if (spoke) {
-        const { kept } = filterReply(words, factsFor(input, options.home, spoke));
-        const say = (text: string) => step.onEvent?.({ text });
-        // The headline went out when the call returned (run.ts).
-        kept.forEach(say);
-        return { say: sandwich(spoke, kept) };
+      const turn = turnOf(input);
+      const { kept } = filterReply(words, factsFor(input, options.home, turn));
+      const say = (text: string) => step.onEvent?.({ text });
+      switch (turn.context) {
+        case 'plan': {
+          // The headline went out when the call returned (run.ts).
+          kept.forEach(say);
+          return { say: sandwich(turn.spoke, kept) };
+        }
+        default: {
+          kept.forEach(say);
+          if (kept.length > 0) return { say: kept.join(' ') };
+          const activity = input.thisTurn.findLast((c) => Array.isArray(structuredOf(c)?.groups));
+          if (turn.context === 'read' && activity) {
+            return { say: spokenFrom(structuredOf(activity), activity.result.content) };
+          }
+          return { say: words ? NOT_SURE : 'Okay.' };
+        }
       }
-      return { say: words || 'Okay.' };
     },
   };
+}
+
+type Turn = { context: 'plan'; spoke: ToolCall } | { context: 'read' } | { context: 'chat' };
+
+/** Which turn a reply belongs to (guard.ts, Context). */
+function turnOf(input: ModelInput): Turn {
+  // The last call that spoke, even if the model called something quieter after it.
+  const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
+  if (spoke) return { context: 'plan', spoke };
+  if (input.thisTurn.length > 0) return { context: 'read' };
+  return { context: 'chat' };
 }
 
 /**
@@ -128,16 +154,17 @@ function sandwich(spoke: ToolCall, kept: string[]): string {
 }
 
 /**
- * The facts a reply after a check is checked against: the home's names, and the check itself
- * (for its quotes).
+ * The facts a reply is checked against: the home's names, the check the turn is about (for its
+ * quotes), the person's words, and a read turn's results.
  */
-function factsFor(input: ModelInput, home: HomeBrief, spoke: ToolCall) {
+function factsFor(input: ModelInput, home: HomeBrief, turn: Turn) {
   return filterFacts({
-    context: 'plan',
+    context: turn.context,
     results: input.thisTurn.map((c) => c.result.structuredContent ?? c.result.content),
     devices: home.devices,
     routines: home.routines.map((r) => r.name),
-    about: structuredOf(spoke),
+    about: turn.context === 'plan' ? structuredOf(turn.spoke) : undefined,
+    heard: input.text,
   });
 }
 
