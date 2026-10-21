@@ -113,6 +113,22 @@ const view = (page: Page) => page.frameLocator('.view iframe');
 test.describe.configure({ mode: 'serial' });
 
 // Each test starts from the demo's own home, and leaves it so for the tests after it.
+// These tests are about her voice, not the house: without WebGL the page is the device alone (as
+// it is for anyone without it), so the 3D house drawing in software (CI has no GPU) doesn't compete
+// with the servers for the machine while a turn is timed.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      this: HTMLCanvasElement,
+      kind: string,
+      ...rest: unknown[]
+    ) {
+      return /webgl/i.test(kind) ? null : getContext.call(this, kind, ...(rest as []));
+    } as typeof getContext;
+  });
+});
+
 test.beforeEach(async ({ request }) => {
   await request.post('/api/demo');
 });
