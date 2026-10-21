@@ -40,6 +40,9 @@ export const MAX_SENTENCE_WORDS = 25;
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
+/** A bare yes or no, which says nothing on its own: "Yes.", "No, it isn't.", "Yep". */
+const FRAGMENT =
+  /^(?:yes|yeah|yep|yup|no|nope|nah)\b[\s,.!]*(?:(?:it|that|this|they|he|she|the [\w\s']+?)\s+(?:is|isn't|are|aren't|was|wasn't|does|doesn't|did|didn't|can|can't|will|won't)\b)?[\s.!]*$/;
 
 const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
 const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
@@ -205,6 +208,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
     return 'plain';
   }
   if (said.split(/\s+/).filter(Boolean).length > MAX_SENTENCE_WORDS) return 'long';
+  if (FRAGMENT.test(said)) return 'fragment';
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time).
   let text = said.replace(/[.!?]+$/, '');
   for (const name of facts.names) text = text.split(name).join(' ');
