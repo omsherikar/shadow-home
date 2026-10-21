@@ -36,4 +36,10 @@ describe('sentences in whole words', () => {
       'Run it at 2 a.m. tomorrow.',
     ]);
   });
+
+  test('a time with a full stop, or a single letter, ends its sentence before a capital', () => {
+    expect(
+      allSentences('I can run it at 2 p.m. Shall I? That is plan B. Then the lights.'),
+    ).toEqual(['I can run it at 2 p.m.', 'Shall I?', 'That is plan B.', 'Then the lights.']);
+  });
 });
