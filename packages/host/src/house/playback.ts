@@ -293,3 +293,17 @@ export function schedule(run: Run, timing: Timing): Schedule {
   }
   return { totalMs: segments.reduce((t, s) => t + s.realMs, 0), segments };
 }
+
+/** Where a run's playback is after `realMs`: the home time, and the breaks being held on. */
+export function playhead(s: Schedule, realMs: number): { homeMs: number; held: Break[] } {
+  let left = Math.max(0, realMs);
+  for (const seg of s.segments) {
+    if (left < seg.realMs) {
+      const t = seg.realMs === 0 ? 1 : left / seg.realMs;
+      return { homeMs: seg.fromMs + (seg.toMs - seg.fromMs) * t, held: seg.hold ?? [] };
+    }
+    left -= seg.realMs;
+  }
+  const last = s.segments.at(-1);
+  return { homeMs: last?.toMs ?? 0, held: [] };
+}
