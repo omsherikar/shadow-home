@@ -334,8 +334,7 @@ test('the mic button while she speaks stops her and listens for a request', asyn
   await hear(page, `Alexa, ${WEEKEND}`);
   await expect(page.locator('.chat-state')).toHaveText('Speaking');
   await page.getByRole('button', { name: 'Talk' }).click();
-  await expect(pill(page)).toContainText("I'm listening");
-  await hear(page, 'no');
+  await sayWhenListening(page, "I'm listening", 'no');
   await expect.poll(() => sent).toEqual([WEEKEND, 'no']);
 });
 
