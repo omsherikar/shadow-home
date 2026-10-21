@@ -26,15 +26,24 @@ interface Context {
 export function webglRenderer(
   makeCanvas: () => CanvasLike = () => document.createElement('canvas'),
 ): string | null {
+  let gl: Context | null;
   try {
     const canvas = makeCanvas();
-    const gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as Context | null;
-    if (!gl) return null;
-    const info = gl.getExtension?.('WEBGL_debug_renderer_info');
-    const name = gl.getParameter?.(info?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER);
-    gl.getExtension?.('WEBGL_lose_context')?.loseContext?.();
-    return typeof name === 'string' ? name : '';
+    gl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as Context | null;
   } catch {
     return null;
   }
+  if (!gl) return null;
+  // A name the browser won't give (a blocked extension, a throwing read) leaves WebGL just as
+  // usable: the house's own frames then say how fast it draws.
+  let name = '';
+  try {
+    const info = gl.getExtension?.('WEBGL_debug_renderer_info');
+    const value = gl.getParameter?.(info?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER);
+    if (typeof value === 'string') name = value;
+  } catch {}
+  try {
+    gl.getExtension?.('WEBGL_lose_context')?.loseContext?.();
+  } catch {}
+  return name;
 }
