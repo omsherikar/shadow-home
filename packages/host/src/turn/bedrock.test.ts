@@ -627,6 +627,53 @@ describe('while a blocked check is open, and after its fix is committed', () => 
       say: "You're good, it's not bad at all.",
     });
   });
+
+  const declined: Remembered[] = [
+    ...blocked,
+    { name: 'heard', arguments: { text: 'no' } },
+    { name: 'said', arguments: { text: "Okay, I'll leave everything as it is." } },
+  ];
+  test.each(
+    [
+      // Open: a question leads with the check; a statement keeps only what passes whole.
+      ['Is that safe?', blocked, "It's fine, nothing to worry about.", BLOCKED],
+      ['How bad is it?', blocked, "It's not bad at all, you're good.", BLOCKED],
+      ['What happens to the garage?', blocked, 'No problem, everything will be okay.', BLOCKED],
+      ['Should I worry?', blocked, 'Not really, it should be okay.', BLOCKED],
+      ['Good morning', blocked, "Good morning! It's fine.", 'Good morning!'],
+      ['Good morning', blocked, 'Good morning, all is good!', NOT_SURE],
+      ['thanks', blocked, "You're welcome! Your home is in good hands.", "You're welcome!"],
+      // After its fix was committed, "why?" leads with the commit.
+      [
+        'Why?',
+        fixed,
+        'Om set that rule to keep the garage pipes from freezing.',
+        'Done: the weekend plan, with 4 fixes. Om set that rule to keep the garage pipes from freezing.',
+      ],
+      [
+        'Why?',
+        fixed,
+        "It's fine now.",
+        "Done: the weekend plan, with 4 fixes. The garage would freeze. That's Om's rule.",
+      ],
+      // Declined, it still stands.
+      ['thanks', declined, "It's fine now.", NOT_SURE],
+      ['okay', declined, "Everything's fine.", NOT_SURE],
+      ['okay', declined, 'Your home will be fine.', NOT_SURE],
+      ['okay thanks', declined, 'No problem!', NOT_SURE],
+      ['Is it safe now?', declined, "It's fine now.", BLOCKED],
+      [
+        'no',
+        blocked,
+        "Okay, I'll leave everything as it is.",
+        "Okay, I'll leave everything as it is.",
+      ],
+    ].map(([heard, history, words, said]) => ({ heard, history, words, said })),
+  )('"$heard", and the model says "$words"', async ({ heard, history, words, said }) => {
+    expect(await reply(heard as string, history as Remembered[], words as string)).toEqual({
+      say: said,
+    });
+  });
 });
 
 describe('the demo', () => {
