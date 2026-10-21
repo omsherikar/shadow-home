@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { LiveDevice } from './looks.ts';
 import { type Run, runsFrom } from './playback.ts';
-import { markersOf, nightsOf } from './timeline.ts';
+import { fractionOf, markersOf, nightsOf, timeAtFraction } from './timeline.ts';
 
 const at = (local: string) => Date.parse(`${local}-06:00`);
 const FRI = '2027-01-15T17:53:00-06:00';
@@ -87,5 +87,17 @@ describe('the timeline’s nights', () => {
     expect(new Date((nights[0]?.toMs ?? 0) - 6 * 3_600_000).getUTCHours()).toBe(7);
     expect(new Date((nights[1]?.fromMs ?? 0) - 6 * 3_600_000).getUTCHours()).toBe(17);
     expect(nights.at(-1)?.toMs).toBe(run.endMs);
+  });
+});
+
+describe('along the timeline', () => {
+  test('a time and its place along the run go both ways, on the minute', () => {
+    expect(fractionOf(run, run.startMs)).toBe(0);
+    expect(fractionOf(run, run.endMs)).toBe(1);
+    expect(fractionOf(run, run.endMs + 1)).toBe(1);
+    const saturday = at('2027-01-16T12:00:00');
+    expect(timeAtFraction(run, fractionOf(run, saturday))).toBe(saturday);
+    expect(timeAtFraction(run, -1)).toBe(run.startMs);
+    expect(timeAtFraction(run, 2)).toBe(run.endMs);
   });
 });
