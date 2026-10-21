@@ -122,3 +122,21 @@ test('a silent page asks for no voice at all', async ({ page }) => {
   await page.waitForTimeout(1000);
   expect(await heard(page)).toEqual([]);
 });
+
+test('Stop silences her at once: nothing more is asked for', async ({ page }) => {
+  // Each clip takes a while to come, as a real voice's would.
+  await page.route('**/api/speak', async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route
+      .fulfill({ status: 200, contentType: 'audio/mpeg', body: Buffer.alloc(0) })
+      .catch(() => undefined);
+  });
+  await holdTheEnd(page);
+  await page.goto('/?speak=1');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect.poll(async () => (await heard(page)).length).toBe(1);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.evaluate(() => (window as unknown as { releaseDone(): void }).releaseDone());
+  await page.waitForTimeout(3000);
+  expect((await heard(page)).map((h) => h.text)).toEqual([SENTENCES[0]]);
+});
