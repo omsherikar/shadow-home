@@ -62,17 +62,25 @@ export async function runTurn(
 }
 
 /**
- * The promise, or a TurnDeadlineError after `ms`. The promise itself runs on; if it fails after
- * being left behind, that's not an unhandled rejection, which would be logged with its message.
+ * The promise, or a TurnDeadlineError after `ms`, or a TurnStoppedError when `signal` aborts. The
+ * promise itself runs on; if it fails after being left behind, that's not an unhandled rejection,
+ * which would be logged with its message.
  */
-export function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+export function within<T>(promise: Promise<T>, ms: number, signal?: AbortSignal): Promise<T> {
   promise.catch(() => undefined);
+  if (signal?.aborted) return Promise.reject(new TurnStoppedError('The turn was stopped'));
   if (ms <= 0) return Promise.reject(new TurnDeadlineError('The turn ran out of time'));
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped: (() => void) | undefined;
   const late = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new TurnDeadlineError('The turn ran out of time')), ms);
+    stopped = () => reject(new TurnStoppedError('The turn was stopped'));
+    signal?.addEventListener('abort', stopped, { once: true });
   });
-  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
+  return Promise.race([promise, late]).finally(() => {
+    clearTimeout(timer);
+    if (stopped) signal?.removeEventListener('abort', stopped);
+  });
 }
 
 function lastSpoken(calls: ToolCall[]): string | undefined {
