@@ -412,6 +412,13 @@ describe("the live session's turns", () => {
     arguments: {},
     result: { content: [], structuredContent: sc },
   });
+  /** The conversation after "I'm away for the weekend": checked, then committed. */
+  const afterAway: Remembered[] = [
+    { name: 'heard', arguments: { text: "I'm away for the weekend, set the house to away." } },
+    { name: 'preview_plan', arguments: {}, structuredContent: away },
+    { name: 'commit_plan', arguments: { planId: 'p1' }, structuredContent: done('away') },
+    { name: 'said', arguments: { text: 'Done: home mode to away.' } },
+  ];
   const reply = async (over: Partial<ModelInput>, ...words: string[]) => {
     const { converse } = fakeConverse(...words.map(text));
     const model = bedrockModel({ converse, tools, home: house });
@@ -424,6 +431,20 @@ describe("the live session's turns", () => {
     const thisTurn = [call('preview_plan', away), call('commit_plan', done('away'))];
     expect(await reply({ thisTurn }, 'Everyone is away until Sunday evening.')).toEqual([
       { say: 'Done: home mode to away.' },
+    ]);
+  });
+
+  test('"Why?" after a finished change answers from the check that led to it, never "Done"', async () => {
+    const turn = { text: 'Why?', history: afterAway };
+    expect(
+      await reply(
+        turn,
+        'The whole household is away for the weekend.',
+        'Om asked for away mode for the weekend.',
+      ),
+    ).toEqual([
+      { say: 'Safe: home mode to away. This affects Maya and Sam.' },
+      { say: 'Safe: home mode to away. Om asked for away mode for the weekend.' },
     ]);
   });
 });
