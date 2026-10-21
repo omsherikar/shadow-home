@@ -792,6 +792,26 @@ describe.each(['legacy', 'modern'] as const)(
       expect(JSON.stringify(r.content)).not.toContain('garage_thermostat');
     });
 
+    test('an undo’s preview replays with no one’s presence assumed: its check took the household as it is', async () => {
+      const p = await api.call<PreviewOutput>('preview_plan', {
+        intent: "Turn off Sam's light.",
+        requestedBy: 'sam',
+        actions: [{ device: 'light_bedroom_sam', set: { onOff: false } }],
+      });
+      expect((await api.call<CommitOutput>('commit_plan', { planId: p.planId })).status).toBe(
+        'committed',
+      );
+      const r = await api.client.callTool({ name: 'undo', arguments: { token: 'last' } });
+      const undo = r.structuredContent as UndoOutput;
+      expect(r._meta?.[REPLAY_META_KEY]).toEqual({
+        [undo.preview?.planId ?? '']: { presence: [] },
+      });
+      expect(JSON.stringify(r.structuredContent)).not.toContain(REPLAY_META_KEY);
+      // Put Sam's light back, so the home is as it was for the tests after this one.
+      const back = await api.call<CommitOutput>('commit_plan', { planId: undo.preview?.planId });
+      expect(back.status).toBe('committed');
+    });
+
     test('an undo’s preview comes with its own temperatures', async () => {
       const p = await api.call<PreviewOutput>('preview_plan', {
         intent: "Turn off Sam's light.",
