@@ -11,6 +11,11 @@ import type { Converse } from './bedrock.ts';
 /** The voice loop's model on the Anthropic API: a quick one, since a person waits on every step. */
 export const ANTHROPIC_MODEL_ID = 'claude-haiku-5-5';
 
+/** What the loop reads of a message stream: its events as they come, then the whole message. */
+export interface ModelStream extends AsyncIterable<Anthropic.MessageStreamEvent> {
+  finalMessage(): Promise<Anthropic.Message>;
+}
+
 /** The one call the loop makes, so tests can stand in for the API. */
 export interface MessagesApi {
   messages: {
