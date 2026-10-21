@@ -16,6 +16,11 @@ export interface ChatProps {
   activity: Activity;
   /** While listening: the words heard so far. */
   heard: string;
+  /**
+   * The mic button is listening: the words heard so far fill the text box, read-only. Hands-free
+   * listening leaves the box free to type in.
+   */
+  micListening: boolean;
   /** Connected, and not playing the demo. */
   ready: boolean;
   micAvailable: boolean;
@@ -53,6 +58,8 @@ export function Chat(props: ChatProps) {
   const input = useRef<HTMLInputElement>(null);
   const following = useRef(true);
   const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
+  // Listening by the mic button: the words heard so far fill the text box until they're sent.
+  const hearing = props.micListening;
   const live = busy || activity === 'speaking';
   const last = messages.at(-1);
   // The newest finished answer, for screen readers: whole answers, not every word as it streams.
@@ -164,10 +171,10 @@ export function Chat(props: ChatProps) {
         <input
           ref={input}
           aria-label="Say something to Alexa"
-          placeholder={activity === 'listening' ? 'Listening…' : props.placeholder}
+          placeholder={hearing ? 'Listening…' : props.placeholder}
           maxLength={MAX_TEXT}
-          value={activity === 'listening' ? props.heard : draft}
-          readOnly={activity === 'listening'}
+          value={hearing ? props.heard : draft}
+          readOnly={hearing}
           onChange={(e) => setDraft(e.target.value)}
           disabled={!ready}
           enterKeyHint="send"

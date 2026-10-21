@@ -604,6 +604,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
 
   const ready = client !== null && demoState !== 'playing';
   const phone = splitFollowUps(followUps);
+  const listeningHandsFree = handsFree.state.mode === 'awake' || handsFree.state.mode === 'answer';
   return (
     <Stage
       home={home}
@@ -648,7 +649,11 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
               {screen.kind === 'rule' ? <RuleCard rule={screen.rule} /> : null}
             </div>
             <div
-              className={busy || speaking || activity === 'listening' ? 'lightbar on' : 'lightbar'}
+              className={
+                busy || speaking || activity === 'listening' || listeningHandsFree
+                  ? 'lightbar on'
+                  : 'lightbar'
+              }
               aria-hidden="true"
             />
           </div>
@@ -669,10 +674,17 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         <Chat
           messages={messages}
           followUps={narrow ? phone.rest : followUps}
-          placeholder={narrow ? 'Ask Alexa' : 'Ask Alexa to change something'}
+          placeholder={
+            listeningHandsFree && handsFree.heard
+              ? handsFree.heard
+              : narrow
+                ? 'Ask Alexa'
+                : 'Ask Alexa to change something'
+          }
           starters={suggestions.map((s) => ({ label: s, says: s }))}
-          activity={shownActivity(activity, speaking)}
+          activity={shownActivity(activity, speaking, handsFree.state.mode)}
           heard={heard}
+          micListening={activity === 'listening'}
           ready={ready}
           micAvailable={micAvailable}
           notice={notice}
