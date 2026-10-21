@@ -303,6 +303,47 @@ describe('refusals say why', () => {
   });
 });
 
+describe("an undo that sets away mode without saying who's away", () => {
+  test("is refused like any such plan: who's away isn't given", async () => {
+    const { service } = setup('2027-01-15T17:45:00');
+    const away = await service.previewPlan({
+      intent: 'away mode, Maya stays in',
+      requestedBy: 'om',
+      actions: [{ mode: 'away' }],
+      presenceSchedule: [
+        {
+          from: '2027-01-15T17:45:00-06:00',
+          to: '2027-01-15T23:00:00-06:00',
+          presence: { home: ['maya'] },
+        },
+      ],
+    });
+    expect(await service.commitPlan({ planId: away.planId, confirmed: true })).toMatchObject({
+      status: 'committed',
+    });
+    const back = await service.previewPlan({
+      intent: 'home mode',
+      requestedBy: 'om',
+      actions: [{ mode: 'home' }],
+    });
+    expect(await service.commitPlan({ planId: back.planId, confirmed: true })).toMatchObject({
+      status: 'committed',
+    });
+
+    // Undoing "home mode" puts the house back to away, with no presence schedule of its own.
+    const u = await service.undo({ token: 'last' });
+    expect(u.preview).toMatchObject({
+      verdict: 'UNPROVEN',
+      tier: 'T5',
+      unknowns: ["who's away, and until when, isn't given"],
+      speech: { ask: "Who's away, and until when?" },
+    });
+    const c = await service.commitPlan({ planId: u.preview?.planId ?? '', confirmed: true });
+    expect(c).toMatchObject({ status: 'refused', reason: 'who_is_away_unknown' });
+    expect((await service.getHomeState({})).mode).toBe('home');
+  });
+});
+
 describe('the live home and the engine agree about now', () => {
   test("a preview at the start of a minute doesn't run that minute's routine steps again", async () => {
     // At 22:30 Good night locks the back door, then a held unlock opens it: it is unlocked.
