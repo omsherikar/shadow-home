@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import type { TurnEvent } from '../chat/stream.ts';
 import { type Clip, speechQueue, type Voice } from './speech-queue.ts';
 
 const WEEKEND =
@@ -145,5 +146,49 @@ describe('when the end replaces what streamed', () => {
     expect(v.played.slice(before).map((p) => p.text)).toEqual([
       'Blocked: that breaks 4 house rules.',
     ]);
+  });
+});
+
+/** A turn's events, as the turn route sends them. */
+const step = (state: 'running' | 'done' | 'failed'): TurnEvent => ({
+  type: 'step',
+  id: 's1',
+  tool: 'preview_plan',
+  label: 'Checking',
+  state,
+});
+const text = (delta: string): TurnEvent => ({ type: 'text', delta });
+const done = (say: string): TurnEvent => ({ type: 'done', turn: { say, calls: [] } });
+
+describe('following a turn as it streams', () => {
+  test("a stream shaped like decision 108's says each sentence once, and nothing else", async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    const say =
+      "Blocked: that breaks 4 house rules. The coffee maker would run at 7 with nobody home. That's Om's rule. Do it with 4 fixes instead?";
+    const events = [
+      step('running'),
+      step('done'),
+      {
+        type: 'call',
+        call: { name: 'preview_plan', arguments: {}, result: { content: [] } },
+      } satisfies TurnEvent,
+      text('Blocked: that breaks 4 house rules.'),
+      text(' The coffee maker would run at 7 with nobody home.'),
+      text(" That's Om's rule."),
+      text(' Do it with 4 fixes instead?'),
+      done(say),
+    ];
+    let said: Promise<void> | null = null;
+    for (const event of events) said = speech.follow(event) ?? said;
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual([
+      'Blocked: that breaks 4 house rules.',
+      'The coffee maker would run at 7 with nobody home.',
+      "That's Om's rule.",
+      'Do it with 4 fixes instead?',
+    ]);
+    expect(v.asked).toEqual(v.played.map((p) => p.text));
   });
 });
