@@ -261,7 +261,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         setClient(c);
         await refreshHome(c);
       })
-      .catch((e: unknown) => setProblem(`Can't reach the Shadow Home server: ${String(e)}`));
+      .catch(() => setProblem("Can't reach the Shadow Home server. Reload the page to try again."));
     return () => {
       live = false;
       void c.close();
