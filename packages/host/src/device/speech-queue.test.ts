@@ -30,10 +30,10 @@ function fakeVoice(answer: (text: string) => Clip = () => ({ kind: 'audio', audi
     play(clip, text, signal) {
       played.push({ text, kind: clip.kind });
       return new Promise((resolve) => {
-        playing = resolve;
+        playing = () => resolve(true);
         signal.addEventListener('abort', () => {
           stopped.push(text);
-          resolve();
+          resolve(false);
         });
       });
     },

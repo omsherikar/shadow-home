@@ -15,8 +15,11 @@ export interface Voice {
    * says the rest of that answer.
    */
   fetch(text: string, signal: AbortSignal): Promise<Clip>;
-  /** Say one sentence; resolves once it's said, or at once when `signal` aborts. */
-  play(clip: Clip, text: string, signal: AbortSignal): Promise<void>;
+  /**
+   * Say one sentence; resolves once it's said, or at once when `signal` aborts: true when it was
+   * heard to the end, false when it couldn't play (the browser held it back) or was cut short.
+   */
+  play(clip: Clip, text: string, signal: AbortSignal): Promise<boolean>;
 }
 
 interface Round {

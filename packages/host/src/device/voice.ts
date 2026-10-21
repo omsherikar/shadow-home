@@ -34,57 +34,60 @@ async function fetchClip(text: string, signal: AbortSignal): Promise<Clip> {
   }
 }
 
-/** Say one sentence: its clip, or the browser's voice. Stops at once when the signal aborts. */
-function playClip(clip: Clip, text: string, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) return Promise.resolve();
+/**
+ * Say one sentence: its clip, or the browser's voice. Stops at once when the signal aborts.
+ * Resolves true when it was heard to the end.
+ */
+function playClip(clip: Clip, text: string, signal: AbortSignal): Promise<boolean> {
+  if (signal.aborted) return Promise.resolve(false);
   try {
     return clip.kind === 'audio' ? playAudio(clip.audio, signal) : browserVoice(text, signal);
   } catch {
     // No way to play it here (no audio element): the words are on screen.
-    return Promise.resolve();
+    return Promise.resolve(false);
   }
 }
 
-function playAudio(blob: Blob, signal: AbortSignal): Promise<void> {
+function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   return new Promise((resolve) => {
-    const done = () => {
+    const done = (heard: boolean) => {
       signal.removeEventListener('abort', stop);
       URL.revokeObjectURL(url);
-      resolve();
+      resolve(heard);
     };
     const stop = () => {
       audio.pause();
-      done();
+      done(false);
     };
     signal.addEventListener('abort', stop, { once: true });
-    audio.onended = done;
-    audio.onerror = done;
-    audio.play().catch(done);
+    audio.onended = () => done(true);
+    audio.onerror = () => done(false);
+    audio.play().catch(() => done(false));
   });
 }
 
-function browserVoice(text: string, signal: AbortSignal): Promise<void> {
+function browserVoice(text: string, signal: AbortSignal): Promise<boolean> {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-  if (!synth) return Promise.resolve();
+  if (!synth) return Promise.resolve(false);
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
     // Some browsers never fire `end`; don't let the conversation wait forever.
-    const timer = setTimeout(() => done(), 2000 + text.split(' ').length * 500);
-    const done = () => {
+    const timer = setTimeout(() => done(true), 2000 + text.split(' ').length * 500);
+    const done = (heard: boolean) => {
       clearTimeout(timer);
       signal.removeEventListener('abort', stop);
-      resolve();
+      resolve(heard);
     };
     const stop = () => {
       synth.cancel();
-      done();
+      done(false);
     };
     signal.addEventListener('abort', stop, { once: true });
-    utterance.onend = done;
-    utterance.onerror = done;
+    utterance.onend = () => done(true);
+    utterance.onerror = () => done(false);
     synth.speak(utterance);
   });
 }
