@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { DoubleSide } from 'three';
 import type { DevicePlacement, DeviceShape, HouseLayout } from './layout.ts';
 import { type LiveDevice, type Look, lookOf } from './looks.ts';
@@ -14,7 +15,7 @@ const deg = (d: number) => (d * Math.PI) / 180;
  * light the rooms, and their lights are always there, dark when off: switching one never changes
  * how many lights the scene has, which would rebuild every shader in the middle of a playback.
  */
-export function Devices({
+export const Devices = memo(function Devices({
   layout,
   devices,
 }: {
@@ -35,7 +36,7 @@ export function Devices({
       ))}
     </>
   );
-}
+});
 
 function Shape(props: {
   shape: DeviceShape;

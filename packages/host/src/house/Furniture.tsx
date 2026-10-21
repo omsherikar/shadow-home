@@ -1,7 +1,7 @@
 'use client';
 
 import { useLoader } from '@react-three/fiber';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { ghostly } from './ghost.ts';
@@ -15,7 +15,7 @@ const deg = (d: number) => (d * Math.PI) / 180;
  * loaded once and placed as often as the layout asks. The files need no decoder: plain WebP
  * textures and quantized geometry, which three.js reads itself.
  */
-export function Furniture({ layout }: { layout: HouseLayout }) {
+export const Furniture = memo(function Furniture({ layout }: { layout: HouseLayout }) {
   const urls = useMemo(() => [...new Set(layout.props.map((p) => p.model))], [layout]);
   const models = useLoader(GLTFLoader, urls);
   return (
@@ -28,7 +28,7 @@ export function Furniture({ layout }: { layout: HouseLayout }) {
       })}
     </>
   );
-}
+});
 
 function Placed({ prop, scene }: { prop: Prop; scene: Object3D }) {
   const object = useMemo(() => {
@@ -62,7 +62,7 @@ function Placed({ prop, scene }: { prop: Prop; scene: Object3D }) {
 }
 
 /** The household as simple figures, in the house when they're home. */
-export function People({
+export const People = memo(function People({
   layout,
   presence,
 }: {
@@ -93,4 +93,4 @@ export function People({
         ))}
     </>
   );
-}
+});
