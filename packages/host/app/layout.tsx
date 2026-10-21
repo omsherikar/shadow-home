@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 import './stage.css';
+import './chat.css';
 
 export const metadata: Metadata = {
   title: 'Shadow Home on a simulated Echo Show',
