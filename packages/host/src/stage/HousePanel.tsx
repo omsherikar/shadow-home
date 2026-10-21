@@ -16,15 +16,18 @@ import {
   homeClock,
   homeIso,
   moment,
+  positionAt,
   presenceAt,
   type Run,
   roomOf,
   SHOW_TIMING,
+  type Speed,
   temperaturesAt,
 } from '../house/playback.ts';
-import { fractionOf } from '../house/timeline.ts';
+import { fractionOf, markersOf, nightsOf, type SeekPhase, seeking } from '../house/timeline.ts';
 import { changeWords, readable, stepWords } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
+import { Timeline } from './Timeline.tsx';
 import './house-panel.css';
 
 // three.js and the scene load in the browser only, and only on this page.
@@ -91,9 +94,13 @@ export const HousePanel = memo(function HousePanel(props: {
 }) {
   const { home, request, mode, still, lean } = props;
   const pins = useRef(new Map<string, HTMLElement>());
-  // Beside the device the card runs across the top of the panel; the house is framed below it.
+  // Beside the device the card runs across the top of the panel; the house is framed below it,
+  // and above the timeline while one shows.
   const card = useRef<HTMLDivElement>(null);
   const cardBottom = useCardBottom(card);
+  const strip = useRef<HTMLDivElement>(null);
+  const [stripShown, setStripShown] = useState(false);
+  const stripTop = useSpaceBelow(strip, stripShown);
   const pinned = useCallback((id: string) => pins.current.get(id), []);
   const pin = useCallback(
     (id: string) => (el: HTMLElement | null) => {
@@ -109,8 +116,10 @@ export const HousePanel = memo(function HousePanel(props: {
   // frame comes after it however long that frame takes.
   const [begun, setBegun] = useState(false);
   const [only, setOnly] = useState<number | undefined>(undefined);
-  // Where the show is, in real milliseconds.
+  // Where the show is, in real milliseconds at normal speed; it runs while `playing`.
   const [position, setPosition] = useState(0);
+  const [playing, setPlaying] = useState(true);
+  const [speed, setSpeed] = useState<Speed>(1);
   // Whether this playback's frames come fast enough to sweep through the plan: found from its
   // first frames of the clock running, afresh for every playback.
   const [pace, setPace] = useState<Pace>('unsure');
@@ -118,11 +127,15 @@ export const HousePanel = memo(function HousePanel(props: {
   paceNow.current = pace;
   const positionNow = useRef(position);
   positionNow.current = position;
+  const speedNow = useRef(speed);
+  speedNow.current = speed;
   const homeNow = useRef(home);
   homeNow.current = home;
   // Known before a playback's frames: less motion asked for, or software WebGL.
   const calmFromStart = useRef(still || lean);
   calmFromStart.current = still || lean;
+  // Whether a drag on the timeline stopped the playing, to carry on after it.
+  const resumeAfterDrag = useRef(false);
 
   // A new request starts a show from the house as it is now, or ends one.
   const requestId = request?.id;
@@ -144,6 +157,7 @@ export const HousePanel = memo(function HousePanel(props: {
     });
     setOnly(undefined);
     setPosition(calmFromStart.current ? Number.POSITIVE_INFINITY : 0);
+    setPlaying(true);
     setPace('unsure');
     const begin = () => setBegun(true);
     if (typeof requestIdleCallback === 'function') {
@@ -155,7 +169,8 @@ export const HousePanel = memo(function HousePanel(props: {
   }, [requestId]);
 
   // With less motion, on software WebGL, or where this playback's frames are too slow to sweep,
-  // each run is shown where it ends: the plan first, then whichever is chosen.
+  // each run is shown where it ends: the plan first, then whichever is chosen. The timeline can
+  // still be dragged to any moment.
   const calm = showsEnds(pace, still, lean);
   const shown = calm ? (only ?? 0) : only;
   useEffect(() => {
@@ -168,7 +183,7 @@ export const HousePanel = memo(function HousePanel(props: {
   // The clock runs while a show plays, then stops. Until this playback's pace is known, the gaps
   // between its frames of the clock running decide it; too slow, and it goes to where the run ends.
   useEffect(() => {
-    if (!show || !begun || calm || done) return;
+    if (!show || !begun || calm || done || !playing) return;
     let judging = paceNow.current === 'unsure' ? NEW_PLAYBACK : undefined;
     let last = performance.now();
     let frame = requestAnimationFrame(function tick() {
@@ -185,18 +200,19 @@ export const HousePanel = memo(function HousePanel(props: {
           judging = undefined;
         }
       }
-      const next = advance(show.runs, SHOW_TIMING, at, gap, 1, shown);
+      const next = advance(show.runs, SHOW_TIMING, at, gap, speedNow.current, shown);
       positionNow.current = next;
       setPosition(next);
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
-  }, [show, begun, calm, done, shown]);
+  }, [show, begun, calm, done, playing, shown]);
 
   /** Play one run again from its start (in calm, show where it ends). */
-  const replay = (i: number) => {
+  const replay = (i: number | undefined) => {
     setOnly(i);
     setPosition(calm ? Number.POSITIVE_INFINITY : 0);
+    setPlaying(true);
   };
 
   const run = show && m ? show.runs[m.run] : undefined;
@@ -228,7 +244,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const step = m?.step ?? null;
   const focusDevice = held.find((b) => b.device)?.device;
   const focus = !calm && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
-  const moving = !!show && begun && !calm && !done;
+  const moving = !!show && begun && !calm && !done && playing;
 
   const view: HouseView = {
     devices,
@@ -237,7 +253,7 @@ export const HousePanel = memo(function HousePanel(props: {
     zonesC: temps?.zonesC ?? null,
     shadow: m ? 1 : 0,
     focus,
-    // Tied to where the run is, so the camera winds back with it.
+    // Tied to where the run is, so the camera holds still while paused and winds back with it.
     dolly: run && !calm ? fractionOf(run, homeMs) : null,
   };
 
@@ -270,6 +286,23 @@ export const HousePanel = memo(function HousePanel(props: {
       .filter((c) => c.device === id)
       .at(-1);
 
+  const markers = useMemo(
+    () => (run && show ? markersOf(run, show.devices, show.presence) : []),
+    [run, show],
+  );
+  const nights = useMemo(() => (run ? nightsOf(run) : []), [run]);
+
+  const withStrip = !!(run && m);
+  useEffect(() => setStripShown(withStrip), [withStrip]);
+
+  const seek = (to: number, phase: SeekPhase) => {
+    if (!show || !m) return;
+    const after = seeking({ playing, resume: resumeAfterDrag.current }, phase);
+    resumeAfterDrag.current = after.resume;
+    if (after.playing !== playing) setPlaying(after.playing);
+    setPosition(positionAt(show.runs, SHOW_TIMING, m.run, to, shown));
+  };
+
   return (
     <>
       <div className="sky" style={skyStyle} aria-hidden="true" />
@@ -278,7 +311,7 @@ export const HousePanel = memo(function HousePanel(props: {
         mode={mode}
         anchors={ANCHORS}
         pinned={pinned}
-        inset={docked ? { top: cardBottom, bottom: 76 } : NO_INSET}
+        inset={docked ? { top: cardBottom, bottom: withStrip ? stripTop : 76 } : NO_INSET}
         still={calm}
         moving={moving}
         onFail={props.onFail}
@@ -413,6 +446,26 @@ export const HousePanel = memo(function HousePanel(props: {
         ))}
       </div>
       {run && !docked ? <ZoneChart run={run} homeMs={homeMs} zone="garage" /> : null}
+      {run && m ? (
+        <div className="timeline-dock" ref={strip}>
+          <Timeline
+            run={run}
+            homeMs={homeMs}
+            clock={homeClock(homeMs, run.offset)}
+            markers={markers}
+            nights={nights}
+            playing={playing}
+            done={done}
+            calm={calm}
+            speed={speed}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onReplay={() => replay(undefined)}
+            onSpeed={setSpeed}
+            onSeek={seek}
+          />
+        </div>
+      ) : null}
     </>
   );
 });
@@ -432,6 +485,23 @@ function useCardBottom(card: { current: HTMLElement | null }): number {
     return () => observer.disconnect();
   }, [card]);
   return bottom;
+}
+
+/** How much of its panel, from the bottom, an element along the bottom covers, plus a gap. */
+function useSpaceBelow(el: { current: HTMLElement | null }, shown: boolean): number {
+  const [space, setSpace] = useState(76);
+  useEffect(() => {
+    const node = el.current;
+    const panel = node?.offsetParent as HTMLElement | null | undefined;
+    if (!shown || !node || !panel) return;
+    const measure = () => setSpace(Math.round(panel.clientHeight - node.offsetTop + 12));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [el, shown]);
+  return space;
 }
 
 /**
