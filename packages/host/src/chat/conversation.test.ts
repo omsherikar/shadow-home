@@ -263,6 +263,12 @@ describe('whether an answer waits for a reply', () => {
     ).toBe(true);
     expect(awaitsAnswer('Shall I fix it?” ', [])).toBe(true);
   });
+
+  test('a yes or no still pending does, even worded without a question mark', () => {
+    expect(awaitsAnswer('Blocked: that breaks 4 house rules.', [WEEKEND])).toBe(true);
+    const needsYes = call('commit_plan', { status: 'needs_confirmation', planId: 'p1' });
+    expect(awaitsAnswer('That unlocks the front door.', [needsYes])).toBe(true);
+  });
 });
 
 describe('the details view', () => {
