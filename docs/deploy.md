@@ -131,6 +131,10 @@ the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only 
    (`gcloud beta run domain-mappings describe`, below).
 4. If the domain has CAA records, they must allow `pki.goog` and `letsencrypt.org`, which issue
    the certificates.
+5. Wait for the certificates: ours took about 17 minutes; Google allows up to 24 hours.
+   `gcloud beta run domain-mappings describe --domain=<host name> --region=us-central1` shows
+   whether a mapping is ready.
+6. Check it: `node scripts/check-mcp.ts https://<mcp name>/mcp` (ours passes 15 of 15).
 
 ### If a deploy goes wrong
 
