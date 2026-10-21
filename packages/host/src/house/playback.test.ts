@@ -12,6 +12,7 @@ import {
   schedule,
   TEMPERATURES_META_KEY,
   type Trace,
+  temperatureColor,
   temperaturesAt,
 } from './playback.ts';
 
@@ -322,5 +323,15 @@ describe('the house at a moment', () => {
     // The last sample is at the end, however long the last gap is.
     expect(temperaturesAt(trace, Date.parse(SUN)).zonesC.garage).toBe(3);
     expect(temperaturesAt(trace, Date.parse(SUN) + 1).zonesC.garage).toBe(3);
+  });
+});
+
+describe('drawing it', () => {
+  test('rooms go from icy blue through neutral to warm orange', () => {
+    expect(temperatureColor(-5)).toBe('#dff1ff');
+    expect(temperatureColor(0)).toBe('#dff1ff');
+    expect(temperatureColor(30)).toBe('#ec8a3c');
+    const red = (hex: string) => Number.parseInt(hex.slice(1, 3), 16);
+    expect(red(temperatureColor(20))).toBeGreaterThan(red(temperatureColor(4)));
   });
 });
