@@ -41,3 +41,9 @@ const LABELS: Record<string, string> = {
 export function stepLabel(tool: string): string {
   return Object.hasOwn(LABELS, tool) ? (LABELS[tool] as string) : 'Working on it';
 }
+
+/** An event as Server-Sent Events text: its type, and its data as one line of JSON. */
+export function encodeEvent({ event, data }: TurnEvent): string {
+  // JSON.stringify escapes line breaks inside strings, so the data stays on one line.
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
