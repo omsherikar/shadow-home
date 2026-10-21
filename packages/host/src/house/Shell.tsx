@@ -415,31 +415,48 @@ function Counter({ b }: { b: Built }) {
   );
 }
 
-/** A bed whose foot faces the way it faces: frame, mattress, duvet and headboard. */
+/**
+ * A bed whose foot faces the way it faces: a walnut frame, a padded headboard, a white sheet, a
+ * duvet turned down at the top and a pillow for each sleeper.
+ */
 function Bed({ b }: { b: Built }) {
-  const duvet = b.room === 'bedroom_sam' ? palette.duvetSam : palette.duvetMain;
+  const sam = b.room === 'bedroom_sam';
+  const duvet = sam ? palette.duvetSam : palette.duvetMain;
   const head = -b.depth / 2;
+  const pillows = sam ? [0] : [-b.width / 4, b.width / 4];
+  const pillowWidth = sam ? 0.55 : b.width / 2 - 0.12;
   return (
     <>
-      <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
-        <boxGeometry args={[b.width, 0.28, b.depth]} />
-        <meshStandardMaterial color={palette.walnut} roughness={0.6} />
+      <mesh position={[0, 0.13, 0]} castShadow receiveShadow>
+        <boxGeometry args={[b.width + 0.06, 0.26, b.depth + 0.04]} />
+        <meshStandardMaterial ref={twin} color={palette.walnut} roughness={0.55} />
       </mesh>
-      <mesh position={[0, 0.38, 0.02]} castShadow receiveShadow>
-        <boxGeometry args={[b.width - 0.06, 0.2, b.depth - 0.08]} />
-        <meshStandardMaterial color={palette.linen} roughness={0.95} />
+      <mesh position={[0, 0.37, 0.02]} castShadow receiveShadow>
+        <boxGeometry args={[b.width - 0.02, 0.22, b.depth - 0.06]} />
+        <meshStandardMaterial ref={twin} color={palette.sheet} roughness={0.95} />
       </mesh>
-      <mesh position={[0, 0.5, 0.28]} castShadow receiveShadow>
-        <boxGeometry args={[b.width - 0.02, 0.06, b.depth - 0.55]} />
-        <meshStandardMaterial color={duvet} roughness={1} />
+      {/* The duvet covers all but the head, and turns down in a white band. */}
+      <mesh position={[0, 0.5, 0.33]} castShadow receiveShadow>
+        <boxGeometry args={[b.width + 0.02, 0.07, b.depth - 0.62]} />
+        <meshStandardMaterial ref={twin} color={duvet} roughness={1} />
       </mesh>
-      <mesh position={[0, 0.48, head + 0.3]} castShadow>
-        <boxGeometry args={[Math.min(0.55, b.width - 0.2), 0.1, 0.3]} />
-        <meshStandardMaterial color={palette.linen} roughness={1} />
+      <mesh position={[0, 0.54, head + 0.62]} castShadow>
+        <boxGeometry args={[b.width + 0.02, 0.05, 0.18]} />
+        <meshStandardMaterial ref={twin} color={palette.sheet} roughness={0.95} />
       </mesh>
-      <mesh position={[0, 0.5, head + 0.03]} castShadow receiveShadow>
-        <boxGeometry args={[b.width, 1.0, 0.06]} />
-        <meshStandardMaterial color={palette.walnut} roughness={0.6} />
+      {pillows.map((x) => (
+        <mesh key={x} position={[x, 0.53, head + 0.28]} castShadow>
+          <boxGeometry args={[pillowWidth, 0.12, 0.34]} />
+          <meshStandardMaterial ref={twin} color={palette.sheet} roughness={1} />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.6, head + 0.03]} castShadow receiveShadow>
+        <boxGeometry args={[b.width + 0.1, 1.2, 0.07]} />
+        <meshStandardMaterial ref={twin} color={palette.walnut} roughness={0.55} />
+      </mesh>
+      <mesh position={[0, 0.72, head + 0.075]} castShadow>
+        <boxGeometry args={[b.width - 0.1, 0.62, 0.05]} />
+        <meshStandardMaterial ref={twin} color={palette.headboard} roughness={1} />
       </mesh>
     </>
   );
