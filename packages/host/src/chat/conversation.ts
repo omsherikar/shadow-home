@@ -225,6 +225,16 @@ function forPreview(p: PreviewLike): FollowUp[] {
 }
 
 /**
+ * Whether an answer waits for a reply: it ends with a question (the engine's ask, "Do it with 4
+ * fixes instead?"), or what the turn ended on still needs a yes or a no. Hands-free listens for
+ * that reply without the wake word.
+ */
+export function awaitsAnswer(say: string, calls: ToolCall[]): boolean {
+  if (/\?["'”’)]*\s*$/.test(say)) return true;
+  return followUpsFor(calls).some((f) => f.says === NO);
+}
+
+/**
  * On a phone the device folds into a strip, which carries the answers to the screen's question
  * (its buttons); the chat keeps the rest ("Why?").
  */
