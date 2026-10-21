@@ -350,6 +350,38 @@ describe('runs from a tool result', () => {
         ]),
       ).toEqual([['unknown', at('2027-01-16T01:00:00'), 'front_door_contact']]);
     });
+
+    test('the plan with its fixes stops at its own first action too', () => {
+      const fixedMeta = {
+        [REPLAY_META_KEY]: {
+          plan: { presence: [] },
+          fixed: {
+            presence: [],
+            timeline: [
+              ...routines,
+              {
+                at: '2027-01-16T02:00:00-06:00',
+                source: 'plan',
+                device: 'dishwasher',
+                attr: 'onOff',
+                from: false,
+                to: true,
+              },
+            ],
+            violations: [],
+            unknowns: [door],
+          },
+        },
+      };
+      const [, fixed] = runsFrom(
+        'preview_plan',
+        { ...unproven(routines), repair: { planId: 'fixed', verdict: 'UNPROVEN', changes: [{}] } },
+        fixedMeta,
+      );
+      expect(fixed?.breaks.map((b) => [b.kind, b.atMs])).toEqual([
+        ['unknown', at('2027-01-16T02:00:00')],
+      ]);
+    });
   });
 
   test('an undo’s preview and a fresh preview after a stale plan ID play too; other results don’t', () => {
