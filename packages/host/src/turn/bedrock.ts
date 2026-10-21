@@ -164,9 +164,12 @@ type Turn =
   | { context: 'read' }
   | { context: 'chat'; afterPlan: boolean; checkOpen: boolean };
 
-/** Words that ask about the check on screen: "why?", "what does that mean?", "tell me more". */
+/**
+ * Words that ask about a check: "why?", "what does that mean?", "tell me more", "explain", "how
+ * come?". A bare "how" or "what" isn't one: "how are you?" is small talk.
+ */
 const ASKS_ABOUT =
-  /\b(?:why|what|how|explain|which|who|when|tell me more|tell me about|more about|go on)\b/;
+  /\b(?:why|explain|how come|how so|tell me more|what (?:does|did) (?:that|this|it) mean|whats that mean|what do you mean)\b/;
 
 /** A question, asked any way: "Is that safe?", "how bad is it", "what happens to the garage". */
 function isQuestion(text: string): boolean {
