@@ -104,6 +104,11 @@ export function speechQueue(voice: Voice) {
       for (const sentence of now.split.push(words)) queue(now, sentence);
     },
     finish,
+    /** Say this, and only this, cutting short whatever was being said. */
+    say(text: string): Promise<void> {
+      clear();
+      return finish(text);
+    },
     clear,
   };
 }
