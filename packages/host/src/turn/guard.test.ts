@@ -164,6 +164,26 @@ const home = (
     ...over,
   });
 
+describe('softening a verdict without a verdict word: any negation, scope or judgement', () => {
+  test.each([
+    'No rule is affected.',
+    'Your plan keeps to every rule.',
+    "Om's rule doesn't apply here.",
+    'Nothing goes against your rules.',
+    "That's within the rules.",
+    "It won't matter.",
+    'Everything stays as it should.',
+    'The garage stays above freezing.',
+    'The fixes make no difference.',
+    "There's no reason to change it.",
+    'The original plan is the better one.',
+    'Your house rules have no objection.',
+  ])('%s', (sentence) => {
+    expect(dropReason(sentence, home('plan'))).toBe('verdict');
+    expect(dropReason(sentence, home('anchored'))).toBe('verdict');
+  });
+});
+
 describe('a state after a check only as what would happen, since nothing has run', () => {
   test.each([
     'The house is in away mode.',
