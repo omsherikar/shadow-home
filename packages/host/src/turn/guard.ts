@@ -38,6 +38,8 @@ export interface FilterFacts {
   quotes: string[];
   /** Each way a device may be named ("front door" for Front door lock), and its IDs. */
   devices: Map<string, string[]>;
+  /** In a read turn: the devices the person's words name, for "it" ("Is the front door locked?"). */
+  heard: string[];
   /** In a read turn: what holds for each device in this turn's results (on, off, locked ...). */
   states: Map<string, Set<string>>;
   /** In a read turn: the times ("hour:minute", 24-hour) and numbers in this turn's results. */
@@ -275,9 +277,9 @@ const GENERIC = /\s+(?:lock|sensor|contact|latch|plug)$/;
 /**
  * The facts a turn's sentences are checked against: the home's device and routine names; the
  * rule texts and reasons of the check the turn is about (this turn's, or the one a "why?" asks
- * about), which are quotes; and in a read turn, what this turn's results say: each device's
- * state, and the times and numbers in them (each value, a decimal also rounded; ISO times as
- * times, never numbers; IDs, counters and list lengths left out).
+ * about), which are quotes; and in a read turn, the devices the person named and what this turn's
+ * results say: each device's state, and the times and numbers in them (each value, a decimal also
+ * rounded; ISO times as times, never numbers; IDs, counters and list lengths left out).
  */
 export function filterFacts(input: {
   context: Context;
@@ -286,6 +288,8 @@ export function filterFacts(input: {
   routines: string[];
   /** The check the turn is about, for its quotes. */
   about?: unknown;
+  /** The person's words this turn. */
+  heard?: string;
   /** In a chat turn: a check came back earlier in the conversation. */
   afterPlan?: boolean;
 }): FilterFacts {
@@ -340,12 +344,14 @@ export function filterFacts(input: {
     }
   };
   if (input.context === 'read') for (const r of input.results) visit(r);
+  const heard = input.context === 'read' ? namedIn(lower(input.heard ?? ''), devices) : [];
   return {
     context: input.context,
     afterPlan: input.afterPlan ?? false,
     names,
     quotes,
     devices,
+    heard,
     states,
     times,
     numbers,
@@ -443,11 +449,11 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
 
 /**
  * In a read turn, each state the sentence gives holds by this turn's results for a device it
- * names; a denial flips it ("isn't locked" is unlocked). A device's state comes from its own kind
- * of field (a lock is locked or unlocked, a sensor open or closed, a switch on or off), and a name
- * two devices share ("back door") passes when either holds it. A state that can't be checked
- * (secure, away mode, warm) fails, and so does one with no device to check it on. A value
- * ("20.5 °C") is left to the numbers check.
+ * names, or for "it", the one device the person's words named; a denial flips it ("isn't locked"
+ * is unlocked). A device's state comes from its own kind of field (a lock is locked or unlocked, a
+ * sensor open or closed, a switch on or off), and a name two devices share ("back door") passes
+ * when either holds it. A state that can't be checked (secure, away mode, warm) fails, and so does
+ * one with no device to check it on. A value ("20.5 °C") is left to the numbers check.
  */
 function statesHold(said: string, facts: FilterFacts): boolean {
   const text = said
@@ -455,7 +461,8 @@ function statesHold(said: string, facts: FilterFacts): boolean {
     .replace(/\b(is|are|was|were|does|did)n't\b/g, '$1 not')
     .replace(/\b(it|that|he|she|there)'s\b/g, '$1 is')
     .replace(/\b(they|we|you)'re\b/g, '$1 are');
-  const named = namedIn(text, facts.devices);
+  let named = namedIn(text, facts.devices);
+  if (named.length === 0 && /\b(?:it|that|this|they|its)\b/.test(text)) named = facts.heard;
   let rest = text;
   for (const m of text.matchAll(CHECKABLE)) {
     const denied = Boolean(m[1] ?? m[3]);
