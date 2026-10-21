@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { type Clip, speechQueue, type Voice } from './speech-queue.ts';
 
+const WEEKEND =
+  "Blocked: that breaks 4 house rules. No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?";
+
 /** Lets pending promises run. */
 const settle = () => new Promise((r) => setTimeout(r, 0));
 
@@ -72,5 +75,24 @@ describe('speaking an answer as it streams', () => {
     speech.write('rules. No coffee');
     await settle();
     expect(v.asked).toEqual(['Blocked: that breaks 4 house rules.']);
+  });
+
+  test('the sentences play in order, each clip asked for once the one before has answered', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    for (const piece of WEEKEND.match(/.{1,7}/g) ?? []) speech.write(piece);
+    await settle();
+    // One request at a time.
+    expect(v.asked).toEqual(['Blocked: that breaks 4 house rules.']);
+    const said = speech.finish(WEEKEND);
+    await v.drain();
+    await said;
+    expect(v.asked).toEqual([
+      'Blocked: that breaks 4 house rules.',
+      "No coffee maker running when nobody's home.",
+      "That's Om's rule.",
+      'Do it with 4 fixes instead?',
+    ]);
+    expect(v.played.map((p) => p.text)).toEqual(v.asked);
   });
 });
