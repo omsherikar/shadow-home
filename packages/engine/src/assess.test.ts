@@ -665,4 +665,17 @@ describe("away mode without saying who's away", () => {
     expect(a.safePart).toBeNull();
     expect(a.offered).toBeNull();
   });
+
+  test("a plan lint rejects is never simulated, so it lists no unknown and doesn't ask who's away", () => {
+    const a = assess(
+      home,
+      plan([{ mode: 'away' }, { device: 'plug_tv', set: { onOff: 'maybe' } }]),
+      { requestedBy: 'om' },
+    );
+    expect(a.check.verdict).toBe('UNSAFE');
+    expect(a.check.unknowns).toEqual([]);
+    expect(whoIsAwayUnknown(a.check)).toBe(false);
+    expect(a.tier.tier).toBe('T3');
+    expect(a.speech.ask).toBeUndefined();
+  });
 });
