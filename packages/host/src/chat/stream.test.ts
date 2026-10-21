@@ -81,6 +81,13 @@ describe('reading the event stream', () => {
     expect([...parser.push(crlf.slice(0, cut)), ...parser.push(crlf.slice(cut))]).toEqual(whole);
   });
 
+  test('gives an event only at the blank line after it, and drops one left unfinished', () => {
+    const parser = eventParser();
+    expect(parser.push('event: text\ndata: {"delta":"Hi"}\n')).toEqual([]);
+    expect(parser.push('\n')).toEqual([{ type: 'text', delta: 'Hi' }]);
+    expect(parser.push('event: text\ndata: {"delta":"never finished"}')).toEqual([]);
+  });
+
   test('reads an error, with and without when to try again', () => {
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":120000}')).toEqual(
       { type: 'error', message: 'Busy', retryable: true, retryAfterMs: 120000 },
