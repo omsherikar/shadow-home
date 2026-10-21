@@ -80,6 +80,8 @@ const meta = {
     fixed: { presence: omBack, timeline: [], violations: [], unknowns: [] },
   },
 };
+/** Screen data with only the plan's own replay: who its check took to be home. */
+const planOnly = { [REPLAY_META_KEY]: { plan: { presence: [] } } };
 
 describe('runs from a tool result', () => {
   test('a preview with fixes plays the plan, then the plan with its fixes', () => {
@@ -126,5 +128,13 @@ describe('runs from a tool result', () => {
         [REPLAY_META_KEY]: { fixed: meta[REPLAY_META_KEY].fixed },
       }),
     ).toEqual([]);
+  });
+
+  test('without the fix’s run in _meta, only the plan plays', () => {
+    expect(runsFrom('preview_plan', preview, planOnly).map((r) => r.planId)).toEqual(['plan']);
+    const presenceOnly = {
+      [REPLAY_META_KEY]: { plan: { presence: nobody }, fixed: { presence: nobody } },
+    };
+    expect(runsFrom('preview_plan', preview, presenceOnly).map((r) => r.planId)).toEqual(['plan']);
   });
 });
