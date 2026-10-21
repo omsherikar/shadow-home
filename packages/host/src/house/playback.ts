@@ -454,3 +454,51 @@ export const SHOW_TIMING: ShowTiming = {
   pauseMs: 900,
   rewindMs: 700,
 };
+
+/** Where a show is: which run, at what home time, what it's stopped on, and whether it's over. */
+export interface Moment {
+  run: number;
+  homeMs: number;
+  held: Break[];
+  rewinding: boolean;
+  done: boolean;
+}
+
+/**
+ * A show plays the plan, pauses on its end, winds the clock back and plays the plan with its
+ * fixes. With `only`, it plays that one run. After the end it stays on the last moment.
+ */
+export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: number): Moment {
+  const order = only === undefined ? runs.map((_, i) => i) : [only];
+  let left = Math.max(0, realMs);
+  for (const [k, i] of order.entries()) {
+    const run = runs[i];
+    if (!run) continue;
+    const s = schedule(run, i === 0 ? timing.plan : timing.fixed);
+    if (left < s.totalMs) {
+      const p = playhead(s, left);
+      return { run: i, homeMs: p.homeMs, held: p.held, rewinding: false, done: false };
+    }
+    left -= s.totalMs;
+    const next = runs[order[k + 1] ?? -1];
+    if (!next) return { run: i, homeMs: run.endMs, held: [], rewinding: false, done: true };
+    if (left < timing.pauseMs) {
+      return { run: i, homeMs: run.endMs, held: [], rewinding: false, done: false };
+    }
+    left -= timing.pauseMs;
+    if (left < timing.rewindMs) {
+      const t = left / timing.rewindMs;
+      const back = run.endMs + (next.startMs - run.endMs) * (1 - (1 - t) ** 2);
+      return { run: i, homeMs: back, held: [], rewinding: true, done: false };
+    }
+    left -= timing.rewindMs;
+  }
+  const last = runs[order.at(-1) ?? 0];
+  return {
+    run: order.at(-1) ?? 0,
+    homeMs: last?.endMs ?? 0,
+    held: [],
+    rewinding: false,
+    done: true,
+  };
+}
