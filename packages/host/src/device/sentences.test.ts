@@ -25,4 +25,15 @@ describe('sentences in whole words', () => {
       'The house is at 9.7 °C now, the garage 4.5 °C.',
     ]);
   });
+
+  test('an abbreviation, or a lower-case word after a stop, does not end a sentence', () => {
+    expect(allSentences('Dr. Om says hi. Run it e.g. when power is cheap.')).toEqual([
+      'Dr. Om says hi.',
+      'Run it e.g. when power is cheap.',
+    ]);
+    expect(allSentences('It is approx. ten minutes. Run it at 2 a.m. tomorrow.')).toEqual([
+      'It is approx. ten minutes.',
+      'Run it at 2 a.m. tomorrow.',
+    ]);
+  });
 });
