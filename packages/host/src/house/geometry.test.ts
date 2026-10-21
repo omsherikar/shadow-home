@@ -99,6 +99,23 @@ describe('a band of the picture', () => {
     expect(band.center).toBeCloseTo(-0.25, 6);
     expect(band.half).toBeCloseTo(0.5833, 3);
   });
+
+  test('the house is framed inside it', () => {
+    const bounds = groundBounds(layout);
+    const band = bandBetween(300, 75, 900);
+    const f = frame(bounds, new Vector3(-0.6, 0.73, 0.1), 30, 0.64, 0.04, band);
+    const camera = new PerspectiveCamera(30, 0.64, 0.1, 1000);
+    camera.position.copy(f.position);
+    camera.lookAt(f.target);
+    camera.updateMatrixWorld();
+    for (const x of [bounds.min.x, bounds.max.x]) {
+      for (const z of [bounds.min.z, bounds.max.z]) {
+        const p = new Vector3(x, bounds.max.y, z).project(camera);
+        expect(p.y).toBeLessThanOrEqual(band.center + band.half + 1e-6);
+        expect(p.y).toBeGreaterThanOrEqual(band.center - band.half - 0.05);
+      }
+    }
+  });
 });
 
 describe('what a card covers', () => {
