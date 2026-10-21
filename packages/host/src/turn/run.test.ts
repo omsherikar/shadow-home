@@ -188,7 +188,7 @@ describe('a turn as it happens', () => {
     );
   });
 
-  test('a model that writes nothing as it goes: its answer is sent as one piece at the end', async () => {
+  test('a model that writes nothing as it goes: the headline as the check returns, the rest at the end', async () => {
     let step = 0;
     const model: Model = {
       async next() {
