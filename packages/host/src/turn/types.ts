@@ -64,5 +64,5 @@ export interface StepOptions {
 
 /** Whatever decides the next step of a turn: the scripted stand-in, or a live model. */
 export interface Model {
-  next(input: ModelInput): Promise<ModelStep>;
+  next(input: ModelInput, options?: StepOptions): Promise<ModelStep>;
 }
