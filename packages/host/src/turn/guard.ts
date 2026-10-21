@@ -58,6 +58,19 @@ const NEGATED_HARM = [
   /\b(?:no|nothing|never|won'?t|will not|wouldn'?t|would not|doesn'?t|does not|didn'?t|did not|isn'?t|is not|aren'?t|not|can'?t|cannot)\b(?:\s+[\w']+){0,4}?\s+(?:freez\w*|frost\w*|cold\w*|chill\w*|drop\w*|dip\w*|fall\w*|happen\w*)\b/,
   /\b(?:it|that|this|they)\s+(?:won'?t|wouldn'?t|will not|would not|doesn'?t|does not|isn'?t|is not)\s*[.!]?\s*$/,
 ];
+/**
+ * Softens a verdict without a verdict word: any negation ("doesn't apply", "no reason to change
+ * it"), a word about scope or weight ("within the rules", "no difference", "it won't matter"), a
+ * judgement ("the better one", "everything stays as it should"), or a claim about all the rules
+ * ("keeps to every rule"). With them gone, an explanation stays positive: "Om set that rule to
+ * keep the garage pipes from freezing."
+ */
+const SOFTENING = [
+  /\b(?:no|not|never|nothing|none|nobody|without|cannot)\b|n't\b/,
+  /\b(?:within|apply|applies|applied|affect\w*|difference|objection\w*|matter|matters)\b/,
+  /\b(?:better|worse|best|prefer\w*|recommend\w*|advis\w*|wise|sensible|reasonable|everything|as (?:it|they) should|above freezing|stays? above)\b/,
+  /\b(?:every|all|any|each)\s+(?:of\s+)?(?:your\s+|the\s+)?(?:house\s+)?rules?\b|\bkeeps? to\b|\bfollows?\b|\bcompl(?:y|ies|iant)\b|\bin line with\b/,
+];
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
@@ -246,8 +259,9 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (OFFER.test(text)) return 'question';
   const { times, rest } = timesIn(text);
   const numbers = numbersIn(rest);
-  // After a check, or about one: no question, a state only as what would happen (nothing has
-  // run), and no numbers or times, which the engine's words carry.
+  // After a check, or about one: nothing that softens it, no question, a state only as what
+  // would happen (nothing has run), and no numbers or times, which the engine's words carry.
+  if (SOFTENING.some((p) => p.test(text))) return 'verdict';
   if (sentence.includes('?')) return 'question';
   if (STATE.test(text) && !/\b(?:would|if)\b/.test(text)) return 'state';
   if (times.length > 0) return 'time';
