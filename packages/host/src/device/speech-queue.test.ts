@@ -13,7 +13,11 @@ const settle = () => new Promise((r) => setTimeout(r, 0));
  * them (`arrive`), and each sentence plays until the test ends it (`finishPlaying`) or the queue
  * stops it.
  */
-function fakeVoice(answer: (text: string) => Clip = () => ({ kind: 'audio', audio: new Blob() })) {
+function fakeVoice(
+  answer: (text: string) => Clip = () => ({ kind: 'audio', audio: new Blob() }),
+  /** Whether each sentence can be heard (false: the browser holds it back). */
+  heard: (text: string) => boolean = () => true,
+) {
   const asked: string[] = [];
   const played: { text: string; kind: Clip['kind'] }[] = [];
   const stopped: string[] = [];
@@ -29,6 +33,7 @@ function fakeVoice(answer: (text: string) => Clip = () => ({ kind: 'audio', audi
     },
     play(clip, text, signal) {
       played.push({ text, kind: clip.kind });
+      if (!heard(text)) return Promise.resolve(false);
       return new Promise((resolve) => {
         playing = () => resolve(true);
         signal.addEventListener('abort', () => {
@@ -239,6 +244,13 @@ describe('whether the answer was heard aloud', () => {
     const said = speechQueue(v.voice).finish(WEEKEND);
     await v.drain();
     expect(await said).toBe(true);
+  });
+
+  test('the browser held a sentence back (no tap yet): no', async () => {
+    const v = fakeVoice(undefined, (text) => !text.endsWith('?'));
+    const said = speechQueue(v.voice).finish(WEEKEND);
+    await v.drain();
+    expect(await said).toBe(false);
   });
 
   test('stopped before the end: no', async () => {
