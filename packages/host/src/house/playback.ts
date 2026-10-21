@@ -126,6 +126,8 @@ export interface Run {
   presence: { fromMs: number; toMs: number; who: Presence }[];
 }
 
+const MINUTE_MS = 60_000;
+
 /**
  * The runs a tool result asks the house to play: a preview's plan and, when it offers one, the
  * plan with its fixes. An undo's preview and a fresh preview after a stale plan ID count too.
@@ -239,4 +241,55 @@ function breaksOf(
     return { kind: 'unknown', atMs: firstAction, text, ...(device ? { device } : {}) };
   });
   return [...broken, ...unknown].sort((a, b) => a.atMs - b.atMs);
+}
+
+export interface Timing {
+  /** Real milliseconds for the whole sweep from now to the end, without the stops. */
+  sweepMs: number;
+  /** Real milliseconds to stop on each moment worth looking at. */
+  holdMs: number;
+}
+
+/** One stretch of a run's playback: sweeping between two home times, or holding on one. */
+interface Segment {
+  realMs: number;
+  fromMs: number;
+  toMs: number;
+  /** While holding: the breaks at this moment. */
+  hold?: Break[];
+}
+
+export interface Schedule {
+  totalMs: number;
+  segments: Segment[];
+}
+
+/**
+ * How a run plays in real time: a sweep from its start to its end, stopping at every moment a
+ * rule breaks (breaks in the same minute share one stop).
+ */
+export function schedule(run: Run, timing: Timing): Schedule {
+  const span = Math.max(MINUTE_MS, run.endMs - run.startMs);
+  const stops = new Map<number, Break[]>();
+  for (const b of run.breaks) {
+    const at = Math.min(Math.max(b.atMs, run.startMs), run.endMs);
+    stops.set(at, [...(stops.get(at) ?? []), b]);
+  }
+  const segments: Segment[] = [];
+  let at = run.startMs;
+  for (const [stop, held] of [...stops].sort((a, b) => a[0] - b[0])) {
+    if (stop > at) {
+      segments.push({ realMs: (timing.sweepMs * (stop - at)) / span, fromMs: at, toMs: stop });
+    }
+    segments.push({ realMs: timing.holdMs, fromMs: stop, toMs: stop, hold: held });
+    at = stop;
+  }
+  if (run.endMs > at) {
+    segments.push({
+      realMs: (timing.sweepMs * (run.endMs - at)) / span,
+      fromMs: at,
+      toMs: run.endMs,
+    });
+  }
+  return { totalMs: segments.reduce((t, s) => t + s.realMs, 0), segments };
 }
