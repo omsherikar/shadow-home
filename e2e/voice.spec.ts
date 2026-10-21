@@ -45,6 +45,15 @@ async function holdTheEnd(page: Page) {
       let buffer = '';
       const body = new ReadableStream<Uint8Array>({
         async start(c) {
+          // As a real response does: aborting the request (Stop) fails the body at once.
+          init?.signal?.addEventListener('abort', () => {
+            reader.cancel().catch(() => undefined);
+            try {
+              c.error(new DOMException('The request was aborted.', 'AbortError'));
+            } catch {
+              // Already closed.
+            }
+          });
           for (;;) {
             const { done, value } = await reader.read();
             if (value) buffer += decoder.decode(value, { stream: true });
