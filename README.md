@@ -48,7 +48,7 @@ Models plan, phrase and compile rules; only deterministic code decides.
 1. The person speaks; the Echo Show page turns speech into text.
 2. The voice loop's model drafts a plan and calls `preview_plan`.
 3. The engine lints the plan, checks its hygiene (conflicting writes, missing reversals), then simulates the house minute by minute three times: as expected, 20% leakier with a forecast 2 °C colder, and 20% tighter and 2 °C warmer. Every house rule is checked at every step.
-4. The device speaks the server's own speech fields, not the model's paraphrase, and the screen shows the diff and timeline. Beside it, a 3D model of the house shows the twin's live state: lights, plugs, locks, windows, who is home and both zones' temperatures.
+4. The device speaks the server's own speech fields, not the model's paraphrase, and the screen shows the diff and timeline. Beside it, a 3D model of the house shows the twin's live state: lights, plugs, locks, windows, who is home and both zones' temperatures. Each checked plan plays forward there in a shadow twin of the house, the engine's own run with every rule breaking at its time, then again with the fixes.
 5. A yes (or a tap) calls `commit_plan` with the signed plan ID. A SAFE plan commits; one that needs a yes commits only with it; an UNSAFE plan never commits, though its fixed version can.
 
 Alexa+ declares only the `roots` capability, so Shadow Home doesn't rely on mid-call questions: every change is a preview, then a commit with a signed, short-lived plan ID tied to the home's state.
