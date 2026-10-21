@@ -516,6 +516,32 @@ describe("the live session's turns", () => {
       },
     ]);
   });
+
+  test('while a check is open (unanswered, or not SAFE), any question leads with it; once answered, "why?" is plain conversation', async () => {
+    const asking = {
+      verdict: 'SAFE',
+      tier: 'T2',
+      speech: {
+        headline: 'Safe, but it needs a yes: front door unlocks.',
+        ask: 'Unlock the front door?',
+      },
+    };
+    const open: Remembered[] = [{ name: 'preview_plan', arguments: {}, structuredContent: asking }];
+    const answered: Remembered[] = [...open, { name: 'heard', arguments: { text: 'No.' } }];
+    const words = "Om's rule is about the front door.";
+    expect(await reply({ text: 'Why?', history: open }, words)).toEqual([
+      { say: `Safe, but it needs a yes: front door unlocks. ${words}` },
+    ]);
+    // Answered, the check is closed: no headline, and its talk of rules is plain conversation's
+    // to drop.
+    expect(
+      await reply({ text: 'Why?', history: answered }, words, 'That was about the front door.'),
+    ).toEqual([{ say: NOT_SURE }, { say: 'That was about the front door.' }]);
+    // Any question while it's open leads with it, so a reply can't drift from it.
+    expect(await reply({ text: 'How are you?', history: open }, "I'm well, thanks.")).toEqual([
+      { say: "Safe, but it needs a yes: front door unlocks. I'm well, thanks." },
+    ]);
+  });
 });
 
 describe('the demo', () => {
