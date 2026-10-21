@@ -37,6 +37,22 @@ export interface FilterFacts {
 /** The most one sentence may hold: the longest speech field (decision 40). */
 export const MAX_SENTENCE_WORDS = 25;
 
+/**
+ * Says, or denies, a verdict or its outcome: whether a plan is safe, allowed, needed or breaks a
+ * rule, or that all will be well.
+ */
+const VERDICT = new RegExp(
+  `\\b(?:${[
+    'safe|safely|safety|unsafe|risk|risks|risky|danger\\w*|harm\\w*',
+    'fine|ok|okay|all set|good|great|perfect|happy|relax\\w*|warm\\w*',
+    'go ahead|green light|problem|problems|issue|issues|worr\\w*|wrong|trouble|clear|covered',
+    'blocked|block|blocks|allow\\w*|permitted|approv\\w*|break|breaks|breaking|broke|broken',
+    'hold|holds|holding|violat\\w*|respect\\w*|meet|meets|conflict\\w*|in order|in the way',
+    'pass|passed|passes|fail|failed|fails|works|need|needs|needed|necessary|unnecessary',
+    'skip\\w*|optional|prove|proved|proven|unproven|confirm\\w*|certain|uncertain|sure|unsure',
+    'found nothing|found no',
+  ].join('|')})\\b`,
+);
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
@@ -209,9 +225,12 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   }
   if (said.split(/\s+/).filter(Boolean).length > MAX_SENTENCE_WORDS) return 'long';
   if (FRAGMENT.test(said)) return 'fragment';
+  const { context } = facts;
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time).
   let text = said.replace(/[.!?]+$/, '');
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
+  if (context === 'chat') return null;
+  if (VERDICT.test(text)) return 'verdict';
   return null;
 }
