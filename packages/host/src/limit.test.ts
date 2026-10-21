@@ -50,6 +50,24 @@ describe('an hourly budget', () => {
     expect(spend(4)).toBe(true);
   });
 
+  test('retryAfter says when an amount fits again: as soon as enough of the oldest has left', () => {
+    let t = 0;
+    const spend = hourlyBudget(10, () => t);
+    expect(spend.retryAfter(10)).toBe(0);
+    spend(4);
+    t = 10 * MINUTE;
+    spend(3);
+    t = 20 * MINUTE;
+    spend(3);
+    expect(spend.retryAfter(1)).toBe(40 * MINUTE);
+    // Five fit once the 4 and the 3 have both left.
+    expect(spend.retryAfter(5)).toBe(50 * MINUTE);
+    expect([spend.retryAfter(11), spend.retryAfter(0)]).toEqual([Infinity, Infinity]);
+    t = HOUR;
+    expect(spend.retryAfter(4)).toBe(0);
+    expect(spend(1)).toBe(true);
+  });
+
   test('an amount that is not a positive number is refused, and adds nothing back', () => {
     const spend = hourlyBudget(10, () => 0);
     expect(spend(10)).toBe(true);
