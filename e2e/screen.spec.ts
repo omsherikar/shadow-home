@@ -47,6 +47,19 @@ async function tap(page: Page, control: Locator) {
 /** The house's overlay, which says whether a plan is playing in the shadow twin. */
 const playing = (page: Page) => page.locator('.pins');
 
+/**
+ * Moves the page's held clock on `stepMs` at a time, one animation frame per step, until `target`
+ * shows; fails if it hasn't within `limitMs` of page time. Steps shorter than a stop in the
+ * playback can't step over it.
+ */
+async function stepUntil(page: Page, target: Locator, stepMs: number, limitMs: number) {
+  for (let t = 0; t < limitMs; t += stepMs) {
+    if (await target.isVisible()) return;
+    await page.clock.fastForward(stepMs);
+  }
+  await expect(target).toBeVisible({ timeout: 1000 });
+}
+
 async function say(page: Page, text: string) {
   await openControls(page);
   await page.getByLabel('Say something').fill(text);
@@ -126,23 +139,33 @@ for (const [what, url] of [
 test('a checked plan plays forward in the house, then the plan with its fixes', async ({
   page,
 }) => {
+  // The playback runs on the page's clock (animation frames and performance.now), so the test
+  // holds that clock and moves it itself: where the playback is then depends on page time alone.
+  // Left to run, one slow frame (software WebGL compiling the twin's shaders) can outlast a stop,
+  // or the whole show, and the playback lands past it. Stepping the twin a frame at a time takes
+  // about a minute on software WebGL.
+  test.setTimeout(150_000);
+  await page.clock.install();
   await page.goto('/');
   await openControls(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
   await page.getByRole('button', { name: WEEKEND }).click();
   const house = page.getByRole('region', { name: 'The house' });
   await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
-  // The engine's own run: R3 breaks where the preview says, with its words and whose rule it is,
-  // on the house's card while the playback stops there.
+  // The engine's own run: the playback stops where R3 breaks, its clock on the minute, and the
+  // house's card gives the rule's words and whose rule it is.
   const r3 = house
     .getByRole('status')
     .filter({ hasText: 'R3 breaks Sat 10:37 PM' })
     .filter({ hasText: "Don't let the garage pipes freeze." })
     .filter({ hasText: 'Om’s rule' });
-  await expect(r3).toBeVisible({ timeout: 30_000 });
+  // Half-second steps: the plan's stops last 1.3 s, so at least two steps land in each.
+  await stepUntil(page, r3, 500, 20_000);
+  await expect(house.getByText(/^Saturday, 10:37 PM$/)).toBeVisible();
   await page.screenshot({ path: 'test-results/house-r3.png' });
   // Then the same plan with its fixes, to the end of the weekend.
   const fixes = house.getByRole('button', { name: 'With 4 fixes' });
-  await expect(fixes).toBeVisible({ timeout: 30_000 });
+  await stepUntil(page, fixes, 2000, 30_000);
   await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'fixed');
   await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
   await page.screenshot({ path: 'test-results/house-fixed.png' });
