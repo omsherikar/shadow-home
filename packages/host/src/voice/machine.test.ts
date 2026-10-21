@@ -201,4 +201,23 @@ describe('stopping, turning off, and the microphone failing', () => {
     const thinking = run([on, heard('Alexa, hello')]).state;
     expect(run([{ type: 'wake' }], thinking).state.mode).toBe('thinking');
   });
+
+  test('turning off stops listening whatever she was doing', () => {
+    for (const events of [[on], [on, heard('Alexa')], [on, heard('Alexa, hi')]]) {
+      const { state } = run([...events, { type: 'off' }]);
+      expect(state.mode).toBe('off');
+    }
+  });
+
+  test('off, nothing she hears or does turns it on', () => {
+    const { state, effects } = run([
+      heard('Alexa, hi'),
+      { type: 'wake' },
+      { type: 'turn-started' },
+      { type: 'turn-ended', asked: true },
+      { type: 'speaking', on: false },
+    ]);
+    expect(state.mode).toBe('off');
+    expect(effects).toEqual([]);
+  });
 });
