@@ -2,7 +2,7 @@
 
 import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { MAX_TEXT } from '../turn/bounds.ts';
-import type { FollowUp, Message } from './conversation.ts';
+import type { FollowUp, Message, Step } from './conversation.ts';
 
 /** What the person can see Alexa doing. */
 export type Activity = 'idle' | 'listening' | 'thinking' | 'working' | 'answering' | 'speaking';
@@ -37,8 +37,8 @@ const ACTIVITY_WORDS: Record<Activity, string> = {
 };
 
 /**
- * Talking to Alexa: the conversation as bubbles, and a composer that's always there (type, talk or
- * tap a suggestion).
+ * Talking to Alexa: the conversation as bubbles, with her steps under each answer while they run,
+ * and a composer that's always there (type, talk or tap a suggestion).
  */
 export function Chat(props: ChatProps) {
   const { messages, activity, ready } = props;
@@ -161,6 +161,8 @@ export function Chat(props: ChatProps) {
 }
 
 function Answer({ m }: { m: Message }) {
+  const steps = m.steps ?? [];
+  const finished = m.phase === 'done' || m.phase === 'stopped' || m.phase === 'failed';
   return (
     <li className="msg alexa" data-phase={m.phase}>
       <span className="who">Alexa</span>
@@ -176,7 +178,34 @@ function Answer({ m }: { m: Message }) {
           <span className="sr-only">Thinking</span>
         </p>
       ) : null}
+      {steps.length > 0 ? <Steps steps={steps} open={!finished} /> : null}
     </li>
+  );
+}
+
+/** Her steps: each one live while the answer comes, then folded into one line. */
+function Steps({ steps, open }: { steps: Step[]; open: boolean }) {
+  const items = (
+    <ol className="steps">
+      {steps.map((s) => (
+        <li key={s.id} className={`step ${s.state}`}>
+          <span className="step-mark" aria-hidden="true" />
+          {s.label}
+          <span className="sr-only">
+            {s.state === 'running' ? ' (working)' : s.state === 'failed' ? ' (didn’t finish)' : ''}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+  if (open) return items;
+  return (
+    <details className="steps-done">
+      <summary>
+        What I did ({steps.length} {steps.length === 1 ? 'step' : 'steps'})
+      </summary>
+      {items}
+    </details>
   );
 }
 
