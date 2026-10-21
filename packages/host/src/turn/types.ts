@@ -55,6 +55,13 @@ export interface ModelInput extends TurnRequest {
 /** What a model reports as it writes, when it can: its words, and the tool it has begun to call. */
 export type ModelEvent = { text: string } | { tool: string };
 
+export interface StepOptions {
+  /** Aborted when the person stops the turn or it runs out of time: the model stops writing. */
+  signal?: AbortSignal;
+  /** Told of the model's words and tool calls as they come. */
+  onEvent?: (event: ModelEvent) => void;
+}
+
 /** Whatever decides the next step of a turn: the scripted stand-in, or a live model. */
 export interface Model {
   next(input: ModelInput): Promise<ModelStep>;
