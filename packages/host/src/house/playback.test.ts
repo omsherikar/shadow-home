@@ -137,4 +137,47 @@ describe('runs from a tool result', () => {
     };
     expect(runsFrom('preview_plan', preview, presenceOnly).map((r) => r.planId)).toEqual(['plan']);
   });
+
+  test('a result or screen data the house can’t read plays nothing, rather than throw', () => {
+    const replays = meta[REPLAY_META_KEY];
+    const unreadable: [string, Record<string, unknown>, Record<string, unknown>][] = [
+      [
+        'a fix’s timeline that isn’t a list',
+        preview,
+        { [REPLAY_META_KEY]: { ...replays, fixed: { ...replays.fixed, timeline: 'soon' } } },
+      ],
+      [
+        'presence that isn’t a list',
+        preview,
+        { [REPLAY_META_KEY]: { ...replays, plan: { presence: 'nobody' } } },
+      ],
+      [
+        'a presence window with no time',
+        preview,
+        { [REPLAY_META_KEY]: { plan: { presence: [{ to: SUN, presence: 'nobody' }] } } },
+      ],
+      [
+        'a trace with a run missing',
+        preview,
+        { ...meta, [TEMPERATURES_META_KEY]: { plan: { ...trace, zonesC: { nominal: {} } } } },
+      ],
+      ['replays that aren’t a map', preview, { [REPLAY_META_KEY]: [1, 2] }],
+      [
+        'a change at a time that isn’t one',
+        { ...preview, timeline: [{ ...preview.timeline[0], at: 'soon' }] },
+        meta,
+      ],
+      ['a run that ends before it starts', { ...preview, horizon: { start: SUN, end: FRI } }, meta],
+      [
+        'a start with no UTC offset',
+        { ...preview, horizon: { start: '2027-01-15T23:45:00Z', end: SUN } },
+        meta,
+      ],
+      ['a verdict it doesn’t know', { ...preview, verdict: 'MAYBE' }, meta],
+    ];
+    for (const [why, result, screen] of unreadable) {
+      expect(() => runsFrom('preview_plan', result, screen), why).not.toThrow();
+      expect(runsFrom('preview_plan', result, screen), why).toEqual([]);
+    }
+  });
 });
