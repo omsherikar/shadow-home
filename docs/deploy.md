@@ -121,6 +121,11 @@ the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only 
 
 1. Verify the domain for the account gcloud uses: `gcloud domains verify <your domain>` opens
    Google Search Console, which asks for a TXT record at the domain's DNS (ours is Vercel DNS).
+2. Map a name to each service:
+   `gcloud beta run domain-mappings create --service=shadow-home-host --domain=<host name> --region=us-central1`,
+   and the same for `shadow-home-mcp` with `<mcp name>` (`gcloud components install beta` first).
+   The domain-mapping API takes the same request without the beta component:
+   `curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" -H 'content-type: application/json' https://us-central1-run.googleapis.com/apis/domains.cloudrun.com/v1/namespaces/<project>/domainmappings -d '{"apiVersion": "domains.cloudrun.com/v1", "kind": "DomainMapping", "metadata": {"name": "<host name>", "namespace": "<project>"}, "spec": {"routeName": "shadow-home-host"}}'`.
 
 ### If a deploy goes wrong
 
