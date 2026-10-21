@@ -34,6 +34,8 @@ const instant = z.string().refine((s) => Number.isFinite(Date.parse(s)), 'not a 
 const verdictSchema = z.enum(['SAFE', 'UNSAFE', 'UNPROVEN']);
 const entrySchema = z.object({
   at: instant,
+  /** "plan" for the plan's own actions; a routine's ID, or what scheduled it, otherwise. */
+  source: z.string().optional(),
   device: z.string(),
   attr: z.string(),
   to: valueSchema,
@@ -223,11 +225,18 @@ function previewIn(tool: string, sc: Record<string, unknown> | undefined): unkno
  * own in the result, so it shows when the plan first acts (the dishwasher starting at 2 AM).
  */
 function breaksOf(
-  replay: Pick<Preview, 'violations' | 'unknowns'>,
+  replay: Pick<Preview, 'timeline' | 'violations' | 'unknowns'>,
   changes: Change[],
   startMs: number,
 ): Break[] {
-  const firstAction = changes.find((c) => c.atMs >= startMs)?.atMs ?? startMs;
+  // The plan's own first action, not a routine that happens to fire before it; failing that, the
+  // first change of all.
+  const planAt = replay.timeline
+    .filter((e) => e.source === 'plan')
+    .map((e) => Date.parse(e.at))
+    .filter((ms) => ms >= startMs)
+    .sort((a, b) => a - b)[0];
+  const firstAction = planAt ?? changes.find((c) => c.atMs >= startMs)?.atMs ?? startMs;
   const broken: Break[] = replay.violations.map((v) => ({
     kind: v.run === 'nominal' ? 'violation' : 'not_robust',
     atMs: Date.parse(v.firstAt),

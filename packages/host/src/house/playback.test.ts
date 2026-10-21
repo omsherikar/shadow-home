@@ -231,6 +231,38 @@ describe('runs from a tool result', () => {
     ]);
   });
 
+  test('a routine that fires before the plan acts doesn’t take its stop', () => {
+    const unproven = {
+      ...preview,
+      verdict: 'UNPROVEN',
+      violations: [],
+      unknowns: ['dishwasher_latch: battery 4% is under 15%'],
+      timeline: [
+        {
+          at: '2027-01-15T23:00:00-06:00',
+          source: 'porch_light',
+          device: 'light_porch',
+          attr: 'onOff',
+          from: true,
+          to: false,
+        },
+        {
+          at: '2027-01-16T02:00:00-06:00',
+          source: 'plan',
+          device: 'dishwasher',
+          attr: 'onOff',
+          from: false,
+          to: true,
+        },
+      ],
+      repair: null,
+    };
+    const [run] = runsFrom('preview_plan', unproven, planOnly);
+    expect(run?.breaks.map((b) => [b.kind, b.atMs])).toEqual([
+      ['unknown', at('2027-01-16T02:00:00')],
+    ]);
+  });
+
   test('a plan that acts at once shows what the twin can’t establish at once, not at a later change', () => {
     const now = {
       ...preview,
