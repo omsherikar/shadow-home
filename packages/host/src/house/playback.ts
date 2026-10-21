@@ -398,22 +398,46 @@ export function temperaturesAt(trace: Trace, atMs: number): Temperatures {
   return { outdoorC: at(trace.outdoorC), zonesC, bandC };
 }
 
-/** A room's tint for its temperature: icy blue near freezing, through neutral, to warm orange. */
+/**
+ * A room's tint for its temperature: warm orange when heated, fading out around a comfortable
+ * room, then a teal that deepens to cyan as it nears freezing and frosts towards white below.
+ * The cold end stays clear of the twin's blue, so a garage at 4 °C reads apart from a room at
+ * 10 °C.
+ */
 export function temperatureColor(c: number): string {
-  const stops: [number, string][] = [
-    [0, '#dff1ff'],
-    [4, '#8cc2ee'],
-    [11, '#c9c2b8'],
-    [17, '#f0b878'],
-    [22, '#ec8a3c'],
-  ];
-  if (c <= (stops[0]?.[0] ?? 0)) return stops[0]?.[1] ?? '#ffffff';
-  for (let i = 1; i < stops.length; i++) {
-    const [c1, hex1] = stops[i] as [number, string];
-    const [c0, hex0] = stops[i - 1] as [number, string];
-    if (c <= c1) return mix(hex0, hex1, (c - c0) / (c1 - c0));
+  return tintFor(c).color;
+}
+
+/** How strongly a room is tinted at a temperature: the further from comfortable, the stronger. */
+export function temperatureStrength(c: number): number {
+  return tintFor(c).strength;
+}
+
+const TINTS: [number, string, number][] = [
+  // °C, colour, strength.
+  [-2, '#f2feff', 0.7],
+  [2, '#5ff0f6', 0.62],
+  [4.5, '#22d3dc', 0.56],
+  [7, '#6fd0c4', 0.3],
+  [11, '#cfd6cc', 0.1],
+  [15, '#d8d2c4', 0.06],
+  [18, '#f0b878', 0.2],
+  [23, '#ec8a3c', 0.36],
+];
+
+function tintFor(c: number): { color: string; strength: number } {
+  const first = TINTS[0] as [number, string, number];
+  const last = TINTS.at(-1) as [number, string, number];
+  if (!(c > first[0])) return { color: first[1], strength: first[2] };
+  for (let i = 1; i < TINTS.length; i++) {
+    const [c1, hex1, s1] = TINTS[i] as [number, string, number];
+    const [c0, hex0, s0] = TINTS[i - 1] as [number, string, number];
+    if (c <= c1) {
+      const t = (c - c0) / (c1 - c0);
+      return { color: mix(hex0, hex1, t), strength: s0 + (s1 - s0) * t };
+    }
   }
-  return stops.at(-1)?.[1] ?? '#ffffff';
+  return { color: last[1], strength: last[2] };
 }
 
 /** The room a device is in, by where the layout puts it (the porch light: the nearest room). */
