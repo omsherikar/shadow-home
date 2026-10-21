@@ -6,6 +6,7 @@ import {
   detailsFor,
   followUpsFor,
   glanceFor,
+  KEEP_ENTRIES,
   KEEP_MESSAGES,
   loadConversation,
   type Message,
@@ -332,6 +333,27 @@ describe('the conversation across a reload', () => {
   test('a request kept for a retry is never saved', () => {
     const answer: Message = { ...done('a', 'Hi.'), request: { text: 'hi', history: [] } };
     expect(toKeep([answer], []).messages[0]).not.toHaveProperty('request');
+  });
+
+  test('survives reload after reload with a full history', () => {
+    const storage = memory();
+    const history = Array.from({ length: KEEP_ENTRIES }, (_, i) => ({
+      name: 'heard',
+      arguments: { text: `line ${i}` },
+    }));
+    const messages: Message[] = [
+      { id: 'a-you', who: 'you', text: 'Hi' },
+      done('a-alexa', 'Hello.'),
+    ];
+    saveConversation(storage, { messages, history });
+    // Each load closes the question, one entry more; each save must still load.
+    for (let reload = 0; reload < 3; reload++) {
+      const back = loadConversation(storage);
+      expect(back.messages).toEqual(messages);
+      expect(back.history.at(-1)).toEqual({ name: 'closed', arguments: {} });
+      saveConversation(storage, back);
+    }
+    expect(loadConversation(storage).history.length).toBeLessThanOrEqual(KEEP_ENTRIES + 1);
   });
 
   test('drops the oldest history past its cap', () => {
