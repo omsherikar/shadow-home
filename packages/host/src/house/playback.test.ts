@@ -231,6 +231,29 @@ describe('runs from a tool result', () => {
     ]);
   });
 
+  test('a plan that acts at once shows what the twin can’t establish at once, not at a later change', () => {
+    const now = {
+      ...preview,
+      verdict: 'UNPROVEN',
+      violations: [],
+      unknowns: ['dishwasher_latch: battery 4% is under 15%'],
+      timeline: [
+        { at: FRI, source: 'plan', device: 'dishwasher', attr: 'onOff', from: false, to: true },
+        {
+          at: '2027-01-16T07:00:00-06:00',
+          source: 'coffee_at_7',
+          device: 'plug_coffee_maker',
+          attr: 'onOff',
+          from: false,
+          to: true,
+        },
+      ],
+      repair: null,
+    };
+    const [run] = runsFrom('preview_plan', now, planOnly);
+    expect(run?.breaks.map((b) => [b.kind, b.atMs])).toEqual([['unknown', Date.parse(FRI)]]);
+  });
+
   test('an undo’s preview and a fresh preview after a stale plan ID play too; other results don’t', () => {
     expect(runsFrom('undo', { status: 'preview', preview }, planOnly)).toHaveLength(1);
     expect(

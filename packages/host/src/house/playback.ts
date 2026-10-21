@@ -227,7 +227,7 @@ function breaksOf(
   changes: Change[],
   startMs: number,
 ): Break[] {
-  const firstAction = changes.find((c) => c.atMs > startMs)?.atMs ?? startMs;
+  const firstAction = changes.find((c) => c.atMs >= startMs)?.atMs ?? startMs;
   const broken: Break[] = replay.violations.map((v) => ({
     kind: v.run === 'nominal' ? 'violation' : 'not_robust',
     atMs: Date.parse(v.firstAt),
