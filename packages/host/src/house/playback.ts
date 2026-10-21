@@ -666,13 +666,75 @@ export const SHOW_TIMING: ShowTiming = {
   rewindMs: 700,
 };
 
-/** Where a show is: which run, at what home time, what it's stopped on, and whether it's over. */
+/** Where a show is: which run, at what home time, what it's doing, and whether it's over. */
 export interface Moment {
   run: number;
   homeMs: number;
   held: Break[];
+  /** The plan's own change being acted out, if one is. */
+  step: Step | null;
+  /** How many of the run's changes have happened, in the order they happen. */
+  applied: number;
+  /**
+   * Settling before the first change, acting out a step, stopped on a break, the clock running,
+   * pausing on a run's end, winding back, or over.
+   */
+  phase: 'settle' | 'step' | 'hold' | 'sweep' | 'pause' | 'rewind' | 'end';
   rewinding: boolean;
   done: boolean;
+}
+
+/** One stretch of a whole show: part of a run, the pause on a run's end, or the clock winding back. */
+interface Piece {
+  /** Where the piece starts in the show, in real milliseconds. */
+  atMs: number;
+  realMs: number;
+  run: number;
+  segment?: Segment;
+  between?: 'pause' | 'rewind';
+  /** While winding back, the run the clock goes back for. */
+  next?: number;
+}
+
+interface Show {
+  pieces: Piece[];
+  totalMs: number;
+  /** The run it ends on. */
+  last: number;
+}
+
+const shows = new WeakMap<Run[], WeakMap<ShowTiming, Map<number, Show>>>();
+
+/** A show laid out end to end: the plan, a pause, the clock winding back, the plan with its fixes. */
+function showOf(runs: Run[], timing: ShowTiming, only?: number): Show {
+  const key = only ?? -1;
+  const known = shows.get(runs)?.get(timing)?.get(key);
+  if (known) return known;
+  const order = only === undefined ? runs.map((_, i) => i) : [only];
+  const pieces: Piece[] = [];
+  let at = 0;
+  for (const [k, i] of order.entries()) {
+    const run = runs[i];
+    if (!run) continue;
+    for (const segment of schedule(run, i === 0 ? timing.plan : timing.fixed).segments) {
+      pieces.push({ atMs: at, realMs: segment.realMs, run: i, segment });
+      at += segment.realMs;
+    }
+    const next = order[k + 1];
+    if (next !== undefined && runs[next]) {
+      pieces.push({ atMs: at, realMs: timing.pauseMs, run: i, between: 'pause' });
+      at += timing.pauseMs;
+      pieces.push({ atMs: at, realMs: timing.rewindMs, run: i, between: 'rewind', next });
+      at += timing.rewindMs;
+    }
+  }
+  const made = { pieces, totalMs: at, last: order.at(-1) ?? 0 };
+  const byTiming = shows.get(runs) ?? new WeakMap<ShowTiming, Map<number, Show>>();
+  const byOnly = byTiming.get(timing) ?? new Map<number, Show>();
+  byOnly.set(key, made);
+  byTiming.set(timing, byOnly);
+  shows.set(runs, byTiming);
+  return made;
 }
 
 /**
@@ -680,35 +742,45 @@ export interface Moment {
  * fixes. With `only`, it plays that one run. After the end it stays on the last moment.
  */
 export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: number): Moment {
-  const order = only === undefined ? runs.map((_, i) => i) : [only];
-  let left = Math.max(0, realMs);
-  for (const [k, i] of order.entries()) {
-    const run = runs[i];
-    if (!run) continue;
-    const s = schedule(run, i === 0 ? timing.plan : timing.fixed);
-    if (left < s.totalMs) {
-      const p = playhead(s, left);
-      return { run: i, homeMs: p.homeMs, held: p.held, rewinding: false, done: false };
+  const show = showOf(runs, timing, only);
+  const at = Math.max(0, realMs);
+  for (const p of show.pieces) {
+    if (at >= p.atMs + p.realMs) continue;
+    const run = runs[p.run] as Run;
+    const t = (at - p.atMs) / p.realMs;
+    const still = { held: [], step: null, rewinding: false, done: false };
+    if (p.segment) {
+      const seg = p.segment;
+      const homeMs = seg.fromMs + (seg.toMs - seg.fromMs) * t;
+      return {
+        run: p.run,
+        homeMs,
+        held: seg.hold ?? [],
+        step: seg.step ?? null,
+        applied: seg.applied ?? changesBy(run.changes, homeMs),
+        phase: seg.hold ? 'hold' : seg.step ? 'step' : seg.toMs > seg.fromMs ? 'sweep' : 'settle',
+        rewinding: false,
+        done: false,
+      };
     }
-    left -= s.totalMs;
-    const next = runs[order[k + 1] ?? -1];
-    if (!next) return { run: i, homeMs: run.endMs, held: [], rewinding: false, done: true };
-    if (left < timing.pauseMs) {
-      return { run: i, homeMs: run.endMs, held: [], rewinding: false, done: false };
+    if (p.between === 'pause') {
+      const applied = changesBy(run.changes, run.endMs);
+      return { ...still, run: p.run, homeMs: run.endMs, applied, phase: 'pause' };
     }
-    left -= timing.pauseMs;
-    if (left < timing.rewindMs) {
-      const t = left / timing.rewindMs;
-      const back = run.endMs + (next.startMs - run.endMs) * (1 - (1 - t) ** 2);
-      return { run: i, homeMs: back, held: [], rewinding: true, done: false };
-    }
-    left -= timing.rewindMs;
+    // Winding back, what happened comes undone as the clock passes it.
+    const next = runs[p.next ?? -1] ?? run;
+    const back = run.endMs + (next.startMs - run.endMs) * (1 - (1 - t) ** 2);
+    const applied = changesBy(run.changes, back);
+    return { ...still, run: p.run, homeMs: back, applied, phase: 'rewind', rewinding: true };
   }
-  const last = runs[order.at(-1) ?? 0];
+  const last = runs[show.last];
   return {
-    run: order.at(-1) ?? 0,
+    run: show.last,
     homeMs: last?.endMs ?? 0,
     held: [],
+    step: null,
+    applied: last ? changesBy(last.changes, last.endMs) : 0,
+    phase: 'end',
     rewinding: false,
     done: true,
   };
@@ -716,13 +788,7 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
 
 /** How long a whole show takes to play, in real milliseconds. */
 export function showLength(runs: Run[], timing: ShowTiming): number {
-  return runs.reduce(
-    (total, run, i) =>
-      total +
-      schedule(run, i === 0 ? timing.plan : timing.fixed).totalMs +
-      (i > 0 ? timing.pauseMs + timing.rewindMs : 0),
-    0,
-  );
+  return showOf(runs, timing).totalMs;
 }
 
 /** A new house rule's sample day: the hours it guards, on the device it guards. */
