@@ -4,7 +4,7 @@
  * the chat is a drawing of these and they can be tested without a browser.
  */
 import type { Chip } from '../stage/stage.ts';
-import type { TurnRequest } from '../turn/types.ts';
+import type { Names, ToolCall, TurnRequest } from '../turn/types.ts';
 import type { StepState } from './stream.ts';
 
 export interface Step {
@@ -62,4 +62,51 @@ export function ask(
     { id: `${id}-you`, who: 'you', text: said },
     { id: `${id}-alexa`, who: 'alexa', text: '', phase: 'thinking', steps: [], request },
   ];
+}
+
+// The details view
+
+interface ViolationLike {
+  rule: string;
+  text: string;
+  author: string;
+  priority?: string;
+}
+
+interface ConflictLike {
+  rule: string;
+  text: string;
+  priority: string;
+  winner: string;
+}
+
+/**
+ * What the details view lists for a call: each broken rule with its number, whose rule it is and
+ * its priority; for a new rule, what it clashes with and which wins by priority. The answer and the
+ * screen say the same in plain words; this keeps the numbers for anyone who wants them.
+ */
+export function detailsFor(call: ToolCall, names?: Names): string[] {
+  const sc = call.result.structuredContent as Record<string, unknown> | undefined;
+  if (!sc || call.result.isError) return [];
+  const who = (id: string) => names?.members[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+  const preview = (p: unknown) =>
+    ((p as { violations?: ViolationLike[] } | undefined)?.violations ?? []).map(
+      (v) =>
+        `${v.rule}: “${v.text}” ${who(v.author)}’s rule${v.priority ? `, ${v.priority} priority` : ''}.`,
+    );
+  switch (call.name) {
+    case 'preview_plan':
+      return preview(sc);
+    case 'undo':
+      return preview(sc.preview);
+    case 'commit_plan':
+      return preview(sc.freshPreview);
+    case 'add_house_rule':
+      return ((sc.conflicts as ConflictLike[] | undefined) ?? []).map(
+        (c) =>
+          `Clashes with ${c.rule}: “${c.text}” (${c.priority} priority). ${c.winner === c.rule ? `${c.rule} wins by priority` : 'The new rule wins by priority'}.`,
+      );
+    default:
+      return [];
+  }
 }
