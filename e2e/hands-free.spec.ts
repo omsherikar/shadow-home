@@ -1,0 +1,167 @@
+import { expect, type Page, test } from '@playwright/test';
+
+const WEEKEND = "I'm away for the weekend, set the house to away.";
+
+interface Mic {
+  live: unknown;
+  starts: number;
+  settings: { continuous: boolean; interimResults: boolean }[];
+}
+
+/**
+ * A stand-in for Chrome's speech recognition: the test says what the microphone hears
+ * (`window.hear`), and it reaches the session that's listening, if one is. No microphone, no
+ * audio and nothing sent to Google.
+ */
+async function fakeMic(page: Page) {
+  await page.addInitScript(() => {
+    type Handler = ((e: unknown) => void) | null;
+    const w = window as unknown as { mic: Mic; hear(text: string): boolean };
+    class FakeRecognition {
+      lang = '';
+      continuous = false;
+      interimResults = false;
+      onresult: Handler = null;
+      onerror: Handler = null;
+      onend: (() => void) | null = null;
+      start() {
+        w.mic.live = this;
+        w.mic.starts += 1;
+        w.mic.settings.push({ continuous: this.continuous, interimResults: this.interimResults });
+      }
+      stop() {
+        this.end();
+      }
+      abort() {
+        this.end();
+      }
+      end() {
+        if (w.mic.live === this) w.mic.live = null;
+        setTimeout(() => this.onend?.(), 0);
+      }
+    }
+    w.mic = { live: null, starts: 0, settings: [] };
+    w.hear = (text) => {
+      const rec = w.mic.live as FakeRecognition | null;
+      if (!rec) return false;
+      const result = Object.assign([{ transcript: text }], { isFinal: true });
+      rec.onresult?.({ resultIndex: 0, results: [result] });
+      return true;
+    };
+    for (const name of ['webkitSpeechRecognition', 'SpeechRecognition']) {
+      Object.defineProperty(window, name, { value: FakeRecognition, configurable: true });
+    }
+  });
+}
+
+/** The microphone hears `text`, once a session is listening for it. */
+async function hear(page: Page, text: string) {
+  await expect
+    .poll(() =>
+      page.evaluate((t) => (window as unknown as { hear(t: string): boolean }).hear(t), text),
+    )
+    .toBe(true);
+}
+
+/** The text of each turn the page sends, in order. */
+function turnsSent(page: Page): string[] {
+  const sent: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('/api/turn') && r.method() === 'POST') {
+      sent.push((JSON.parse(r.postData() ?? '{}') as { text: string }).text);
+    }
+  });
+  return sent;
+}
+
+/** A clip of silence `ms` long, as WAV: something the browser can play to its end. */
+function silence(ms: number): Buffer {
+  const rate = 8000;
+  const samples = Math.round((rate * ms) / 1000);
+  const wav = Buffer.alloc(44 + samples, 128);
+  wav.write('RIFF', 0);
+  wav.writeUInt32LE(36 + samples, 4);
+  wav.write('WAVEfmt ', 8);
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(1, 22);
+  wav.writeUInt32LE(rate, 24);
+  wav.writeUInt32LE(rate, 28);
+  wav.writeUInt16LE(1, 32);
+  wav.writeUInt16LE(8, 34);
+  wav.write('data', 36);
+  wav.writeUInt32LE(samples, 40);
+  return wav;
+}
+
+/**
+ * /api/speak answers every sentence with a clip of silence (`ms` long), and notes what was asked
+ * for. Nothing is ever sent to a real voice.
+ */
+async function stubSpeech(page: Page, ms = 100): Promise<string[]> {
+  const spoken: string[] = [];
+  await page.route('**/api/speak', async (route) => {
+    spoken.push((route.request().postDataJSON() as { text: string }).text);
+    await route.fulfill({ status: 200, contentType: 'audio/wav', body: silence(ms) });
+  });
+  return spoken;
+}
+
+const pill = (page: Page) => page.locator('.hands-free');
+const view = (page: Page) => page.frameLocator('.view iframe');
+
+test.describe.configure({ mode: 'serial' });
+
+// Each test starts from the demo's own home, and leaves it so for the tests after it.
+test.beforeEach(async ({ request }) => {
+  await request.post('/api/demo');
+});
+test.afterEach(async ({ request }) => {
+  await request.post('/api/demo');
+});
+
+test('one tap, then by voice alone: a request, her question aloud, and the answer to it', async ({
+  page,
+}) => {
+  await fakeMic(page);
+  const spoken = await stubSpeech(page);
+  const sent = turnsSent(page);
+  // This page speaks (to the stub), as hands-free does.
+  await page.goto('/?speak=1');
+  await expect(pill(page)).toHaveText('Start hands-free');
+  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-off.png' });
+
+  // The one tap.
+  await pill(page).click();
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await expect(pill(page)).toHaveAttribute('title', /sends what the microphone hears to Google/);
+  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-idle.png' });
+
+  // Speech without the wake word isn't for her.
+  await hear(page, 'turn off the lights');
+  await page.waitForTimeout(1000);
+  expect(sent).toEqual([]);
+
+  // The wake word and a request in one breath.
+  await hear(page, `Alexa, ${WEEKEND}`);
+  await expect.poll(() => sent).toEqual([WEEKEND]);
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+  // She says her question aloud, then listens for the answer with no wake word.
+  await expect.poll(() => spoken).toContain('Do it with 4 fixes instead?');
+  await expect(pill(page)).toContainText('Listening for your answer');
+  await expect(page.locator('.chat-state')).toHaveText('Listening for your answer');
+  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-answer.png' });
+
+  await hear(page, 'yes');
+  await expect.poll(() => sent).toEqual([WEEKEND, 'yes']);
+  await expect(view(page).getByText('Done', { exact: true })).toBeVisible();
+  // Nothing more to answer: back to listening for "Alexa".
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await hear(page, 'yes');
+  await page.waitForTimeout(1000);
+  expect(sent).toEqual([WEEKEND, 'yes']);
+
+  // Listening continuously, with words as they come.
+  const settings = await page.evaluate(() => (window as unknown as { mic: Mic }).mic.settings);
+  expect(settings.every((s) => s.continuous && s.interimResults)).toBe(true);
+});
