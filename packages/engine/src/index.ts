@@ -6,6 +6,7 @@ export { computeHorizon, type Horizon } from './horizon.ts';
 export { type HygieneCode, type HygieneFinding, hygiene, needsReversal } from './hygiene.ts';
 export { checkOverrides, type LintCode, type LintFinding, type LintResult, lint } from './lint.ts';
 export { and, not, or, type Truth } from './logic.ts';
+export { AWAY_UNSTATED, awayUnstated, whoIsAwayUnknown } from './presence.ts';
 export {
   type Repair,
   type RepairKind,
