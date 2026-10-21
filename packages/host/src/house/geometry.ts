@@ -141,6 +141,21 @@ export interface Framing {
 }
 
 /**
+ * A horizontal band of the picture, in its own units: the middle of the picture is 0, the top 1
+ * and the bottom -1. `center` is the band's middle and `half` its half-height.
+ */
+export interface Band {
+  center: number;
+  half: number;
+}
+
+/** The band of a picture `height` pixels tall left clear by what covers its top and bottom. */
+export function bandBetween(top: number, bottom: number, height: number): Band {
+  const h = Math.max(1, height);
+  return { center: (bottom - top) / h, half: Math.max(0.1, (h - top - bottom) / h) };
+}
+
+/**
  * Stand the camera along `direction` from the middle of `bounds`, as close as it can be while
  * every corner stays inside the picture, `margin` (a fraction of the half-width or half-height)
  * from each edge. `shiftY` moves the house up (positive) or down in the picture, as a fraction of
