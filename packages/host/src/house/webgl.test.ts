@@ -61,6 +61,38 @@ describe('what draws WebGL', () => {
     ).toBe('');
   });
 
+  test('is empty where reading it throws, and WebGL still counts, its context handed back', () => {
+    for (const blocked of ['extension', 'parameter'] as const) {
+      const loseContext = vi.fn();
+      const gl = {
+        RENDERER,
+        getExtension: (name: string) => {
+          if (name === 'WEBGL_lose_context') return { loseContext };
+          if (blocked === 'extension') throw new Error('blocked');
+          return { UNMASKED_RENDERER_WEBGL: UNMASKED };
+        },
+        getParameter: () => {
+          throw new Error('blocked');
+        },
+      };
+      expect(
+        webglRenderer(() => ({ getContext: () => gl })),
+        blocked,
+      ).toBe('');
+      expect(
+        webglAvailable(() => ({ getContext: () => gl })),
+        blocked,
+      ).toBe(true);
+      expect(loseContext, blocked).toHaveBeenCalledTimes(2);
+    }
+  });
+
+  test('is empty where the extension is missing and the plain name isn’t a string', () => {
+    const gl = { getExtension: () => null, getParameter: () => null };
+    expect(webglRenderer(() => ({ getContext: () => gl }))).toBe('');
+    expect(webglAvailable(() => ({ getContext: () => gl }))).toBe(true);
+  });
+
   test('is nothing without WebGL', () => {
     expect(webglRenderer(() => ({ getContext: () => null }))).toBeNull();
   });
