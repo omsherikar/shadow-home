@@ -4,7 +4,7 @@
  * the chat is a drawing of these and they can be tested without a browser.
  */
 import { type Chip, chipFor } from '../stage/stage.ts';
-import type { Names, ToolCall, TurnRequest } from '../turn/types.ts';
+import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import type { StepState, TurnEvent } from './stream.ts';
 
 export interface Step {
@@ -297,4 +297,39 @@ export function detailsFor(call: ToolCall, names?: Names): string[] {
     default:
       return [];
   }
+}
+
+// Kept across a reload
+
+/** The most messages kept, and the longest any one is when kept. */
+export const KEEP_MESSAGES = 40;
+const KEEP_TEXT = 1200;
+/** The most steps and details one answer keeps. */
+const KEEP_LIST = 12;
+/** The most history entries kept: as many as the browser sends with a turn. */
+export const KEEP_ENTRIES = 41;
+/** The most of the model's history kept, in characters of JSON. */
+const KEEP_HISTORY = 120_000;
+
+export type Kept = { messages: Message[]; history: Remembered[] };
+
+/**
+ * The conversation as kept: the last KEEP_MESSAGES finished messages, each cut to KEEP_TEXT with
+ * at most KEEP_LIST steps and details, and the last KEEP_ENTRIES of the history the model reads,
+ * oldest first out past KEEP_HISTORY. Both saving and loading go through it, so what is saved is
+ * always what loads.
+ */
+export function toKeep(messages: Message[], history: Remembered[]): Kept {
+  const done = messages
+    .filter((m) => m.who === 'you' || m.phase === 'done' || m.phase === 'stopped')
+    .slice(-KEEP_MESSAGES)
+    .map(({ problem: _p, request: _r, ...m }) => ({
+      ...m,
+      text: m.text.slice(0, KEEP_TEXT),
+      ...(m.steps ? { steps: m.steps.slice(-KEEP_LIST) } : {}),
+      ...(m.details ? { details: m.details.slice(0, KEEP_LIST) } : {}),
+    }));
+  const h = history.slice(-KEEP_ENTRIES);
+  while (h.length > 0 && JSON.stringify(h).length > KEEP_HISTORY) h.shift();
+  return { messages: done, history: h };
 }
