@@ -3,6 +3,7 @@ import type { ConverseCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
 import { anthropicConverse, fromReply, toRequest } from './anthropic.ts';
 import { bedrockModel, type HomeBrief, toolSpecs } from './bedrock.ts';
+import { reply } from './test-helpers.ts';
 
 const home: HomeBrief = {
   now: '2027-01-15T17:45:00-06:00',
@@ -16,18 +17,6 @@ const tools = [
   { name: 'preview_plan', description: 'Check a plan', inputSchema: { type: 'object' } },
   { name: 'commit_plan', description: 'Commit', inputSchema: { type: 'object' } },
 ];
-
-const reply = (content: unknown[], stop = 'end_turn'): Anthropic.Message =>
-  ({
-    id: 'msg_1',
-    type: 'message',
-    role: 'assistant',
-    model: 'test-model',
-    content,
-    stop_reason: stop,
-    stop_sequence: null,
-    usage: { input_tokens: 3, output_tokens: 2 },
-  }) as Anthropic.Message;
 
 /** The Messages API, answering from a list and recording what it was sent. */
 function fakeApi(...answers: Anthropic.Message[]) {
