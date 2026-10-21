@@ -198,3 +198,30 @@ test('when the browser ends the session, the microphone starts again by itself',
     .poll(() => page.evaluate(() => (window as unknown as { mic: Mic }).mic.starts))
     .toBe(2);
 });
+
+test('remembered across a reload, it waits for one tap to resume, even with the microphone allowed', async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await context.grantPermissions(['microphone'], { origin: baseURL ?? '' });
+  await fakeMic(page);
+  await page.goto('/');
+  await pill(page).click();
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await page.reload();
+  // Not listening on its own: without a tap the browser would hold her voice back.
+  await expect(pill(page)).toContainText('Tap to resume hands-free');
+  await page.waitForTimeout(1000);
+  expect(await page.evaluate(() => (window as unknown as { mic: Mic }).mic.starts)).toBe(0);
+  await pill(page).click();
+  await expect(pill(page)).toContainText('Listening for “Alexa”');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { mic: Mic }).mic.starts))
+    .toBe(1);
+  // Turned off, it stays off.
+  await pill(page).click();
+  await expect(pill(page)).toHaveText('Start hands-free');
+  await page.reload();
+  await expect(pill(page)).toHaveText('Start hands-free');
+});
