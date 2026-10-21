@@ -250,7 +250,13 @@ const demo = JSON.parse(
 };
 const home = (
   context: Context,
-  over: { results?: unknown[]; about?: unknown; heard?: string; afterPlan?: boolean } = {},
+  over: {
+    results?: unknown[];
+    about?: unknown;
+    heard?: string;
+    afterPlan?: boolean;
+    checkOpen?: boolean;
+  } = {},
 ) =>
   filterFacts({
     context,
@@ -346,13 +352,29 @@ describe('plain conversation: no claim about the home, and after a check, no tal
     expect(dropReason(sentence, home('chat'))).toBe('state');
   });
 
-  test('after a check: "Thanks." can\'t get "It\'s safe.", and a no may say nothing changed', () => {
+  test("after a check, plain conversation doesn't talk about it; while it's open, or after a no to one that isn't SAFE, it can't reassure either", () => {
     const after = home('chat', { afterPlan: true });
+    const open = home('chat', { afterPlan: true, checkOpen: true });
+    // A no doesn't close a blocked or unconfirmed check: it stands until a newer one replaces it.
+    const declined = open;
     expect(dropReason("You're welcome, the plan is safe.", after)).toBe('verdict');
-    expect(dropReason("You're welcome!", after)).toBeNull();
+    expect(dropReason("You're welcome!", open)).toBeNull();
     expect(dropReason("Okay, I'll leave everything as it is.", after)).toBeNull();
-    expect(dropReason('Okay, nothing changed.', after)).toBeNull();
+    expect(dropReason('Okay, nothing changed.', open)).toBeNull();
+    // Closed (committed, or a SAFE one answered), small talk is free again.
     expect(dropReason('Got it, nothing will change.', after)).toBeNull();
+    // Declined while UNSAFE, it still stands, so this drops.
+    expect(dropReason("It's not bad at all, you're good.", declined)).toBe('verdict');
+    // Open, anything that could soften it drops, negations included.
+    for (const sentence of [
+      'Got it, nothing will change.',
+      "It's fine, nothing to worry about.",
+      "It's not bad at all, you're good.",
+      'No problem, everything will be okay.',
+      "It's all right.",
+    ]) {
+      expect(dropReason(sentence, open)).toBe('verdict');
+    }
     // The same words with no check waiting are a claim of an action.
     expect(dropReason("Okay, I'll leave everything as it is.", home('chat'))).toBe('action');
     expect(filterReply("Okay, I'll leave everything as it is.", home('anchored')).kept).toEqual([]);
