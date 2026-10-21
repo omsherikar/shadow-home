@@ -118,6 +118,14 @@ export function bedrockModel(options: {
           call: { name: use.name, arguments: (use.input ?? {}) as Record<string, unknown> },
         };
       }
+      // An undo the person asked for, checked at T0 or T1, is committed at once, as any such
+      // preview is: the engine asks nothing below T2, so a model that answers instead would leave
+      // a "Safe: ..." with no question and nothing changed.
+      const undo = undoToCommit(input.thisTurn);
+      if (undo) {
+        log('INFO', 'reply', { context: 'plan', committed: 'undo' });
+        return { call: { name: 'commit_plan', arguments: { planId: undo } } };
+      }
       const words = blocks
         .map((b) => b.text ?? '')
         .join(' ')
