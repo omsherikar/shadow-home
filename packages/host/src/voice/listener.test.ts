@@ -119,4 +119,21 @@ describe('the microphone, listening without a break', () => {
     expect(l.sessions).toHaveLength(1);
     expect(l.errors).toEqual([['not-allowed', true]]);
   });
+
+  test('paused, it stops at once, starts nothing, and drops what the old session still says', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    const old = l.sessions[0];
+    l.listener.pause();
+    expect(old?.aborted).toBe(true);
+    old?.say('Do it with 4 fixes instead?');
+    vi.advanceTimersByTime(10_000);
+    expect(l.sessions).toHaveLength(1);
+    expect(l.finals).toEqual([]);
+    // Resumed, it listens again after a beat.
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    expect(l.sessions).toHaveLength(2);
+  });
 });
