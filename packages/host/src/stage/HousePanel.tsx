@@ -519,9 +519,9 @@ function ZoneChart({ run, homeMs, zone }: { run: Run; homeMs: number; zone: stri
       <figcaption>
         <span>Garage</span>
         {now !== undefined ? <b>{now.toFixed(1)} °C</b> : null}
-        {band ? (
+        {band && band.low.toFixed(1) !== band.high.toFixed(1) ? (
           <small>
-            {band.low.toFixed(1)} to {band.high.toFixed(1)} °C across the three runs
+            {band.low.toFixed(1)} to {band.high.toFixed(1)} °C, depending on the weather
           </small>
         ) : null}
       </figcaption>
