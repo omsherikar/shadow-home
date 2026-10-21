@@ -5,8 +5,10 @@
  * pace, and the clock still shows the engine's own times; only how long each hour takes on screen
  * changes.
  */
+import { TWILIGHT_HOURS } from './looks.ts';
 
 const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
 
 /** A moment the clock slows down for. */
 export interface Anchor {
@@ -74,4 +76,19 @@ export function paceSlices(
 export function offsetMinutes(offset: string): number {
   const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
   return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+}
+
+/** The moments between two home times when the sky is halfway between night and day. */
+export function twilightsBetween(startMs: number, endMs: number, offset: string): number[] {
+  const shift = offsetMinutes(offset) * MINUTE_MS;
+  // Midnight on the home's clock, the day the run starts.
+  const midnight = Math.floor((startMs + shift) / DAY_MS) * DAY_MS - shift;
+  const out: number[] = [];
+  for (let day = midnight; day <= endMs; day += DAY_MS) {
+    for (const hour of TWILIGHT_HOURS) {
+      const at = day + hour * 60 * MINUTE_MS;
+      if (at >= startMs && at <= endMs) out.push(at);
+    }
+  }
+  return out;
 }
