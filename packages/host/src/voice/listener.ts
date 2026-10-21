@@ -8,6 +8,12 @@ import type { RecognitionCtor } from '../device/voice.ts';
 /** Errors after which the microphone won't work again until the person allows it. */
 const LASTING = new Set(['not-allowed', 'service-not-allowed', 'audio-capture']);
 
+/** Failures in a row (no network, the service down) after which it stops trying. */
+export const GIVE_UP_AFTER = 5;
+
+/** What `onError` reports when it has stopped trying: speech recognition isn't available. */
+export const GAVE_UP = 'gave-up';
+
 /** A beat before listening again after her voice, so its tail isn't heard as speech. */
 export const RESUME_MS = 300;
 
@@ -24,7 +30,10 @@ export interface ListenerEvents {
   onFinal(text: string): void;
   /** The words so far of the piece still being spoken (empty when there are none). */
   onInterim(text: string): void;
-  /** `lasting`: listening has stopped for good, because the microphone was refused. */
+  /**
+   * `lasting`: listening has stopped for good, because the microphone was refused or (GAVE_UP)
+   * recognition kept failing.
+   */
   onError(error: string, lasting: boolean): void;
 }
 
@@ -46,6 +55,17 @@ export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents
   const later = (ms: number) => {
     clearTimeout(timer);
     timer = setTimeout(begin, ms);
+  };
+
+  /** One more failure in a row: try again a little later, or stop once it keeps failing. */
+  const failed = () => {
+    failures += 1;
+    if (failures < GIVE_UP_AFTER) return false;
+    wanted = false;
+    clearTimeout(timer);
+    timer = undefined;
+    events.onError(GAVE_UP, true);
+    return true;
   };
 
   function begin() {
@@ -83,8 +103,7 @@ export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents
         events.onError(e.error, false);
         return;
       }
-      failures += 1;
-      events.onError(e.error, false);
+      if (!failed()) events.onError(e.error, false);
     };
     rec.onend = () => {
       if (mine !== session) return;
@@ -96,14 +115,15 @@ export function continuousListener(Ctor: RecognitionCtor, events: ListenerEvents
       rec.start();
     } catch {
       live = null;
-      failures += 1;
-      if (wanted) later(restartDelay(failures));
+      if (!failed() && wanted) later(restartDelay(failures));
     }
   }
 
   return {
     resume() {
       if (wanted && (live || timer)) return;
+      // Started afresh (turned on again, or after a pause): earlier failures no longer count.
+      if (!wanted) failures = 0;
       wanted = true;
       later(RESUME_MS);
     },
