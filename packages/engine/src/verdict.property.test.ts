@@ -4,10 +4,12 @@ import { loadHome } from '@shadow-home/twin/node';
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 import { assess } from './assess.ts';
+import { AWAY_UNSTATED } from './presence.ts';
 import { ruleDevices } from './rules.ts';
 import { SPEECH_LIMITS, wordCount } from './speech.ts';
+import { refusingRule } from './tier.ts';
 import { formatIso, toMs } from './time.ts';
-import { check } from './verdict.ts';
+import { type CheckResult, check } from './verdict.ts';
 
 const home = loadHome(join(import.meta.dirname, '../../../fixtures/demo-home.json'));
 const NOW_MS = toMs('2027-01-15T17:45:00-06:00');
@@ -219,6 +221,28 @@ describe('verdict properties', { timeout: 60_000 }, () => {
       { numRuns: 20 },
     );
     expect(fixed, 'no leaving check with a fix was generated').toBeGreaterThan(0);
+  });
+
+  test("away mode without saying who's away is never SAFE or committable, hides no broken rule and asks who", () => {
+    const broken = (r: CheckResult) =>
+      r.reasons.flatMap((x) => (x.kind === 'violation' ? [x.rule] : []));
+    fc.assert(
+      fc.property(plan, (p) => {
+        const { presenceSchedule: _, ...context } = p.context;
+        const before = check(home, { context, actions: p.actions });
+        const a = assess(home, { context, actions: [...p.actions, { mode: 'away' }] });
+        expect(a.check.verdict).not.toBe('SAFE');
+        expect(a.check.unknowns).toContain(AWAY_UNSTATED);
+        expect(broken(a.check)).toEqual(broken(before));
+        // T3 and T5 never commit; nothing else is offered to commit instead.
+        expect(a.tier.tier).toBe(
+          a.check.verdict === 'UNSAFE' && !refusingRule(a.check) ? 'T3' : 'T5',
+        );
+        expect(a.offered).toBeNull();
+        if (!refusingRule(a.check)) expect(a.speech.ask).toBe("Who's away, and until when?");
+      }),
+      { numRuns: 12 },
+    );
   });
 
   test('checking a plan never changes the home', () => {
