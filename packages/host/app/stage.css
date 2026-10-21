@@ -190,6 +190,32 @@
   color: var(--unsure);
 }
 
+/* A rule broken here (coral), may break or can't be confirmed (amber), or guarded (green). */
+.dot-violation,
+.dot-not_robust,
+.dot-unknown,
+.dot-guarding {
+  outline: 2px solid var(--blocked);
+  outline-offset: 3px;
+  animation: ring 1.1s ease-in-out infinite;
+}
+
+.dot-not_robust,
+.dot-unknown {
+  outline-color: var(--unsure);
+}
+
+.dot-guarding {
+  outline-color: var(--safe);
+}
+
+@keyframes ring {
+  50% {
+    outline-offset: 7px;
+    outline-color: transparent;
+  }
+}
+
 .dot-name {
   position: absolute;
   top: -9px;
