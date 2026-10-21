@@ -220,4 +220,14 @@ describe('stopping, turning off, and the microphone failing', () => {
     expect(state.mode).toBe('off');
     expect(effects).toEqual([]);
   });
+
+  test('a passing mic error (no speech, network) keeps listening; the page restarts the mic', () => {
+    const { state } = run([on, { type: 'mic-error', lasting: false }]);
+    expect(state.mode).toBe('idle');
+  });
+
+  test('a refused microphone turns hands-free off', () => {
+    const { state } = run([on, heard('Alexa'), { type: 'mic-error', lasting: true }]);
+    expect(state.mode).toBe('off');
+  });
 });
