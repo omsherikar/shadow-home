@@ -8,6 +8,7 @@ import { dotFor, type LiveDevice, type LiveHome } from '../house/looks.ts';
 import {
   type Break,
   changesBy,
+  chartOf,
   devicesAt,
   homeClock,
   homeIso,
@@ -295,6 +296,7 @@ export function HousePanel(props: {
           />
         ))}
       </div>
+      {run && !docked ? <ZoneChart run={run} homeMs={homeMs} zone="garage" /> : null}
     </>
   );
 }
@@ -357,5 +359,47 @@ function BreakCard({
       <p className="break-text">{readable(b.text, name)}</p>
       {b.author ? <p className="break-who">{AUTHOR(b.author)}’s rule</p> : null}
     </div>
+  );
+}
+
+/**
+ * A zone's temperature over the run, drawn small, when it matters: the expected line, the three
+ * runs' spread, the house rule's limit, and where the playback is.
+ */
+function ZoneChart({ run, homeMs, zone }: { run: Run; homeMs: number; zone: string }) {
+  const W = 220;
+  const H = 84;
+  const chart = useMemo(
+    () => (run.trace ? chartOf(run.trace, zone, run.limits[zone], W, H) : null),
+    [run, zone],
+  );
+  const limit = run.limits[zone]?.minC;
+  const lowest = run.trace ? Math.min(...(run.trace.zonesC.pessimistic[zone] ?? [])) : Number.NaN;
+  // Only when the zone comes near its limit.
+  if (!chart || limit === null || limit === undefined || !(lowest < limit + 2)) return null;
+  const temps = run.trace ? temperaturesAt(run.trace, homeMs) : null;
+  const now = temps?.zonesC[zone];
+  const band = temps?.bandC[zone];
+  return (
+    <figure className="zone-chart glass" aria-label={`${zone} temperature`}>
+      <figcaption>
+        <span>Garage</span>
+        {now !== undefined ? <b>{now.toFixed(1)} °C</b> : null}
+        {band ? (
+          <small>
+            {band.low.toFixed(1)} to {band.high.toFixed(1)} °C across the three runs
+          </small>
+        ) : null}
+      </figcaption>
+      <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} role="img" aria-hidden="true">
+        <path d={chart.band} className="band" />
+        {chart.limitY !== null ? (
+          <line x1={0} x2={W} y1={chart.limitY} y2={chart.limitY} className="limit" />
+        ) : null}
+        <path d={chart.line} className="line" />
+        <line x1={chart.x(homeMs)} x2={chart.x(homeMs)} y1={0} y2={H} className="playhead" />
+      </svg>
+      <p className="zone-limit">The house rule: {limit} °C at least</p>
+    </figure>
   );
 }
