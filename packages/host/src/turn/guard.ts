@@ -61,6 +61,9 @@ const NEGATED_HARM = [
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
+/** Asks for a yes, or offers to act: only the engine's question may be answered with a yes. */
+const OFFER =
+  /\b(?:want to|want me to|would you like|shall i|should i|shall we|try it|go ahead|let'?s|say yes|say no|say the word|let me know|if you want|if you'?d like|do it|run it)\b/;
 /** A bare yes or no, which says nothing on its own: "Yes.", "No, it isn't.", "Yep". */
 const FRAGMENT =
   /^(?:yes|yeah|yep|yup|no|nope|nah)\b[\s,.!]*(?:(?:it|that|this|they|he|she|the [\w\s']+?)\s+(?:is|isn't|are|aren't|was|wasn't|does|doesn't|did|didn't|can|can't|will|won't)\b)?[\s.!]*$/;
@@ -237,5 +240,6 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (ACTION.test(text)) return 'action';
   if (context === 'chat') return null;
   if (VERDICT.test(text) || NEGATED_HARM.some((p) => p.test(text))) return 'verdict';
+  if (OFFER.test(text)) return 'question';
   return null;
 }
