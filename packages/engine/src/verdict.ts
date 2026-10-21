@@ -2,6 +2,7 @@ import type { Home, Plan, Rule, RulePriority, Value } from '@shadow-home/twin';
 import { computeHorizon } from './horizon.ts';
 import { type HygieneFinding, hygiene } from './hygiene.ts';
 import { type LintCode, type LintResult, lint } from './lint.ts';
+import { AWAY_UNSTATED, awayUnstated } from './presence.ts';
 import { createRuleTracker, pushesTowardViolation, type RuleOutcome, ruleAtoms } from './rules.ts';
 import {
   type Change,
@@ -249,6 +250,7 @@ export function check(home: Home, plan: Plan): CheckResult {
   );
 
   const otherUnknowns = [
+    ...(awayUnstated(plan) ? [AWAY_UNSTATED] : []),
     ...horizon.unknowns,
     ...RUN_NAMES.flatMap((run) =>
       runs[run].loopGuardTrippedAt.map(
