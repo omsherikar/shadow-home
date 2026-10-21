@@ -437,3 +437,20 @@ export function homeIso(ms: number, offset: string): string {
   const minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
   return `${new Date(ms + minutes * MINUTE_MS).toISOString().slice(0, 19)}${offset}`;
 }
+
+/** How long each part of a show takes, in real milliseconds. */
+export interface ShowTiming {
+  plan: Timing;
+  fixed: Timing;
+  /** A pause on the plan's end before the fixes play. */
+  pauseMs: number;
+  /** The clock winding back to the start for the fixes. */
+  rewindMs: number;
+}
+
+export const SHOW_TIMING: ShowTiming = {
+  plan: { sweepMs: 7000, holdMs: 1300 },
+  fixed: { sweepMs: 5000, holdMs: 1000 },
+  pauseMs: 900,
+  rewindMs: 700,
+};
