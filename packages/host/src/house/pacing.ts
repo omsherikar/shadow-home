@@ -34,3 +34,38 @@ export function speedAt(anchors: Anchor[], atMs: number): number {
   }
   return speed;
 }
+
+/** A slice of home time and the real time each home millisecond in it takes. */
+export interface PaceSlice {
+  fromMs: number;
+  toMs: number;
+  /** Real milliseconds per home millisecond. */
+  rate: number;
+}
+
+/** Slices of ten home minutes, or longer for a run of more than about four days. */
+const SLICE_MS = 10 * MINUTE_MS;
+const MOST_SLICES = 600;
+
+/**
+ * The real time each part of a run's clock takes, slice by slice from `startMs` to `endMs`,
+ * scaled so the whole run takes `totalMs`.
+ */
+export function paceSlices(
+  startMs: number,
+  endMs: number,
+  anchors: Anchor[],
+  totalMs: number,
+): PaceSlice[] {
+  const span = endMs - startMs;
+  if (!(span > 0)) return [];
+  const size = Math.max(SLICE_MS, span / MOST_SLICES);
+  const slices: PaceSlice[] = [];
+  for (let from = startMs; from < endMs; from += size) {
+    const to = Math.min(endMs, from + size);
+    slices.push({ fromMs: from, toMs: to, rate: 1 / speedAt(anchors, (from + to) / 2) });
+  }
+  const weight = slices.reduce((sum, s) => sum + s.rate * (s.toMs - s.fromMs), 0);
+  const k = totalMs / weight;
+  return slices.map((s) => ({ ...s, rate: s.rate * k }));
+}
