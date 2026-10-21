@@ -109,4 +109,14 @@ describe('the microphone, listening without a break', () => {
       ['network', false],
     ]);
   });
+
+  test('a refused microphone stops it for good, and says so', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    l.sessions[0]?.fail('not-allowed');
+    vi.advanceTimersByTime(10_000);
+    expect(l.sessions).toHaveLength(1);
+    expect(l.errors).toEqual([['not-allowed', true]]);
+  });
 });
