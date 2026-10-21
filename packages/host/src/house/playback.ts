@@ -349,3 +349,40 @@ export function presenceAt(
   }
   return out;
 }
+
+export interface Temperatures {
+  outdoorC: number;
+  /** Each zone as the expected (nominal) run has it. */
+  zonesC: Record<string, number>;
+  /** Each zone's spread across the three runs. */
+  bandC: Record<string, { low: number; high: number }>;
+}
+
+/** The trace's temperatures at a home time, between its samples. */
+export function temperaturesAt(trace: Trace, atMs: number): Temperatures {
+  const start = Date.parse(trace.start);
+  const end = Date.parse(trace.end);
+  const n = trace.outdoorC.length;
+  const step = trace.stepMinutes * MINUTE_MS;
+  // Sample i sits at start + i steps, except the last, which is always at the end.
+  const timeOf = (i: number) => (i === n - 1 ? end : start + i * step);
+  const t = Math.min(Math.max(atMs, start), end);
+  let i = Math.min(n - 2, Math.max(0, Math.floor((t - start) / step)));
+  while (i < n - 2 && timeOf(i + 1) < t) i++;
+  const t0 = timeOf(i);
+  const t1 = timeOf(i + 1);
+  const k = n < 2 || t1 === t0 ? 0 : (t - t0) / (t1 - t0);
+  const at = (series: number[]) => {
+    const a = series[i] ?? series[0] ?? 0;
+    const b = series[i + 1] ?? a;
+    return a + (b - a) * k;
+  };
+  const zonesC: Record<string, number> = {};
+  const bandC: Record<string, { low: number; high: number }> = {};
+  for (const [zone, series] of Object.entries(trace.zonesC.nominal)) {
+    zonesC[zone] = at(series);
+    const runs = Object.values(trace.zonesC).map((z) => at(z[zone] ?? series));
+    bandC[zone] = { low: Math.min(...runs), high: Math.max(...runs) };
+  }
+  return { outdoorC: at(trace.outdoorC), zonesC, bandC };
+}
