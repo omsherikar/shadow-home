@@ -299,7 +299,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       setMessages((m) => asked(m, id, said, request));
       setNotice(null);
       setActivity('thinking');
-      // The screen's note goes with this request.
+      // The screen's note goes with this request (and with it again on a retry).
       screenNote.current = undefined;
       askedHouse.current = false;
       holding.current = true;
@@ -309,8 +309,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       const gone = () => controller.signal.aborted || turnSeq.current !== seq;
       const calls: ToolCall[] = [];
       // What was said goes in before what it led to, once it has led to something. A turn that
-      // fails or is stopped before then leaves the conversation as it was, and a question still
-      // open stays open.
+      // fails or is stopped before then leaves the conversation as it was, so a retry is the same
+      // request to the same conversation, and a question still open stays open.
       let heard = false;
       const hear = () => {
         if (heard) return;
@@ -407,6 +407,18 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     turn.current?.abort();
     stopSpeaking();
   }, []);
+
+  /** Try a failed answer again: the same request, exactly, in place of the answer that failed. */
+  const retry = useCallback(
+    (m: Message) => {
+      if (!m.request || working.current) return;
+      const at = messages.indexOf(m);
+      const you = messages[at - 1];
+      setMessages((all) => all.filter((x) => x !== m && x !== you));
+      void send(m.request, you?.who === 'you' ? you.text : m.request.text);
+    },
+    [messages, send],
+  );
 
   const toggleMic = useCallback(async () => {
     if (mic.current) {
@@ -513,6 +525,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           onSend={(says, label) => void say(says, label)}
           onMic={() => void toggleMic()}
           onStop={stop}
+          onRetry={retry}
           menu={
             <details className="menu">
               <summary aria-label="More">
