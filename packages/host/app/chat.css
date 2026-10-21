@@ -291,6 +291,33 @@
   font-size: 13px;
 }
 
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 3px solid var(--blocked);
+}
+
+.problem p {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.4;
+}
+
+.retry {
+  padding: 6px 14px;
+  border: 1px solid var(--ink-soft);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .chat-notice {
   margin: 12px 0 0;
   color: var(--ink-muted);
