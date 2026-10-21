@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from 'vitest';
-import type { TurnEvent } from './events.ts';
+import { anthropicConverse } from './anthropic.ts';
+import { bedrockModel, type HomeBrief } from './bedrock.ts';
+import { stepLabel, type TurnEvent } from './events.ts';
 import { runTurn, TurnDeadlineError, TurnStoppedError, within } from './run.ts';
+import { fakeApi, reply } from './test-helpers.ts';
 import type { Model } from './types.ts';
 
 const never = () => new Promise<never>(() => {});
@@ -93,6 +96,31 @@ describe('a call left behind at the deadline', () => {
   });
 });
 
+const home: HomeBrief = {
+  now: '2027-01-15T17:45:00-06:00',
+  mode: 'home',
+  devices: [{ id: 'thermostat_main', name: 'Main thermostat', room: 'Living room', state: {} }],
+  routines: [],
+  presence: { om: 'home' },
+};
+const offered = [
+  { name: 'preview_plan', description: 'Check a plan', inputSchema: { type: 'object' } },
+  { name: 'commit_plan', description: 'Commit', inputSchema: { type: 'object' } },
+];
+const unsafe = {
+  content: [{ type: 'text' as const, text: 'UNSAFE (T3)' }],
+  structuredContent: {
+    planId: 'p1',
+    verdict: 'UNSAFE',
+    tier: 'T3',
+    speech: {
+      headline: 'Not safe: the garage would freeze.',
+      ask: 'Do it with 4 fixes instead?',
+    },
+  },
+};
+const VIEW = 'ui://shadow-home/plan-view.html';
+
 /** The events as the screen would follow them: consecutive words joined into one. */
 function followed(events: TurnEvent[]) {
   const out: unknown[] = [];
@@ -107,6 +135,54 @@ function followed(events: TurnEvent[]) {
 }
 
 describe('a turn as it happens', () => {
+  test("a typical preview: the model's words, the step from when it begins the call, the call, more words", async () => {
+    const { api } = fakeApi(
+      reply(
+        [
+          { type: 'text', text: 'Let me check that on your home.' },
+          { type: 'tool_use', id: 'toolu_1', name: 'preview_plan', input: { intent: 'away' } },
+        ],
+        'tool_use',
+      ),
+      reply([{ type: 'text', text: 'That plan would freeze the garage.' }]),
+    );
+    const model = bedrockModel({ converse: anthropicConverse(api), tools: offered, home });
+    const ran: string[] = [];
+    const tools = {
+      callTool: async (name: string) => {
+        ran.push(name);
+        return unsafe;
+      },
+      resourceUriFor: () => VIEW,
+    };
+    const events: TurnEvent[] = [];
+    const turn = await runTurn(
+      model,
+      tools,
+      { text: "I'm away for the weekend", history: [] },
+      { emit: (e) => events.push(e) },
+    );
+    expect(followed(events)).toEqual([
+      { text: 'Let me check that on your home.' },
+      { step: 's1 preview_plan running' },
+      { step: 's1 preview_plan done' },
+      { call: 'preview_plan' },
+      { text: ' That plan would freeze the garage.' },
+    ]);
+    // The words came as the model wrote them, a word at a time.
+    expect(events.filter((e) => e.event === 'text').length).toBeGreaterThan(2);
+    expect(events[events.findIndex((e) => e.event === 'step')]).toEqual({
+      event: 'step',
+      data: { id: 's1', tool: 'preview_plan', label: stepLabel('preview_plan'), state: 'running' },
+    });
+    // The call event is the call as the whole turn reports it.
+    expect(events.find((e) => e.event === 'call')?.data).toEqual({ call: turn.calls[0] });
+    expect(turn.calls[0]).toMatchObject({ name: 'preview_plan', resourceUri: VIEW });
+    expect(ran).toEqual(['preview_plan']);
+    // What's said stays the server's speech (decision 65); the screen swaps it in at the end.
+    expect(turn.say).toBe('Not safe: the garage would freeze. Do it with 4 fixes instead?');
+  });
+
   test('a tool call that fails or answers with an error is a failed step', async () => {
     const events: TurnEvent[] = [];
     const model: Model = {
