@@ -57,4 +57,18 @@ describe('waking', () => {
     expect(effects).toEqual([]);
     expect(state.mode).toBe('idle');
   });
+
+  test('awake with nothing said: back to listening for "Alexa" when the time is up', () => {
+    const woke = run([on, heard('Alexa')]);
+    const { state } = run([{ type: 'timeout', epoch: woke.state.epoch }], woke.state);
+    expect(state.mode).toBe('idle');
+  });
+
+  test('a timer from an earlier wait changes nothing', () => {
+    const first = run([on, heard('Alexa')]);
+    const again = run([heard('Alexa')], first.state);
+    expect(again.state.epoch).toBeGreaterThan(first.state.epoch);
+    const { state } = run([{ type: 'timeout', epoch: first.state.epoch }], again.state);
+    expect(state.mode).toBe('awake');
+  });
 });
