@@ -794,4 +794,20 @@ describe('acting out the plan', () => {
     // All at the plan's own moment, before the clock moves on.
     expect(still.slice(0, -1).every((seg) => seg.fromMs === run.startMs)).toBe(true);
   });
+
+  test('the house changes one step at a time, never ahead of the step it shows', () => {
+    const start: LiveDevice[] = weekend.timeline
+      .filter((e) => e.device !== 'home')
+      .map((e) => ({ id: e.device, kind: 'plug', state: { onOff: true } }));
+    const changedBy = (applied: number) =>
+      devicesAt(start, run.changes.slice(0, applied), Number.POSITIVE_INFINITY)
+        .filter((d) => d.state.onOff === false || d.state.lockState || d.state.heatingSetpointC)
+        .map((d) => d.id);
+    const at = (seg: (typeof still)[number]) => changedBy(seg.applied ?? -1);
+    expect(at(still[0] as never)).toEqual([]);
+    expect(at(still[1] as never)).toEqual(['thermostat_main']);
+    // On the stop for R1 the freezer is off and the aquarium still on.
+    expect(at(still[3] as never)).toEqual(['thermostat_main', 'plug_garage_freezer']);
+    expect(at(still[7] as never)).toContain('light_kitchen');
+  });
 });
