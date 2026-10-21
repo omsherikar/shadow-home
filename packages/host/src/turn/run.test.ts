@@ -5,7 +5,7 @@ import { bedrockModel, type HomeBrief } from './bedrock.ts';
 import { stepLabel, type TurnEvent } from './events.ts';
 import { runTurn, TurnDeadlineError, TurnStoppedError, within } from './run.ts';
 import { fakeApi, reply } from './test-helpers.ts';
-import type { Model } from './types.ts';
+import type { Model, StepOptions } from './types.ts';
 
 const never = () => new Promise<never>(() => {});
 const committed = {
@@ -343,5 +343,28 @@ describe('a turn the person stops', () => {
       runTurn(model, committed, { text: 'hi', history: [] }, { signal: AbortSignal.abort() }),
     ).rejects.toBeInstanceOf(TurnStoppedError);
     expect(steps).toBe(0);
+  });
+
+  test('a model step left behind at the deadline is stopped, and its late words are never sent', async () => {
+    let given: StepOptions | undefined;
+    const model: Model = {
+      next: (_, options) => {
+        given = options;
+        setTimeout(() => options?.onEvent?.({ text: 'late words' }), 40);
+        return never();
+      },
+    };
+    const events: TurnEvent[] = [];
+    await expect(
+      runTurn(
+        model,
+        committed,
+        { text: 'hi', history: [] },
+        { deadline: Date.now() + 10, emit: (e) => events.push(e) },
+      ),
+    ).rejects.toBeInstanceOf(TurnDeadlineError);
+    expect(given?.signal?.aborted).toBe(true);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(events).toEqual([]);
   });
 });
