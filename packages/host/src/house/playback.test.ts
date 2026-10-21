@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  carriesPreview,
   REPLAY_META_KEY,
   type Run,
   runsFrom,
@@ -218,5 +219,14 @@ describe('runs from a tool result', () => {
     expect(runsFrom('commit_plan', { status: 'committed' }, planOnly)).toEqual([]);
     expect(runsFrom('get_home_state', { now: FRI }, planOnly)).toEqual([]);
     expect(runsFrom('preview_plan', undefined, planOnly)).toEqual([]);
+  });
+
+  test('a result that carries a preview is one the house either plays or steps back from', () => {
+    expect(carriesPreview('preview_plan', preview)).toBe(true);
+    expect(carriesPreview('undo', { status: 'preview', preview })).toBe(true);
+    expect(carriesPreview('undo', { status: 'nothing_to_undo' })).toBe(false);
+    expect(carriesPreview('commit_plan', { status: 'refused', freshPreview: preview })).toBe(true);
+    expect(carriesPreview('commit_plan', { status: 'committed' })).toBe(false);
+    expect(carriesPreview('get_home_state', { now: FRI })).toBe(false);
   });
 });
