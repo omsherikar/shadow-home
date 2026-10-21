@@ -128,4 +128,22 @@ describe('when the end replaces what streamed', () => {
     await said;
     expect(v.played.map((p) => p.text)).toEqual(['Blocked: that breaks 4 house rules.']);
   });
+
+  test('a sentence of the old words playing when the end replaces them stops at once', async () => {
+    // Not what decision 108's server sends (its stream is `say`), but if it ever differs, the old
+    // words are cut off the moment the end says so, and only the final words follow.
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.write("It's safe to run. Then");
+    await v.arrive();
+    const said = speech.finish('Blocked: that breaks 4 house rules.');
+    await settle();
+    expect(v.stopped).toEqual(["It's safe to run."]);
+    const before = v.played.length;
+    await v.drain();
+    await said;
+    expect(v.played.slice(before).map((p) => p.text)).toEqual([
+      'Blocked: that breaks 4 house rules.',
+    ]);
+  });
 });
