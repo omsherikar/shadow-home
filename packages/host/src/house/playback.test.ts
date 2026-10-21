@@ -17,6 +17,7 @@ import {
   roomOf,
   runsFrom,
   type ShowTiming,
+  sampleDay,
   schedule,
   showLength,
   TEMPERATURE_RULES_META_KEY,
@@ -480,6 +481,21 @@ describe('a new house rule’s sample day', () => {
       true,
       false,
       false,
+    ]);
+  });
+
+  test('plays the next 24 hours and stops when the guarded hours begin', () => {
+    const guard = guardFrom('add_house_rule', args, added);
+    if (!guard) throw new Error('no guard');
+    const day = sampleDay(guard, FRI);
+    expect(day.endMs - day.startMs).toBe(24 * 3_600_000);
+    expect(day.breaks).toEqual([
+      {
+        kind: 'guard',
+        atMs: at('2027-01-15T22:00:00'),
+        text: added.readBack,
+        device: 'front_door_lock',
+      },
     ]);
   });
 });
