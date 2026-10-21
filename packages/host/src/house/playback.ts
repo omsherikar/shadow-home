@@ -326,3 +326,26 @@ export function changesBy(changes: Change[], atMs: number): number {
   while (n < changes.length && (changes[n]?.atMs ?? Number.POSITIVE_INFINITY) <= atMs) n++;
   return n;
 }
+
+/** Who is home at a home time: the presence windows the plan was checked with, else as now. */
+export function presenceAt(
+  now: Record<string, 'home' | 'away'>,
+  windows: Run['presence'],
+  atMs: number,
+): Record<string, 'home' | 'away'> {
+  let who: Presence | undefined;
+  for (const w of windows) if (w.fromMs <= atMs && atMs < w.toMs) who = w.who;
+  if (who === undefined) return now;
+  const out: Record<string, 'home' | 'away'> = {};
+  for (const member of Object.keys(now)) {
+    out[member] =
+      who === 'everyone'
+        ? 'home'
+        : who === 'nobody'
+          ? 'away'
+          : who.home.includes(member)
+            ? 'home'
+            : 'away';
+  }
+  return out;
+}
