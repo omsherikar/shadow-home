@@ -7,7 +7,7 @@ import {
   type Value,
 } from '@shadow-home/twin';
 import { ruleDevices } from './rules.ts';
-import { formatIso, offsetMinutes, toMs } from './time.ts';
+import { floorToMinute, formatIso, offsetMinutes, toMs } from './time.ts';
 import { type CheckResult, check, type Reason, type Verdict } from './verdict.ts';
 
 export type RepairKind =
@@ -485,9 +485,13 @@ function keepPhrase(
   return group ? `leave ${deviceId} out of ${group}` : `leave ${deviceId} ${attr} as it is`;
 }
 
-/** When an action runs: its time, else the plan's now. */
+/**
+ * The minute an action runs: its time, else the plan's now, floored to the minute as the
+ * simulation steps it (decision 14). Otherwise a now with seconds would count the action's own
+ * change, recorded at the start of its minute, as already done before it.
+ */
 function whenMs(action: PlanAction, plan: Plan): number {
-  return toMs('at' in action && action.at ? action.at : plan.context.now);
+  return floorToMinute(toMs('at' in action && action.at ? action.at : plan.context.now));
 }
 
 /** How long a routine pause has to last: the plan's end, else the last presence window, else the simulation's end. */
