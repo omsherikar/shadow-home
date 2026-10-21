@@ -12,6 +12,7 @@ import {
   moment,
   presenceAt,
   type Run,
+  roomOf,
   SHOW_TIMING,
   temperaturesAt,
 } from '../house/playback.ts';
@@ -131,11 +132,15 @@ export function HousePanel(props: {
   const presence = useMemo(() => presenceNow, [presenceKey]);
   const temps = run?.trace ? temperaturesAt(run.trace, homeMs) : null;
   const time = run ? homeIso(homeMs, run.offset) : (home?.now ?? '');
+  const held = m?.held ?? [];
+  const focusDevice = held.find((b) => b.device)?.device;
+  const focus = !still && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
 
   const view: HouseView = {
     devices,
     presence,
     time,
+    focus,
   };
 
   const docked = mode === 'split';
