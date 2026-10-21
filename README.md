@@ -63,6 +63,14 @@ Alexa+ declares only the `roots` capability, so Shadow Home doesn't rely on mid-
 | `add_house_rule` | Compiles a rule in plain words; read-back, sample day, conflicts. |
 | `approve_plan` | The on-screen yes. It needs a token only the screen receives, so a model can't approve for the person. |
 
+## Try it live
+
+- The Echo Show: https://shadowhome.omstudio.tech
+- The MCP server: https://mcp.shadowhome.omstudio.tech/mcp. Any MCP client can use it, for example
+  `claude mcp add --transport http shadow-home https://mcp.shadowhome.omstudio.tech/mcp`.
+
+It's one shared demo home, which starts over every day at 08:00 UTC.
+
 ## Run it
 
 Node 22.
