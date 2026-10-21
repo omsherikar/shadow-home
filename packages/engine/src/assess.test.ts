@@ -620,4 +620,23 @@ describe("away mode without saying who's away", () => {
     expect(a.tier.tier).toBe('T5');
     expect(a.speech).toEqual(WHO_IS_AWAY);
   });
+
+  test('asks who first when something else is unknown too: every rule for an empty house waits on it', () => {
+    const a = assess(
+      home,
+      plan(
+        [
+          { device: 'dishwasher', set: { onOff: true }, at: '2027-01-16T02:00:00-06:00' },
+          { mode: 'away' },
+        ],
+        '2027-01-15T21:30:00-06:00',
+      ),
+    );
+    expect(a.check.verdict).toBe('UNPROVEN');
+    expect(a.check.unknowns).toEqual(['dishwasher_latch: battery 4% is under 15%', AWAY_UNSTATED]);
+    expect(a.tier.tier).toBe('T5');
+    expect(a.speech).toEqual(WHO_IS_AWAY);
+    expect(a.safePart).toBeNull();
+    expect(a.offered).toBeNull();
+  });
 });
