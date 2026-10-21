@@ -76,4 +76,37 @@ describe('the microphone, listening without a break', () => {
     expect(l.interims).toContain('Alexa I');
     expect(l.finals).toEqual(["Alexa, I'm away for the weekend"]);
   });
+
+  test('starts again whenever it ends or fails, and waits longer while it keeps failing', () => {
+    const l = listening();
+    l.listener.resume();
+    vi.advanceTimersByTime(RESUME_MS);
+    vi.advanceTimersByTime(2000);
+    // Silence: Chrome ends the session; it starts again soon.
+    l.sessions[0]?.fail('no-speech');
+    vi.advanceTimersByTime(restartDelay(0));
+    expect(l.sessions).toHaveLength(2);
+    vi.advanceTimersByTime(2000);
+    // The network fails twice: it waits longer each time.
+    l.sessions[1]?.fail('network');
+    vi.advanceTimersByTime(restartDelay(1) - 1);
+    expect(l.sessions).toHaveLength(2);
+    vi.advanceTimersByTime(1);
+    expect(l.sessions).toHaveLength(3);
+    vi.advanceTimersByTime(2000);
+    l.sessions[2]?.fail('network');
+    vi.advanceTimersByTime(restartDelay(2));
+    expect(l.sessions).toHaveLength(4);
+    // Hearing something again resets the wait.
+    l.sessions[3]?.say('hello');
+    vi.advanceTimersByTime(2000);
+    l.sessions[3]?.stop();
+    vi.advanceTimersByTime(restartDelay(0));
+    expect(l.sessions).toHaveLength(5);
+    expect(l.errors).toEqual([
+      ['no-speech', false],
+      ['network', false],
+      ['network', false],
+    ]);
+  });
 });
