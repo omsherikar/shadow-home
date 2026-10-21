@@ -52,12 +52,22 @@ export class ScreenHost {
   private frame: Frame | undefined;
   private opening: Promise<Frame> | undefined;
   private drawing: { promise: Promise<void>; finish(): void } | undefined;
+  // A later turn set the plan on screen aside: the view may no longer act on it.
+  private aside = false;
 
   constructor(
     private readonly container: HTMLElement,
     private readonly client: Client,
     private readonly events: ScreenEvents,
   ) {}
+
+  /**
+   * Set the view aside, or bring it back. Set aside, every tool call it makes is refused here, so
+   * a plan a later turn superseded can't be approved or committed from its screen by any path.
+   */
+  setAside(on: boolean): void {
+    this.aside = on;
+  }
 
   async show(shown: Shown): Promise<void> {
     const frame = await this.frameFor(shown.resourceUri);
@@ -158,6 +168,12 @@ export class ScreenHost {
       },
     );
     bridge.oncalltool = async (params) => {
+      if (this.aside) {
+        return {
+          content: [{ type: 'text', text: 'This plan was set aside. Ask again to act on it.' }],
+          isError: true,
+        } satisfies CallToolResult;
+      }
       const result = (await this.client.callTool(params)) as CallToolResult;
       // The view draws what comes back.
       this.expectDrawing();
