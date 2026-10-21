@@ -114,8 +114,9 @@ export function daylight(iso: string): Daylight {
   const hour = m ? Number(m[1]) + Number(m[2]) / 60 : 12;
   const elevation = NOON_ELEVATION * Math.sin((Math.PI * (hour - SUNRISE)) / (SUNSET - SUNRISE));
   const day = smoothstep(-6, 10, elevation);
-  const night = '#9db4ff';
-  const dusk = '#ffa36b';
+  // Outside the light cools as the day goes: moonlight, then a blue-violet dusk, then the sun.
+  const night = '#8fa6ff';
+  const dusk = '#aeb0e8';
   const noon = '#fff3e0';
   const keyColor = day < 0.4 ? mix(night, dusk, day / 0.4) : mix(dusk, noon, (day - 0.4) / 0.6);
   // The sun crosses from south-east to south-west; at night a moon hangs high in the south-east.
@@ -129,9 +130,9 @@ export function daylight(iso: string): Daylight {
   return {
     elevation,
     day,
-    key: 0.35 + 2.2 * day,
+    key: 0.3 + 2.2 * day,
     keyColor,
-    sky: 0.3 + 0.7 * day,
+    sky: 0.22 + 0.78 * day,
     direction: [Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)],
   };
 }

@@ -147,7 +147,7 @@ function KeyLight({ light }: { light: Daylight }) {
         shadow-normalBias={0.03}
         shadow-radius={3}
       />
-      <hemisphereLight args={['#cdd6ff', '#3b2c22', 0.4 * light.sky]} />
+      <hemisphereLight args={['#b8c4f0', '#2a2018', 0.35 * light.sky]} />
     </>
   );
 }
