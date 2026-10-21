@@ -6,8 +6,10 @@ import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
 import { dotFor, type LiveDevice, type LiveHome } from '../house/looks.ts';
 import {
+  type Break,
   changesBy,
   devicesAt,
+  homeClock,
   homeIso,
   moment,
   presenceAt,
@@ -160,7 +162,18 @@ export function HousePanel(props: {
     focus,
   };
 
+  // What's broken so far in this run, by device; and what's shown as a card right now.
+  const fired = run ? run.breaks.filter((b) => b.atMs <= homeMs) : [];
+  const brokenAt = new Map<string, Break['kind']>();
+  for (const b of fired) if (b.device && b.kind !== 'guard') brokenAt.set(b.device, b.kind);
+  const cards = done ? fired.filter((b) => b.kind !== 'guard' || still) : held;
+  // Beside the device, whose screen already shows each rule and the garage's chart, the house
+  // keeps the scene clear: what breaks right now goes in its card, and its dots keep the rest.
+  // Alone, one card is pinned where it breaks; several at once, as at a run's end, would cover
+  // each other and the rooms, so they're listed in the house's card instead.
   const docked = mode === 'split';
+  const pinnedCards = !docked && cards.length === 1 ? cards.filter((b) => b.device) : [];
+  const inCard = docked ? held : cards.filter((b) => !pinnedCards.includes(b));
   const byId = new Map((devices ?? []).map((d) => [d.id, d]));
 
   return (
@@ -189,7 +202,9 @@ export function HousePanel(props: {
         })}
         {layout.devices.map((d) => {
           const dot = DOTS.has(d.device) ? dotFor(byId.get(d.device)) : null;
-          if (!dot) {
+          const broken = brokenAt.get(d.device);
+          const mine = pinnedCards.filter((b) => b.device === d.device);
+          if (!dot && mine.length === 0) {
             return <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)} />;
           }
           return (
@@ -205,17 +220,25 @@ export function HousePanel(props: {
               ) : null}
               {dot ? (
                 <span
-                  className={['dot', `dot-${dot.tone}`].join(' ')}
+                  className={['dot', `dot-${dot.tone}`, broken ? `dot-${broken}` : ''].join(' ')}
                   title={`${byId.get(d.device)?.name ?? d.device}: ${dot.label}`}
                   data-device={d.device}
                   data-state={dot.tone}
                 />
               ) : null}
+              {mine.map((b) => (
+                <BreakCard
+                  key={`${b.kind}:${b.rule ?? b.text}`}
+                  b={b}
+                  offset={run?.offset}
+                  name={(id) => byId.get(id)?.name}
+                />
+              ))}
             </div>
           );
         })}
       </div>
-      <div className="house-card glass" ref={card}>
+      <div className={`house-card glass${inCard.length > 0 ? ' listing' : ''}`} ref={card}>
         <div className="card-head">
           <h1 className="house-name">{layout.name}</h1>
           <p className="house-time">{time ? dayAndTime(time) : ' '}</p>
@@ -241,6 +264,15 @@ export function HousePanel(props: {
             ))}
           </dl>
         </div>
+        {inCard.map((b) => (
+          <BreakCard
+            key={`${b.kind}:${b.text}`}
+            b={b}
+            offset={run?.offset}
+            name={(id) => byId.get(id)?.name}
+            inline
+          />
+        ))}
       </div>
     </>
   );
@@ -261,4 +293,44 @@ function useCardBottom(card: { current: HTMLElement | null }): number {
     return () => observer.disconnect();
   }, [card]);
   return bottom;
+}
+
+const AUTHOR = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+
+/** "dishwasher_latch: battery 4% …" with the device's own name: "Dishwasher door latch: …". */
+function readable(text: string, name: (id: string) => string | undefined): string {
+  return text.replace(/^([a-z0-9_]+):/, (whole, id: string) => {
+    const n = name(id);
+    return n ? `${n}:` : whole;
+  });
+}
+
+/** A rule breaking (coral), a rule that may break or a reading that can't be trusted (amber). */
+function BreakCard({
+  b,
+  offset,
+  name,
+  inline,
+}: {
+  b: Break;
+  offset: string | undefined;
+  name(id: string): string | undefined;
+  inline?: boolean;
+}) {
+  const when = offset ? homeClock(b.atMs, offset) : '';
+  const head =
+    b.kind === 'violation'
+      ? `${b.rule} breaks ${when}`
+      : b.kind === 'not_robust'
+        ? `${b.rule} may break ${when}`
+        : b.kind === 'guard'
+          ? `Guarded from ${when}`
+          : 'Can’t confirm';
+  return (
+    <div className={`break-card glass ${b.kind}${inline ? ' inline' : ''}`} role="status">
+      <p className="break-head">{head}</p>
+      <p className="break-text">{readable(b.text, name)}</p>
+      {b.author ? <p className="break-who">{AUTHOR(b.author)}’s rule</p> : null}
+    </div>
+  );
 }
