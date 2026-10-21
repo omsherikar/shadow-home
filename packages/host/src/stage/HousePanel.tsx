@@ -8,7 +8,6 @@ import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../
 import { judge, NEW_PLAYBACK, type Pace, showsEnds } from '../house/pace.ts';
 import {
   type Break,
-  changesBy,
   chartOf,
   devicesAt,
   type Guard,
@@ -190,13 +189,13 @@ export const HousePanel = memo(function HousePanel(props: {
 
   const run = show && m ? show.runs[m.run] : undefined;
   const homeMs = m?.homeMs ?? 0;
-  const count = run ? changesBy(run.changes, homeMs) : 0;
+  const applied = m?.applied ?? 0;
   const devices = useMemo(
     () =>
       show && run
-        ? devicesAt(show.devices, run.changes.slice(0, count), Number.POSITIVE_INFINITY)
+        ? devicesAt(show.devices, run.changes.slice(0, applied), Number.POSITIVE_INFINITY)
         : (home?.devices ?? null),
-    [show, run, count, home],
+    [show, run, applied, home],
   );
   const presenceNow =
     show && run ? presenceAt(show.presence, run.presence, homeMs) : home?.presence;
