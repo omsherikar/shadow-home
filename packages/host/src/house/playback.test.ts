@@ -16,6 +16,7 @@ import {
   runsFrom,
   type ShowTiming,
   schedule,
+  TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
   type Trace,
   temperatureColor,
@@ -388,5 +389,15 @@ describe('a show', () => {
       homeMs: plan.endMs,
       done: true,
     });
+  });
+
+  test('each zone’s limit from the house rules comes with the runs', () => {
+    const withRules = runsFrom('preview_plan', preview, {
+      ...meta,
+      [TEMPERATURE_RULES_META_KEY]: {
+        R3: { zone: 'garage', zoneName: 'Garage', minC: 4, maxC: null, heatedBy: [] },
+      },
+    });
+    expect(withRules[0]?.limits).toEqual({ garage: { minC: 4, maxC: null } });
   });
 });
