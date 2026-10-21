@@ -270,10 +270,18 @@ describe('undo', () => {
 
   test('a scheduled mode change is held, and an undo before it happens cancels it', async () => {
     const { clock, service } = setup('2027-01-15T17:45:00');
+    // Away mode commits only when the plan says who's away (decision 113): here Maya stays in.
     const p = await service.previewPlan({
-      intent: 'away mode at 7',
+      intent: 'away mode at 7, Maya stays in',
       requestedBy: 'om',
       actions: [{ mode: 'away', at: '2027-01-15T19:00:00-06:00' }],
+      presenceSchedule: [
+        {
+          from: '2027-01-15T19:00:00-06:00',
+          to: '2027-01-15T23:00:00-06:00',
+          presence: { home: ['maya'] },
+        },
+      ],
     });
     const c = await service.commitPlan({ planId: p.planId, confirmed: true });
     expect(c.held).toEqual([{ target: 'home', attr: 'mode', from: 'home', to: 'away' }]);
