@@ -136,16 +136,21 @@ function followed(events: TurnEvent[]) {
 }
 
 describe('a turn as it happens', () => {
-  test("a typical preview: the model's words, the step from when it begins the call, the call, more words", async () => {
+  test("a typical preview: the step, the call, then the engine's headline, the model's explanation and the engine's question; words before the call are never said", async () => {
     const { api } = fakeApi(
       reply(
         [
-          { type: 'text', text: 'Let me check that on your home.' },
+          { type: 'text', text: 'The front door is now unlocked.' },
           { type: 'tool_use', id: 'toolu_1', name: 'preview_plan', input: { intent: 'away' } },
         ],
         'tool_use',
       ),
-      reply([{ type: 'text', text: 'That plan would freeze the garage.' }]),
+      reply([
+        {
+          type: 'text',
+          text: 'Om set that rule to keep the garage pipes from freezing. Shall I fix it?',
+        },
+      ]),
     );
     const model = bedrockModel({ converse: anthropicConverse(api), tools: offered, home });
     const ran: string[] = [];
@@ -163,15 +168,13 @@ describe('a turn as it happens', () => {
       { text: "I'm away for the weekend", history: [] },
       { emit: (e) => events.push(e) },
     );
+    const explanation = 'Om set that rule to keep the garage pipes from freezing.';
     expect(followed(events)).toEqual([
-      { text: 'Let me check that on your home.' },
       { step: 's1 preview_plan running' },
       { step: 's1 preview_plan done' },
       { call: 'preview_plan' },
-      { text: ' That plan would freeze the garage.' },
+      { text: `Not safe: the garage would freeze. ${explanation} Do it with 4 fixes instead?` },
     ]);
-    // The words came as the model wrote them, a word at a time.
-    expect(events.filter((e) => e.event === 'text').length).toBeGreaterThan(2);
     expect(events[events.findIndex((e) => e.event === 'step')]).toEqual({
       event: 'step',
       data: { id: 's1', tool: 'preview_plan', label: stepLabel('preview_plan'), state: 'running' },
@@ -180,8 +183,9 @@ describe('a turn as it happens', () => {
     expect(events.find((e) => e.event === 'call')?.data).toEqual({ call: turn.calls[0] });
     expect(turn.calls[0]).toMatchObject({ name: 'preview_plan', resourceUri: VIEW });
     expect(ran).toEqual(['preview_plan']);
-    // What's said stays the server's speech (decision 65); the screen swaps it in at the end.
-    expect(turn.say).toBe('Not safe: the garage would freeze. Do it with 4 fixes instead?');
+    expect(turn.say).toBe(
+      `Not safe: the garage would freeze. ${explanation} Do it with 4 fixes instead?`,
+    );
   });
 
   test('a model that writes nothing as it goes: its answer is sent as one piece at the end', async () => {
