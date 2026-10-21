@@ -71,21 +71,29 @@ function sharedClient(): Anthropic {
 
 /** A Converse request as a Messages API request. */
 export function toRequest(input: ConverseCommandInput): Anthropic.MessageStreamParams {
-  const system = (input.system ?? [])
-    .map((s) => s.text ?? '')
-    .filter(Boolean)
-    .join('\n\n');
-  const tools: Anthropic.Tool[] = (input.toolConfig?.tools ?? []).flatMap((t) =>
-    t.toolSpec?.name
-      ? [
-          {
-            name: t.toolSpec.name,
-            ...(t.toolSpec.description ? { description: t.toolSpec.description } : {}),
-            input_schema: t.toolSpec.inputSchema?.json as Anthropic.Tool.InputSchema,
-          },
-        ]
-      : [],
-  );
+  // A Converse cache point marks the end of what's cached: the block before it gets cache_control.
+  const blocks: Anthropic.TextBlockParam[] = [];
+  for (const s of input.system ?? []) {
+    if (s.cachePoint) {
+      const last = blocks.at(-1);
+      if (last) last.cache_control = { type: 'ephemeral' };
+    } else if (s.text) blocks.push({ type: 'text', text: s.text });
+  }
+  const cached = blocks.some((b) => b.cache_control);
+  const system = cached ? blocks : blocks.map((b) => b.text).join('\n\n');
+  const tools: Anthropic.Tool[] = [];
+  for (const t of input.toolConfig?.tools ?? []) {
+    if (t.cachePoint) {
+      const last = tools.at(-1);
+      if (last) last.cache_control = { type: 'ephemeral' };
+    } else if (t.toolSpec?.name) {
+      tools.push({
+        name: t.toolSpec.name,
+        ...(t.toolSpec.description ? { description: t.toolSpec.description } : {}),
+        input_schema: t.toolSpec.inputSchema?.json as Anthropic.Tool.InputSchema,
+      });
+    }
+  }
   const choice = input.toolConfig?.toolChoice;
   const model = input.modelId ?? ANTHROPIC_MODEL_ID;
   return {
@@ -93,7 +101,7 @@ export function toRequest(input: ConverseCommandInput): Anthropic.MessageStreamP
     max_tokens: input.inferenceConfig?.maxTokens ?? 1024,
     // No temperature: the current Claude models refuse it (deprecated) and pick their own.
     ...(model === ANTHROPIC_MODEL_ID ? QUICK : {}),
-    ...(system ? { system } : {}),
+    ...(system.length > 0 ? { system } : {}),
     messages: (input.messages ?? []).map(toMessage),
     ...(tools.length === 0
       ? {}
