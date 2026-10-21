@@ -29,7 +29,7 @@ const jump = z.object({ now: z.iso.datetime({ offset: true }) });
 
 /**
  * The HTTP app: MCP over Streamable HTTP at /mcp, for 2026-07-28 clients and, statelessly,
- * 2025-era ones (2025-11-25, and 2025-03-26 as Alexa+ sends), plus /healthz.
+ * 2025-era ones (2025-11-25, and 2025-03-26 as Alexa+ sends), plus /health and /healthz.
  */
 export function createApp(service: ShadowHomeService, options: AppOptions = {}): Hono {
   const handler = createMcpHandler(() => buildServer(service), {
@@ -45,6 +45,8 @@ export function createApp(service: ShadowHomeService, options: AppOptions = {}):
   );
   // Bound to every address, the app checks no Origin; keep the default's: none, or localhost.
   if (options.anyHost && !options.allowedHosts) app.use('*', localhostOriginValidation());
+  // Cloud Run keeps some paths ending in z, /healthz among them, so checks there use /health.
+  app.get('/health', (c) => c.json({ ok: true }));
   app.get('/healthz', (c) => c.json({ ok: true }));
   app.all('/mcp', (c) => {
     // createMcpHonoApp's body parser stores the JSON body here; its Hono type doesn't declare it.
