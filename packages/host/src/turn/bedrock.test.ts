@@ -102,6 +102,36 @@ describe('the Bedrock model', () => {
     expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({ say: 'Safe: TV off.' });
   });
 
+  test('a later "why?" leads with the check\'s headline; with nothing left, its reason', async () => {
+    const history: Remembered[] = [
+      { name: 'heard', arguments: { text: "I'm away for the weekend" } },
+      {
+        name: 'preview_plan',
+        arguments: {},
+        structuredContent: {
+          verdict: 'UNSAFE',
+          speech: {
+            headline: 'Blocked: that breaks a house rule.',
+            reason: "No TV after 10 PM. That's Om's rule.",
+            ask: 'Do it with 1 fix instead?',
+          },
+        },
+      },
+    ];
+    const answer = async (words: string) => {
+      const { converse } = fakeConverse(text(words));
+      return bedrockModel({ converse, tools, home }).next(input({ text: 'Why?', history }));
+    };
+    expect(await answer("Om's rule is about the TV in the living room.")).toEqual({
+      say: "Blocked: that breaks a house rule. Om's rule is about the TV in the living room.",
+    });
+    for (const lie of ['The TV would be on at 10:22 PM.', "Actually, the fix isn't needed."]) {
+      expect(await answer(lie)).toEqual({
+        say: "Blocked: that breaks a house rule. No TV after 10 PM. That's Om's rule.",
+      });
+    }
+  });
+
   test("after a check, a greeting, thanks or a no is plain conversation, not a question about the check: its own words, as long as they don't talk about the check", async () => {
     const history: Remembered[] = [
       {
