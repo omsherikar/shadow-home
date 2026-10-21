@@ -124,6 +124,21 @@ describe('the Anthropic API behind the Converse loop', () => {
     expect(out.usage).toEqual({ inputTokens: 3, outputTokens: 2, totalTokens: 5 });
   });
 
+  test('what the cache read and wrote is kept, in Converse terms', () => {
+    const cached = reply([{ type: 'text', text: 'Hi.' }]);
+    cached.usage = {
+      ...cached.usage,
+      cache_read_input_tokens: 4200,
+      cache_creation_input_tokens: 0,
+    };
+    expect(fromReply(cached).usage).toEqual({
+      inputTokens: 3,
+      outputTokens: 2,
+      totalTokens: 4205,
+      cacheReadInputTokens: 4200,
+    });
+  });
+
   test('the loop runs unchanged on it: the tool the model chose, then its words', async () => {
     const { api, sent } = fakeApi(
       reply(
