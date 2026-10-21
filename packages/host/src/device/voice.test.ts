@@ -44,4 +44,10 @@ describe('a reply with several sentences', () => {
       'Shall I fix it?',
     ]);
   });
+
+  test('a refused sentence leaves the rest of the reply to the browser', async () => {
+    const { speak, fetch } = await voiceAnswering(200, 429, 200);
+    await speak("Blocked: that breaks 4 house rules. That's Om's rule. Shall I fix it?");
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
 });
