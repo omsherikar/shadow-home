@@ -73,6 +73,13 @@ describe('an answer as it streams', () => {
     ]);
     expect(m.phase).toBe('thinking');
   });
+
+  test('done replaces what streamed with what she says, and a commit makes it Done', () => {
+    let m = withEvent(start(), { type: 'text', delta: 'It is safe, I think' }, 0);
+    const commit = call('commit_plan', { status: 'committed', applied: [] });
+    m = withEvent(m, { type: 'done', turn: { say: 'Done: 10 changes.', calls: [commit] } }, 0);
+    expect(m).toMatchObject({ text: 'Done: 10 changes.', phase: 'done', verdict: 'DONE' });
+  });
 });
 
 describe('the details view', () => {
