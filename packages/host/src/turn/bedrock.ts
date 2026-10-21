@@ -228,7 +228,8 @@ export function toolSpecs(tools: ToolDef[]): Tool[] {
 /**
  * The conversation as Converse messages: what the person said, the tools the assistant called
  * with what came back, and what it said. Older tool results are cut down to what a next step
- * needs (IDs, verdict, tier, the question asked); this turn's are whole.
+ * needs (IDs, verdict, tier, the question asked, and the facts a "why?" is answered from); this
+ * turn's are whole.
  */
 export function conversation(input: ModelInput): Message[] {
   const messages: Message[] = [];
@@ -283,6 +284,24 @@ function compact(sc: Record<string, unknown> | undefined): Record<string, unknow
   for (const k of ['repair', 'safePart'] as const) {
     const alt = sc[k] as Record<string, unknown> | null | undefined;
     if (alt) out[k] = { planId: alt.planId, verdict: alt.verdict, tier: alt.tier };
+  }
+  // What a later "why?" is answered from: the rules broken, whose they are, where and when, what
+  // can't be confirmed, and what the fix would change.
+  if (Array.isArray(sc.violations) && sc.violations.length > 0) {
+    out.violations = (sc.violations as Record<string, unknown>[]).map((v) => ({
+      rule: v.rule,
+      text: v.text,
+      author: v.author,
+      firstAt: v.firstAt,
+      device: (v.cause as { device?: unknown } | undefined)?.device,
+    }));
+  }
+  if (Array.isArray(sc.unknowns) && sc.unknowns.length > 0) out.unknowns = sc.unknowns;
+  const changes = (sc.repair as { changes?: unknown } | null | undefined)?.changes;
+  if (Array.isArray(changes) && out.repair) {
+    (out.repair as Record<string, unknown>).changes = changes.map(
+      (c) => (c as { description?: unknown }).description,
+    );
   }
   for (const k of ['preview', 'freshPreview'] as const) {
     const p = sc[k] as Record<string, unknown> | undefined;
