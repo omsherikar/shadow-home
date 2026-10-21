@@ -6,7 +6,7 @@ import type {
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
 import { spokenFrom } from './scripted.ts';
-import type { Model, ModelInput, ModelStep, Remembered, StepOptions } from './types.ts';
+import type { Model, ModelEvent, ModelInput, ModelStep, Remembered, StepOptions } from './types.ts';
 
 /**
  * One Converse call. The real one goes to Bedrock or, translated, to the Anthropic API; tests pass
@@ -42,7 +42,8 @@ const HISTORY = 30;
  * The Converse loop as a `Model` (Bedrock, or the Anthropic API through anthropic.ts): one step
  * per call. It returns the first tool the model asks for, or, once it answers in words, the
  * server's speech fields for what it just did (its own words only when no tool spoke, such as the
- * activity log).
+ * activity log). As the model writes, its words are passed on, and so is the start of its first
+ * tool call when that's a tool on offer, since that's the one that runs.
  */
 export function bedrockModel(options: {
   converse: Converse;
@@ -53,14 +54,25 @@ export function bedrockModel(options: {
 }): Model {
   const offered = new Set(options.tools.map((t) => t.name));
   return {
-    async next(input: ModelInput): Promise<ModelStep> {
-      const out = await options.converse({
-        modelId: options.modelId ?? DEFAULT_MODEL_ID,
-        system: [{ text: systemPrompt(options.home, options.serverInstructions) }],
-        messages: conversation(input),
-        toolConfig: { tools: toolSpecs(options.tools), toolChoice: { auto: {} } },
-        inferenceConfig: { maxTokens: MAX_TOKENS, temperature: 0 },
-      });
+    async next(input: ModelInput, step: StepOptions = {}): Promise<ModelStep> {
+      let firstTool = true;
+      const onEvent = (event: ModelEvent) => {
+        if ('text' in event) step.onEvent?.(event);
+        else if (firstTool) {
+          firstTool = false;
+          if (offered.has(event.tool)) step.onEvent?.(event);
+        }
+      };
+      const out = await options.converse(
+        {
+          modelId: options.modelId ?? DEFAULT_MODEL_ID,
+          system: [{ text: systemPrompt(options.home, options.serverInstructions) }],
+          messages: conversation(input),
+          toolConfig: { tools: toolSpecs(options.tools), toolChoice: { auto: {} } },
+          inferenceConfig: { maxTokens: MAX_TOKENS, temperature: 0 },
+        },
+        { signal: step.signal, onEvent },
+      );
       const blocks = out.output?.message?.content ?? [];
       const use = blocks.find((b) => b.toolUse)?.toolUse;
       if (use?.name) {
