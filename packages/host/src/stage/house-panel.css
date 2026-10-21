@@ -1,5 +1,5 @@
 /*
- * The house panel while a plan plays: the ring round the device whose change is acted out.
+ * The house panel while a plan plays: the step being acted out and a device's name as it changes.
  */
 
 /* The plan's change being acted out: a ring round the device and what happens, in words. */
@@ -20,5 +20,38 @@
   from {
     opacity: 0;
     transform: translate(-50%, -50%) scale(1.9);
+  }
+}
+
+.step-label,
+.change-label {
+  position: absolute;
+  left: 0;
+  padding: 5px 13px;
+  border: 1px solid rgb(255 240 220 / 30%);
+  border-radius: 999px;
+  background: rgb(30 24 19 / 80%);
+  color: var(--ink);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.step-label {
+  bottom: 24px;
+  font-family: var(--serif);
+  font-size: 18px;
+  animation: label-in 0.25s ease-out;
+}
+
+.change-label {
+  bottom: 14px;
+  font-size: 13px;
+  animation: label-in 0.25s ease-out;
+}
+
+@keyframes label-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
   }
 }
