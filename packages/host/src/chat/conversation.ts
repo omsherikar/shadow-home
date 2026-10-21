@@ -120,6 +120,11 @@ export function stopped(m: Message): Message {
   };
 }
 
+/** Replace one message by its ID. */
+export function replace(messages: Message[], id: string, f: (m: Message) => Message): Message[] {
+  return messages.map((m) => (m.id === id ? f(m) : m));
+}
+
 // The details view
 
 interface ViolationLike {
