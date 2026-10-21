@@ -6,13 +6,17 @@ import type {
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
 import { spokenFrom } from './scripted.ts';
-import type { Model, ModelInput, ModelStep, Remembered } from './types.ts';
+import type { Model, ModelInput, ModelStep, Remembered, StepOptions } from './types.ts';
 
 /**
  * One Converse call. The real one goes to Bedrock or, translated, to the Anthropic API; tests pass
- * their own.
+ * their own. One that streams tells `onEvent` of the words and tool calls as they come; `signal`
+ * stops it.
  */
-export type Converse = (input: ConverseCommandInput) => Promise<ConverseCommandOutput>;
+export type Converse = (
+  input: ConverseCommandInput,
+  options?: StepOptions,
+) => Promise<ConverseCommandOutput>;
 
 /** An MCP tool as the model may see it. */
 export interface ToolDef {
