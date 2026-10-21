@@ -1,5 +1,45 @@
 import { describe, expect, test } from 'vitest';
-import { numbersIn, timesIn } from './guard.ts';
+import {
+  type Context,
+  dropReason,
+  type FilterFacts,
+  filterFacts,
+  numbersIn,
+  timesIn,
+} from './guard.ts';
+
+const devices = [
+  { id: 'front_door_lock', name: 'Front door lock' },
+  { id: 'garage_thermostat', name: 'Garage heater thermostat' },
+  { id: 'light_porch', name: 'Porch light' },
+  { id: 'plug_tv', name: 'TV' },
+  { id: 'plug_coffee_maker', name: 'Coffee maker' },
+];
+const routines = ['Coffee at 7', 'Good night', 'Lights out'];
+const facts = (context: Context, results: unknown[] = []): FilterFacts =>
+  filterFacts({ context, results, devices, routines });
+/** Plain conversation: nothing checked anywhere in it. */
+const CHAT = facts('chat');
+
+describe('plain conversation: small talk is free, claims about the home are not', () => {
+  test.each([
+    'Good morning!',
+    'Sure, I can help.',
+    'No problem.',
+    "I'm doing great, thanks.",
+    'Hello! What can I check for you?',
+  ])('%s is said', (sentence) => {
+    expect(dropReason(sentence, CHAT)).toBeNull();
+  });
+
+  test.each([
+    ["It's taken care of.", 'action'],
+    ["I've locked the front door.", 'action'],
+    ['Done.', 'action'],
+  ])('%s is dropped (%s)', (sentence, why) => {
+    expect(dropReason(sentence, CHAT)).toBe(why);
+  });
+});
 
 describe('times and numbers as people say them', () => {
   test('times on the 24-hour clock', () => {
