@@ -311,3 +311,8 @@
   font-size: 15px;
   line-height: 1.35;
 }
+
+.house-canvas[data-turning="yes"],
+.house-canvas canvas[data-turning="yes"] {
+  cursor: grabbing;
+}
