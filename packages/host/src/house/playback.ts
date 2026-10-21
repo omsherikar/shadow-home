@@ -675,6 +675,8 @@ export interface Moment {
   step: Step | null;
   /** How many of the run's changes have happened, in the order they happen. */
   applied: number;
+  /** The run's breaks the playback has reached, each from its own stop on. */
+  fired: Break[];
   /**
    * Settling before the first change, acting out a step, stopped on a break, the clock running,
    * pausing on a run's end, winding back, or over.
@@ -694,6 +696,8 @@ interface Piece {
   between?: 'pause' | 'rewind';
   /** While winding back, the run the clock goes back for. */
   next?: number;
+  /** The run's breaks stopped on so far, this piece's own included. */
+  fired: Break[];
 }
 
 interface Show {
@@ -716,15 +720,17 @@ function showOf(runs: Run[], timing: ShowTiming, only?: number): Show {
   for (const [k, i] of order.entries()) {
     const run = runs[i];
     if (!run) continue;
+    let fired: Break[] = [];
     for (const segment of schedule(run, i === 0 ? timing.plan : timing.fixed).segments) {
-      pieces.push({ atMs: at, realMs: segment.realMs, run: i, segment });
+      if (segment.hold) fired = [...fired, ...segment.hold];
+      pieces.push({ atMs: at, realMs: segment.realMs, run: i, segment, fired });
       at += segment.realMs;
     }
     const next = order[k + 1];
     if (next !== undefined && runs[next]) {
-      pieces.push({ atMs: at, realMs: timing.pauseMs, run: i, between: 'pause' });
+      pieces.push({ atMs: at, realMs: timing.pauseMs, run: i, between: 'pause', fired });
       at += timing.pauseMs;
-      pieces.push({ atMs: at, realMs: timing.rewindMs, run: i, between: 'rewind', next });
+      pieces.push({ atMs: at, realMs: timing.rewindMs, run: i, between: 'rewind', next, fired });
       at += timing.rewindMs;
     }
   }
@@ -758,6 +764,7 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
         held: seg.hold ?? [],
         step: seg.step ?? null,
         applied: seg.applied ?? changesBy(run.changes, homeMs),
+        fired: p.fired,
         phase: seg.hold ? 'hold' : seg.step ? 'step' : seg.toMs > seg.fromMs ? 'sweep' : 'settle',
         rewinding: false,
         done: false,
@@ -765,13 +772,14 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
     }
     if (p.between === 'pause') {
       const applied = changesBy(run.changes, run.endMs);
-      return { ...still, run: p.run, homeMs: run.endMs, applied, phase: 'pause' };
+      return { ...still, run: p.run, homeMs: run.endMs, applied, fired: p.fired, phase: 'pause' };
     }
     // Winding back, what happened comes undone as the clock passes it.
     const next = runs[p.next ?? -1] ?? run;
     const back = run.endMs + (next.startMs - run.endMs) * (1 - (1 - t) ** 2);
     const applied = changesBy(run.changes, back);
-    return { ...still, run: p.run, homeMs: back, applied, phase: 'rewind', rewinding: true };
+    const fired = p.fired.filter((b) => b.atMs <= back);
+    return { ...still, run: p.run, homeMs: back, applied, fired, phase: 'rewind', rewinding: true };
   }
   const last = runs[show.last];
   return {
@@ -780,6 +788,7 @@ export function moment(runs: Run[], timing: ShowTiming, realMs: number, only?: n
     held: [],
     step: null,
     applied: last ? changesBy(last.changes, last.endMs) : 0,
+    fired: show.pieces.at(-1)?.fired ?? [],
     phase: 'end',
     rewinding: false,
     done: true,
