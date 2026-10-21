@@ -125,3 +125,26 @@ test('her steps show as the turn runs, the screen draws the check, then the step
   expect((await saves()) - before).toBe(1);
   await page.screenshot({ path: 'test-results/chat-steps-done.png' });
 });
+
+test('Stop drops what was already on its way: no plan drawn, no answer, nothing to say next', async ({
+  page,
+}) => {
+  // The rest of the turn arrives in one piece after Stop, as it would when already sent.
+  await holdTurns(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(lastAnswer(page).locator('.step', { hasText: CHECKING })).toHaveClass(/running/);
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await page.evaluate(() => (window as unknown as { releaseTurn(): void }).releaseTurn());
+  await expect(lastAnswer(page).getByText('Stopped.')).toBeVisible();
+  await page.waitForTimeout(2000);
+  await expect(page.getByText('Home mode')).toBeVisible();
+  await expect(view(page).getByText('Not safe', { exact: true })).toHaveCount(0);
+  await expect(lastAnswer(page).locator('.said')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Run the safer plan' })).toHaveCount(0);
+  // The question was never asked, so nothing is waiting for a yes, and the request is still new.
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(lastAnswer(page).locator('.step', { hasText: CHECKING })).toHaveClass(/running/);
+  await page.evaluate(() => (window as unknown as { releaseTurn(): void }).releaseTurn());
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+});
