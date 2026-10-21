@@ -28,6 +28,12 @@ export type LiveHome = z.infer<typeof liveHomeSchema>;
 export type LiveDevice = LiveHome['devices'][number];
 export type Value = z.infer<typeof valueSchema>;
 
+/** The home from a get_home_state result, or null when it isn't what the page expects. */
+export function parseLiveHome(structured: unknown): LiveHome | null {
+  const parsed = liveHomeSchema.safeParse(structured);
+  return parsed.success ? parsed.data : null;
+}
+
 export interface Look {
   /** Light the device gives off: 0 is dark, 1 full. */
   glow: number;
