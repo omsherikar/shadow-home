@@ -183,6 +183,40 @@ test('with less motion, the house shows where each run ends, without the sweep',
   await expect(playing(page)).toHaveAttribute('data-playing', 'no');
 });
 
+test('a home state the page doesn’t expect hides the house, and the device carries on', async ({
+  page,
+}) => {
+  // The first reading of the home is real; every later one comes back malformed.
+  let readings = 0;
+  await page.route('**/mcp', async (route) => {
+    const body = route.request().postData() ?? '';
+    if (route.request().method() === 'POST' && body.includes('get_home_state') && ++readings > 1) {
+      const { id } = JSON.parse(body) as { id: number };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id,
+          result: { content: [{ type: 'text', text: '?' }], structuredContent: { zones: 'warm' } },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  const house = page.getByRole('region', { name: 'The house' });
+  await expect(house.locator('canvas')).toBeVisible();
+  await openControls(page);
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  await expect(house).toHaveCount(0);
+  // The device keeps the last good home.
+  await page.getByRole('button', { name: 'Home screen' }).click();
+  await expect(page.getByText('Home mode')).toBeVisible();
+});
+
 test('a preview_plan call shows the diff and the garage temperature on the screen', async ({
   page,
 }) => {
