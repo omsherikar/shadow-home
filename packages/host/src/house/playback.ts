@@ -611,3 +611,55 @@ export function sampleDay(guard: Guard, nowIso: string): Run {
     presence: [],
   };
 }
+
+/** A zone's temperature over a run, drawn small: SVG paths in a box of the given size. */
+export interface Chart {
+  /** The expected run's line. */
+  line: string;
+  /** The spread of the three runs, as a filled shape. */
+  band: string;
+  /** Where the zone's lower limit sits, if it has one. */
+  limitY: number | null;
+  /** Where on the chart a home time falls, left to right. */
+  x(ms: number): number;
+  /** The temperatures the chart spans, bottom to top. */
+  rangeC: [number, number];
+}
+
+export function chartOf(
+  trace: Trace,
+  zone: string,
+  limit: { minC: number | null } | undefined,
+  width: number,
+  height: number,
+): Chart {
+  const start = Date.parse(trace.start);
+  const end = Date.parse(trace.end);
+  const step = trace.stepMinutes * MINUTE_MS;
+  const nominal = trace.zonesC.nominal[zone] ?? [];
+  const runs = Object.values(trace.zonesC).map((z) => z[zone] ?? nominal);
+  const low = nominal.map((_, i) => Math.min(...runs.map((r) => r[i] ?? Number.NaN)));
+  const high = nominal.map((_, i) => Math.max(...runs.map((r) => r[i] ?? Number.NaN)));
+  const values = [
+    ...low,
+    ...high,
+    ...(limit?.minC === null || limit?.minC === undefined ? [] : [limit.minC]),
+  ];
+  const bottom = Math.floor(Math.min(...values) - 1);
+  const top = Math.ceil(Math.max(...values) + 1);
+  const timeOf = (i: number) => (i === nominal.length - 1 ? end : start + i * step);
+  const x = (ms: number) =>
+    ((Math.min(Math.max(ms, start), end) - start) / Math.max(1, end - start)) * width;
+  const y = (c: number) => height - ((c - bottom) / Math.max(1, top - bottom)) * height;
+  const point = (i: number, c: number) => `${x(timeOf(i)).toFixed(1)},${y(c).toFixed(1)}`;
+  const line = nominal.map((c, i) => `${i === 0 ? 'M' : 'L'}${point(i, c)}`).join(' ');
+  const upper = high.map((c, i) => `${i === 0 ? 'M' : 'L'}${point(i, c)}`);
+  const lower = low.map((c, i) => `L${point(i, c)}`).reverse();
+  return {
+    line,
+    band: `${[...upper, ...lower].join(' ')} Z`,
+    limitY: limit?.minC === null || limit?.minC === undefined ? null : y(limit.minC),
+    x,
+    rangeC: [bottom, top],
+  };
+}
