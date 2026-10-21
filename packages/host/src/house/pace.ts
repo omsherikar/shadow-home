@@ -61,6 +61,17 @@ export function judge(judging: Judging, gapMs: number): Judging {
 }
 
 /**
+ * One more frame of a playback, judged by what it drew. Frames while the clock runs draw the most
+ * (the sun and sky move, every room's colour changes, shadows are drawn again), so they decide
+ * whether it can sweep; frames while the house acts out the plan or stops on a break draw less
+ * and count only when they're far too slow (over four times the limit), so a slow machine still
+ * finds out within its first few frames.
+ */
+export function judgeFrame(judging: Judging, gapMs: number, sweeping: boolean): Judging {
+  return sweeping || gapMs > SLOW_FRAME_MS * 4 ? judge(judging, gapMs) : judging;
+}
+
+/**
  * Whether a playback shows where each run ends instead of sweeping: always with less motion asked
  * for or on software WebGL (known from the renderer's name on every load), and otherwise when its
  * own first frames were too slow.
