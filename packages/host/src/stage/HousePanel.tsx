@@ -22,6 +22,7 @@ import {
   SHOW_TIMING,
   temperaturesAt,
 } from '../house/playback.ts';
+import { fractionOf } from '../house/timeline.ts';
 import { readable } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
 
@@ -215,6 +216,8 @@ export const HousePanel = memo(function HousePanel(props: {
     zonesC: temps?.zonesC ?? null,
     shadow: m ? 1 : 0,
     focus,
+    // Tied to where the run is, so the camera winds back with it.
+    dolly: run && !calm ? fractionOf(run, homeMs) : null,
   };
 
   const sky = skyColors(daylight(time));

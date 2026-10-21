@@ -33,6 +33,11 @@ export interface HouseView {
   shadow: number;
   /** The room to move in on, or null for the whole house. */
   focus: string | null;
+  /**
+   * How far a playing run has got, 0 to 1, for the camera's slow drift across it; null when
+   * nothing is playing.
+   */
+  dolly: number | null;
 }
 
 export interface HouseProps {
@@ -62,6 +67,8 @@ const VIEWS = {
   house: { azimuth: 33, elevation: 40 },
   split: { azimuth: 82, elevation: 44 },
 } as const;
+/** How far the camera drifts around the house over a run. */
+const DOLLY_DEG = 10;
 
 function direction(azimuthFromSouth: number, elevation: number): Vector3 {
   const a = (azimuthFromSouth * Math.PI) / 180;
@@ -106,6 +113,7 @@ function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) 
       <CameraRig
         mode={mode}
         focus={view.focus}
+        dolly={view.dolly}
         anchors={anchors}
         pinned={pinned}
         still={still}
@@ -203,10 +211,12 @@ const ALONE: Band = { center: 0.08, half: 0.92 };
  * Frames the whole house for the canvas's size, or one room when there's something to look at,
  * gliding between them, in the part of the panel nothing covers; and keeps everything pinned to
  * the house where it shows on screen, hiding what would fall outside that part rather than cut it.
+ * While a run plays the camera drifts slowly around the house with it.
  */
 function CameraRig(props: {
   mode: HouseProps['mode'];
   focus: string | null;
+  dolly: number | null;
   anchors: Anchor[];
   pinned: HouseProps['pinned'];
   still: boolean;
@@ -218,10 +228,12 @@ function CameraRig(props: {
   const invalidate = useThree((s) => s.invalidate);
   const room = props.focus ? ROOMS.get(props.focus) : undefined;
   const { top, bottom } = props.inset;
+  // The drift is tied to how far the run has got, so a paused run holds still.
+  const drift = props.still || props.dolly === null ? 0 : (props.dolly - 0.5) * DOLLY_DEG;
   const goal = useMemo(() => {
     const aspect = width / Math.max(1, height);
     const base = VIEWS[props.mode];
-    const view = direction(base.azimuth, base.elevation);
+    const view = direction(base.azimuth + drift, base.elevation);
     const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
     if (room) {
       const box = {
@@ -232,7 +244,7 @@ function CameraRig(props: {
     }
     const whole = props.mode === 'split' ? houseBounds(layout) : groundBounds(layout);
     return frame(whole, view, FOV, aspect, 0.04, band ?? ALONE);
-  }, [width, height, props.mode, room, top, bottom]);
+  }, [width, height, props.mode, room, top, bottom, drift]);
   const at = useRef<{ position: Vector3; target: Vector3 } | null>(null);
   const tmp = useMemo(() => new Vector3(), []);
 
