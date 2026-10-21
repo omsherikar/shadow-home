@@ -5,9 +5,11 @@ import { loadHome, loadPlan } from '@shadow-home/twin/node';
 import { describe, expect, test } from 'vitest';
 import { assess } from './assess.ts';
 import { diffPlan } from './diff.ts';
+import { AWAY_UNSTATED, whoIsAwayUnknown } from './presence.ts';
 import { repair, safePart } from './repair.ts';
 import { reversibility } from './reversibility.ts';
 import { SPEECH_LIMITS, wordCount } from './speech.ts';
+import { refusingRule } from './tier.ts';
 import { check } from './verdict.ts';
 
 const root = join(import.meta.dirname, '../../..');
@@ -580,5 +582,34 @@ describe('leaving, with nothing to change', () => {
       actions: [],
     };
     expect(assess(home, arriving).speech).toEqual({ headline: 'Safe: nothing needed changing.' });
+  });
+});
+
+describe("away mode without saying who's away", () => {
+  const WHO_IS_AWAY = {
+    headline: "I can't confirm that yet: I don't know who's away.",
+    reason:
+      "House rules for when nobody's home depend on who's out, and away mode alone doesn't say.",
+    ask: "Who's away, and until when?",
+  };
+
+  test("is UNPROVEN, refused at T5 until it says who's away, and asks who, offering nothing else", () => {
+    const a = assess(home, plan([{ mode: 'away' }]), { requestedBy: 'om' });
+    expect(a.check.verdict).toBe('UNPROVEN');
+    expect(a.check.unknowns).toEqual([AWAY_UNSTATED]);
+    expect(a.check.reasons).toEqual([{ kind: 'unknown', message: AWAY_UNSTATED }]);
+    expect(whoIsAwayUnknown(a.check)).toBe(true);
+    expect(refusingRule(a.check)).toBeUndefined();
+    expect(a.tier).toEqual({
+      tier: 'T5',
+      why: "who's away isn't given",
+      affects: [],
+      sensitive: [],
+    });
+    expect(a.speech).toEqual(WHO_IS_AWAY);
+    expectSpeechWithinLimits(a.speech);
+    expect(a.repaired).toBeNull();
+    expect(a.safePart).toBeNull();
+    expect(a.offered).toBeNull();
   });
 });
