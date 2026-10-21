@@ -387,6 +387,47 @@ describe('the system prompt plans and undoes like a real assistant', () => {
   });
 });
 
+describe("the live session's turns", () => {
+  const house: HomeBrief = {
+    ...home,
+    devices: [
+      ...home.devices,
+      { id: 'front_door_lock', name: 'Front door lock', room: 'Living room', state: {} },
+    ],
+  };
+  const away = {
+    planId: 'p1',
+    kind: 'plan',
+    verdict: 'SAFE',
+    tier: 'T1',
+    speech: { headline: 'Safe: home mode to away.', reason: 'This affects Maya and Sam.' },
+  };
+  const done = (what: string) => ({
+    status: 'committed',
+    planId: 'p1',
+    speech: { headline: `Done: home mode to ${what}.` },
+  });
+  const call = (name: string, sc: Record<string, unknown>): ToolCall => ({
+    name,
+    arguments: {},
+    result: { content: [], structuredContent: sc },
+  });
+  const reply = async (over: Partial<ModelInput>, ...words: string[]) => {
+    const { converse } = fakeConverse(...words.map(text));
+    const model = bedrockModel({ converse, tools, home: house });
+    const out = [];
+    for (const _ of words) out.push(await model.next(input(over)));
+    return out;
+  };
+
+  test('"I\'m away for the weekend": the commit\'s own words after a SAFE check', async () => {
+    const thisTurn = [call('preview_plan', away), call('commit_plan', done('away'))];
+    expect(await reply({ thisTurn }, 'Everyone is away until Sunday evening.')).toEqual([
+      { say: 'Done: home mode to away.' },
+    ]);
+  });
+});
+
 describe('the demo', () => {
   test('every line in order, each beat followed by the answer the person gives', () => {
     const steps = demoSteps([
