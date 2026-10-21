@@ -3,7 +3,7 @@
  * clips play in order. The voice itself (the network, the speaker) is passed in, so the order, the
  * clearing and the replacing can be tested without a browser.
  */
-import { sentenceSplitter } from './sentences.ts';
+import { allSentences, sentenceSplitter } from './sentences.ts';
 
 /** One sentence's sound: a clip from /api/speak, or the browser's own voice saying it. */
 export type Clip = { kind: 'audio'; audio: Blob } | { kind: 'browser'; refused: boolean };
@@ -23,12 +23,14 @@ interface Round {
   /** Sentences waiting to be played, each with its clip on the way. */
   waiting: { text: string; clip: Promise<Clip> }[];
   split: ReturnType<typeof sentenceSplitter>;
+  /** Every sentence handed to the voice this round, in one line. */
+  queued: string;
   /** The last clip asked for: each asks once the one before has answered. */
   asked: Promise<unknown>;
   playing: Promise<void> | null;
 }
 
-/** Words in one line, single-spaced. */
+/** Words in one line, single-spaced, for comparing what streamed with what was said in the end. */
 const line = (text: string) => text.replace(/\s+/g, ' ').trim();
 
 function round(): Round {
@@ -36,6 +38,7 @@ function round(): Round {
     controller: new AbortController(),
     waiting: [],
     split: sentenceSplitter(),
+    queued: '',
     asked: Promise.resolve(),
     playing: null,
   };
@@ -54,6 +57,7 @@ export function speechQueue(voice: Voice) {
     });
     r.asked = clip;
     r.waiting.push({ text, clip });
+    r.queued = line(`${r.queued} ${text}`);
     r.playing ??= play(r);
   };
 
@@ -76,11 +80,30 @@ export function speechQueue(voice: Voice) {
     now = round();
   };
 
+  /**
+   * The answer as it ends, `say` being what was said in the end. When what streamed is how `say`
+   * starts, the rest of `say` is queued after it; otherwise `say` replaced it (the guard's own
+   * words), so what was queued is dropped and `say` is said instead. Resolves once all of it has
+   * been said, or the voice was stopped.
+   */
+  const finish = (say: string): Promise<void> => {
+    const final = line(say);
+    let r = now;
+    if (r.queued && final !== r.queued && !final.startsWith(`${r.queued} `)) {
+      clear();
+      r = now;
+    }
+    for (const sentence of allSentences(final.slice(r.queued.length))) queue(r, sentence);
+    r.split = sentenceSplitter();
+    return r.playing ?? Promise.resolve();
+  };
+
   return {
     /** Words as they stream in: each sentence is queued once it's finished. */
     write(words: string): void {
       for (const sentence of now.split.push(words)) queue(now, sentence);
     },
+    finish,
     clear,
   };
 }
