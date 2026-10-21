@@ -31,4 +31,10 @@ describe('waking', () => {
     expect(sends(effects)).toEqual(["I'm away for the weekend"]);
     expect(state.mode).toBe('thinking');
   });
+
+  test('speech without the wake word is ignored and never sent', () => {
+    const { state, effects } = run([on, heard('turn off the lights'), heard('yes')]);
+    expect(effects).toEqual([]);
+    expect(state.mode).toBe('idle');
+  });
 });
