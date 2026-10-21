@@ -294,6 +294,87 @@ test('on software WebGL the house shows where each run ends, however fast its fr
   await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
 });
 
+test('the timeline under the house pauses the clock, speeds it up and goes to any moment', async ({
+  page,
+}) => {
+  // On the page's clock, as above; few frames, so it stays quick on software WebGL.
+  test.setTimeout(150_000);
+  await rendererNamed(page, A_GPU);
+  await page.clock.install();
+  await page.goto('/');
+  await openControls(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: WEEKEND }).click();
+  const house = page.getByRole('region', { name: 'The house' });
+  await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
+  const clock = house.locator('.timeline-clock');
+  const faster = house.getByRole('button', { name: '4x speed' });
+  await closeControls(page);
+  await stepUntil(page, faster, 100, 3000);
+  await expect(house.getByRole('button', { name: '1x speed' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await faster.click();
+  await expect(faster).toHaveAttribute('aria-pressed', 'true');
+  await stepUntil(page, sweeping(page), 500, 10_000);
+  await fastFrames(page);
+  // Paused, the clock stands still however long passes.
+  await house.getByRole('button', { name: 'Pause' }).click();
+  const paused = await clock.textContent();
+  for (let i = 0; i < 4; i++) await page.clock.fastForward(1000);
+  await expect(clock).toHaveText(paused ?? '');
+  await expect(sweeping(page)).toBeVisible();
+  // Played on at four times the pace, it reaches R3 on Saturday night in about three seconds,
+  // stop on R8 included; at normal speed it would take over seven.
+  await house.getByRole('button', { name: 'Play' }).click();
+  const r3 = house
+    .getByRole('status')
+    .filter({ hasText: 'Breaks Sat 10:37 PM' })
+    .filter({ hasText: "Don't let the garage pipes freeze." });
+  await stepUntil(page, r3, 500, 4000);
+  // With the keys, the timeline goes straight to the end of the run...
+  const slider = house.getByRole('slider', { name: 'Time in the plan' });
+  await slider.focus();
+  await page.keyboard.press('End');
+  await expect(clock).toHaveText('Sun 6:00 PM');
+  await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
+  // ...and dragged to its middle, the house shows Saturday evening, and holds there while held.
+  await house.getByRole('button', { name: 'Pause' }).click();
+  const box = await slider.boundingBox();
+  if (!box) throw new Error('The timeline is not on screen.');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 1, box.y + box.height / 2);
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.up();
+  const [low, high, now] = await Promise.all(
+    ['aria-valuemin', 'aria-valuemax', 'aria-valuenow'].map(async (a) =>
+      Number(await slider.getAttribute(a)),
+    ),
+  );
+  // Within a quarter of an hour of the middle (a pixel of the timeline is ten minutes or so).
+  expect(Math.abs(now - (low + high) / 2)).toBeLessThan(15 * 60_000);
+  await expect(clock).toHaveText(/^Sat [45]:\d\d PM$/);
+  await expect(house.getByText(/^Saturday, [45]:\d\d PM$/)).toBeVisible();
+  for (let i = 0; i < 3; i++) await page.clock.fastForward(1000);
+  await expect(slider).toHaveAttribute('aria-valuenow', String(now));
+  // Dragged while playing, it plays on once let go; paused after that, a step with the keys
+  // moves it and leaves it paused.
+  await house.getByRole('button', { name: 'Play' }).click();
+  await page.mouse.move(box.x + box.width / 4, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 4 + 1, box.y + box.height / 2);
+  await page.mouse.up();
+  await house.getByRole('button', { name: 'Pause' }).click();
+  await slider.focus();
+  await page.keyboard.press('ArrowRight');
+  const stepped = await slider.getAttribute('aria-valuenow');
+  for (let i = 0; i < 3; i++) await page.clock.fastForward(1000);
+  await expect(slider).toHaveAttribute('aria-valuenow', stepped ?? '');
+  await expect(house.getByRole('button', { name: 'Play' })).toBeVisible();
+});
+
 test('with less motion, the house shows where each run ends, without the sweep', async ({
   page,
 }) => {
