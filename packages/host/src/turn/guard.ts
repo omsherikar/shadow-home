@@ -241,5 +241,10 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   if (context === 'chat') return null;
   if (VERDICT.test(text) || NEGATED_HARM.some((p) => p.test(text))) return 'verdict';
   if (OFFER.test(text)) return 'question';
+  const { times, rest } = timesIn(text);
+  const numbers = numbersIn(rest);
+  // After a check, or about one: no numbers or times, which the engine's words carry.
+  if (times.length > 0) return 'time';
+  if (numbers.length > 0) return 'number';
   return null;
 }
