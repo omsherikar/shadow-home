@@ -295,4 +295,16 @@ describe('a turn as it streams', () => {
     }) as unknown as typeof fetch;
     expect(await all(streamTurn(REQUEST, { fetch: late, signal: controller.signal }))).toEqual([]);
   });
+
+  test('aborted before the server answers, it ends with nothing', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const refusing = (async (_url: string, init: RequestInit) => {
+      if (init.signal?.aborted) throw new DOMException('aborted', 'AbortError');
+      throw new Error('should have been aborted');
+    }) as unknown as typeof fetch;
+    expect(await all(streamTurn(REQUEST, { fetch: refusing, signal: controller.signal }))).toEqual(
+      [],
+    );
+  });
 });
