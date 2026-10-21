@@ -13,8 +13,10 @@ import {
   ask as asked,
   type FollowUp,
   followUpsFor,
+  loadConversation,
   type Message,
   replace,
+  saveConversation,
   stopped,
   withEvent,
 } from '../chat/conversation.ts';
@@ -32,12 +34,16 @@ import {
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
+import { browserStorage } from '../stage/stage.ts';
 import { fitHistory, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
+
+/** A message ID's last part: the time, so IDs stay unique across reloads, as the count restarts. */
+const stamp = () => Date.now().toString(36);
 const DEMO_PAUSE_MS = 900;
 
 type Screen =
@@ -103,6 +109,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const showEnds = useRef(0);
   // Calls a tap on screen made, until the view says what the tap ended on.
   const tapped = useRef<ToolCall[]>([]);
+  const restored = useRef(false);
   // Stop pressed while the demo plays: it ends after the line it's on.
   const demoStopped = useRef(false);
 
@@ -208,7 +215,20 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
 
   useEffect(() => setMicAvailable(canListen()), []);
 
+  // The conversation from before a reload, once, after the first render.
+  useEffect(() => {
+    const kept = loadConversation(browserStorage());
+    history.current = kept.history;
+    setMessages(kept.messages);
+    restored.current = true;
+  }, []);
+
+  // Kept as it changes, between turns: once when a turn ends, not on every word as it streams.
   const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
+  useEffect(() => {
+    if (!restored.current || busy) return;
+    saveConversation(browserStorage(), { messages, history: history.current });
+  }, [messages, busy]);
 
   useEffect(() => {
     let live = true;
@@ -246,7 +266,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         }
         // The tap shows in the chat as the person's answer, and what it ended on as Alexa's.
         taps.current += 1;
-        const id = `tap${taps.current}`;
+        const id = `tap${taps.current}-${stamp()}`;
         const label = typeof structured?.tapped === 'string' ? structured.tapped : null;
         const say = typeof structured?.say === 'string' ? structured.say : null;
         setMessages((m) => {
@@ -315,7 +335,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       working.current = true;
       turnSeq.current += 1;
       const seq = turnSeq.current;
-      const id = `t${seq}`;
+      const id = `t${seq}-${stamp()}`;
       const alexa = `${id}-alexa`;
       setMessages((m) => asked(m, id, said, request));
       setFollowUps([]);
