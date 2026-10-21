@@ -428,11 +428,19 @@ describe('runs from a tool result', () => {
 
 describe('the schedule', () => {
   const [run] = runsFrom('preview_plan', preview, meta) as [Run];
-  const s = schedule(run, { sweepMs: 8000, holdMs: 1000 });
+  const s = schedule(run, { sweepMs: 8000, holdMs: 1000, stepMs: 400 });
 
-  test('sweeps the whole run in the sweep time, plus a stop at each break', () => {
-    expect(s.totalMs).toBeCloseTo(8000 + 2 * 1000, 6);
-    expect(playhead(s, 0)).toEqual({ homeMs: run.startMs, held: [run.breaks[0]] });
+  test('sweeps the whole run in the sweep time, plus a beat to settle, one per step and a stop at each break', () => {
+    expect(s.totalMs).toBeCloseTo(8000 + 2 * 1000 + 2 * 400, 6);
+    // It settles before anything changes, then turns the freezer off and stops on R1.
+    expect(playhead(s, 0)).toEqual({ homeMs: run.startMs, held: [], step: null, applied: 0 });
+    expect(playhead(s, 400)).toEqual({
+      homeMs: run.startMs,
+      held: [],
+      step: run.steps[0],
+      applied: 1,
+    });
+    expect(playhead(s, 800)).toMatchObject({ held: [run.breaks[0]], step: null, applied: 1 });
     expect(playhead(s, s.totalMs).homeMs).toBe(run.endMs);
   });
 
@@ -452,7 +460,7 @@ describe('the schedule', () => {
   test('breaks in the same minute share one stop', () => {
     const r1 = run.breaks[0] as Run['breaks'][number];
     const twice = { ...run, breaks: [...run.breaks, { ...r1, rule: 'R2' }] };
-    const shared = schedule(twice, { sweepMs: 8000, holdMs: 1000 });
+    const shared = schedule(twice, { sweepMs: 8000, holdMs: 1000, stepMs: 400 });
     expect(shared.segments.filter((seg) => seg.hold).map((seg) => seg.hold?.length)).toEqual([
       2, 1,
     ]);
@@ -553,8 +561,8 @@ describe('drawing it', () => {
 describe('a show', () => {
   const runs = runsFrom('preview_plan', preview, meta);
   const timing: ShowTiming = {
-    plan: { sweepMs: 8000, holdMs: 1000 },
-    fixed: { sweepMs: 4000, holdMs: 1000 },
+    plan: { sweepMs: 8000, holdMs: 1000, stepMs: 300 },
+    fixed: { sweepMs: 4000, holdMs: 1000, stepMs: 300 },
     pauseMs: 500,
     rewindMs: 500,
   };
