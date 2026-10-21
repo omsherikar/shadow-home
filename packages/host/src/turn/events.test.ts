@@ -7,6 +7,7 @@ import {
   type TurnEvent,
   wantsEvents,
 } from './events.ts';
+import { readEvents } from './test-helpers.ts';
 
 describe('the turn as Server-Sent Events', () => {
   test('each event is its type and one line of JSON, then a blank line', () => {
@@ -73,5 +74,14 @@ describe('a streamed response', () => {
       rest += decoder.decode(r.value);
     }
     expect(rest).toBe('event: done\ndata: {"say":"Done.","calls":[]}\n\n');
+  });
+
+  test('a turn that throws still ends, with an error the person can retry', async () => {
+    const response = eventStream(async () => {
+      throw new Error('a message that quotes the conversation');
+    });
+    expect(await readEvents(response)).toEqual([
+      { event: 'error', data: { message: 'Sorry, something went wrong.', retryable: true } },
+    ]);
   });
 });
