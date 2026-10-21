@@ -1,6 +1,7 @@
 'use client';
 
 import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { CHIPS } from '../stage/stage.ts';
 import { MAX_TEXT } from '../turn/bounds.ts';
 import type { FollowUp, Message, Step } from './conversation.ts';
 
@@ -163,9 +164,15 @@ export function Chat(props: ChatProps) {
 function Answer({ m }: { m: Message }) {
   const steps = m.steps ?? [];
   const finished = m.phase === 'done' || m.phase === 'stopped' || m.phase === 'failed';
+  const look = m.verdict ? CHIPS[m.verdict] : null;
   return (
     <li className="msg alexa" data-phase={m.phase}>
       <span className="who">Alexa</span>
+      {look ? (
+        <span className={`verdict-pill ${look.tone}`}>
+          <span aria-hidden="true">{look.icon}</span> {look.word}
+        </span>
+      ) : null}
       {m.text ? (
         <p className="said">{m.text}</p>
       ) : m.phase === 'thinking' ? (
