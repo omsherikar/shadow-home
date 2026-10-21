@@ -189,4 +189,10 @@ describe('a turn as it streams', () => {
     });
     expect(JSON.parse(String(asked[0]?.init.body))).toEqual(REQUEST);
   });
+
+  test("from a server that answers with JSON (today's route), gives one done", async () => {
+    const turn = { say: 'Okay, nothing changed.', calls: [] };
+    const { fake } = answering(JSON.stringify(turn), { type: 'application/json' });
+    expect(await all(streamTurn(REQUEST, { fetch: fake }))).toEqual([{ type: 'done', turn }]);
+  });
 });
