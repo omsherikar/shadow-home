@@ -25,6 +25,18 @@ const facts = (context: Context, results: unknown[] = []): FilterFacts =>
 const PLAN = facts('plan');
 /** Plain conversation: nothing checked anywhere in it. */
 const CHAT = facts('chat');
+/** After get_home_state this turn. */
+const READ = facts('read', [
+  {
+    now: '2027-01-15T17:45:00-06:00',
+    zones: [{ id: 'living_room', name: 'Living room', tempC: 20.5 }],
+    devices: [
+      { id: 'front_door_lock', name: 'Front door lock', state: { lockState: 'LOCKED' } },
+      { id: 'light_porch', name: 'Porch light', state: { onOff: true } },
+      { id: 'plug_tv', name: 'TV', state: { onOff: false } },
+    ],
+  },
+]);
 
 describe('after a check: nothing that says or softens the verdict, asks, or gives a number', () => {
   test.each([
@@ -110,6 +122,31 @@ describe('plain conversation: small talk is free, claims about the home are not'
     ['Done.', 'action'],
   ])('%s is dropped (%s)', (sentence, why) => {
     expect(dropReason(sentence, CHAT)).toBe(why);
+  });
+});
+
+describe('after get_home_state: a number or time only as the result gives it', () => {
+  test.each([
+    'The front door is locked.',
+    'The porch light is on and the TV is off.',
+    'The living room is at 20.5 °C.',
+    'Is there anything else?',
+  ])('%s is said', (sentence) => {
+    expect(dropReason(sentence, READ)).toBeNull();
+  });
+
+  test.each([
+    ['The living room is at 22 °C.', 'number'],
+    ['The porch light is on now.', 'action'],
+    ["The front door is locked, so you're all set.", 'verdict'],
+    ['Shall I lock it?', 'question'],
+  ])('%s is dropped (%s)', (sentence, why) => {
+    expect(dropReason(sentence, READ)).toBe(why);
+  });
+
+  test('a time must be one the result gives', () => {
+    expect(dropReason('That was at 5:45 PM.', READ)).toBeNull();
+    expect(dropReason('That was at 5:30 PM.', READ)).toBe('time');
   });
 });
 
