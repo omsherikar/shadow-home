@@ -2,7 +2,14 @@ import type { ConverseCommandInput, ConverseCommandOutput } from '@aws-sdk/clien
 import { describe, expect, test } from 'vitest';
 import { demoSteps } from '../demo/steps.ts';
 import { fromOtherSite } from '../origin.ts';
-import { bedrockModel, conversation, type HomeBrief, systemPrompt, toolSpecs } from './bedrock.ts';
+import {
+  bedrockModel,
+  conversation,
+  type HomeBrief,
+  NOT_SURE,
+  systemPrompt,
+  toolSpecs,
+} from './bedrock.ts';
 import { visibleToModel } from './mcp.ts';
 import { runTurn } from './run.ts';
 import { devicesNamed } from './scripted.ts';
@@ -95,10 +102,36 @@ describe('the Bedrock model', () => {
     expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({ say: 'Safe: TV off.' });
   });
 
-  test('without speech from a tool, its own words', async () => {
-    const { converse } = fakeConverse(text('Your home is in home mode.'));
+  test("after get_home_state, a device's state only as it says; in plain conversation, never", async () => {
+    const state: ToolCall = {
+      name: 'get_home_state',
+      arguments: {},
+      result: {
+        content: [],
+        structuredContent: { devices: [{ id: 'plug_tv', name: 'TV', state: { onOff: true } }] },
+      },
+    };
+    const reply = async (words: string, over: Partial<ModelInput>) => {
+      const { converse } = fakeConverse(text(words));
+      return bedrockModel({ converse, tools, home }).next(input(over));
+    };
+    expect(await reply('The TV is on.', { thisTurn: [state] })).toEqual({ say: 'The TV is on.' });
+    expect(await reply('The TV is off.', { thisTurn: [state] })).toEqual({ say: NOT_SURE });
+    expect(await reply('The TV is on.', {})).toEqual({ say: NOT_SURE });
+    expect(await reply("Good morning! I'm doing great.", {})).toEqual({
+      say: "Good morning! I'm doing great.",
+    });
+  });
+
+  test("without speech from a tool, its own words, but no claim about the home it wasn't given", async () => {
+    const { converse } = fakeConverse(
+      text('Hi! I look after your home.'),
+      text('Your home is in home mode.'),
+    );
     const model = bedrockModel({ converse, tools, home });
-    expect(await model.next(input())).toEqual({ say: 'Your home is in home mode.' });
+    expect(await model.next(input())).toEqual({ say: 'Hi! I look after your home.' });
+    // The home's state comes from get_home_state, so said without it, it isn't said.
+    expect(await model.next(input())).toEqual({ say: NOT_SURE });
   });
 });
 
