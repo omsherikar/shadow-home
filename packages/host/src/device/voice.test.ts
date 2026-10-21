@@ -27,3 +27,21 @@ describe("when the device's voice is refused", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a reply with several sentences', () => {
+  beforeEach(() => vi.unstubAllGlobals());
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('asks /api/speak for each sentence, in order, so each is counted on its own', async () => {
+    const { speak, fetch } = await voiceAnswering(200, 200, 200);
+    await speak("Blocked: that breaks 4 house rules. That's Om's rule. Shall I fix it?");
+    const asked = fetch.mock.calls.map(
+      (c) => JSON.parse(String((c as unknown as [string, RequestInit])[1].body)).text,
+    );
+    expect(asked).toEqual([
+      'Blocked: that breaks 4 house rules.',
+      "That's Om's rule.",
+      'Shall I fix it?',
+    ]);
+  });
+});
