@@ -66,3 +66,9 @@ export function sentenceSplitter() {
     },
   };
 }
+
+/** Every sentence of words already whole. */
+export function allSentences(text: string): string[] {
+  const split = sentenceSplitter();
+  return [...split.push(text), ...split.end()];
+}
