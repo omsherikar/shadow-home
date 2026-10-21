@@ -269,7 +269,7 @@ describe('a turn the person stops', () => {
               yield {
                 type: 'content_block_delta',
                 index: 0,
-                delta: { type: 'text_delta', text: 'Let me check.' },
+                delta: { type: 'text_delta', text: 'Let me check that. ' },
               } as Anthropic.MessageStreamEvent;
               await stopped;
             },
@@ -291,14 +291,10 @@ describe('a turn the person stops', () => {
         resourceUriFor: () => VIEW,
       },
       { text: 'away', history: [] },
-      {
-        signal: stop.signal,
-        emit: (e) => {
-          // The person taps Stop as the first words arrive.
-          if (e.event === 'text') stop.abort();
-        },
-      },
+      { signal: stop.signal },
     );
+    // The person taps Stop while the model is still writing.
+    setTimeout(() => stop.abort(), 20);
     await expect(turn).rejects.toBeInstanceOf(TurnStoppedError);
     expect(signals[0]?.aborted).toBe(true);
     expect(ran).toBe(0);
