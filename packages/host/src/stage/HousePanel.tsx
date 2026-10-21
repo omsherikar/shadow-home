@@ -140,6 +140,7 @@ export function HousePanel(props: {
     devices,
     presence,
     time,
+    shadow: show ? 1 : 0,
     focus,
   };
 
