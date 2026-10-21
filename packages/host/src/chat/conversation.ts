@@ -3,9 +3,9 @@
  * with the steps she took, the verdict and what to offer next. Pure functions over plain data, so
  * the chat is a drawing of these and they can be tested without a browser.
  */
-import type { Chip } from '../stage/stage.ts';
+import { type Chip, chipFor } from '../stage/stage.ts';
 import type { Names, ToolCall, TurnRequest } from '../turn/types.ts';
-import type { StepState } from './stream.ts';
+import type { StepState, TurnEvent } from './stream.ts';
 
 export interface Step {
   id: string;
@@ -62,6 +62,53 @@ export function ask(
     { id: `${id}-you`, who: 'you', text: said },
     { id: `${id}-alexa`, who: 'alexa', text: '', phase: 'thinking', steps: [], request },
   ];
+}
+
+/** Alexa's answer with one more event from the stream. `now` dates a limit's retry time. */
+export function withEvent(m: Message, event: TurnEvent, now: number, names?: Names): Message {
+  switch (event.type) {
+    case 'text':
+      return { ...m, text: m.text + event.delta, phase: 'talking' };
+    case 'step': {
+      const steps = m.steps ?? [];
+      const step = { id: event.id, label: event.label, state: event.state };
+      const known = steps.some((s) => s.id === event.id);
+      return {
+        ...m,
+        steps: known ? steps.map((s) => (s.id === event.id ? step : s)) : [...steps, step],
+        phase: event.state === 'running' ? 'working' : m.phase === 'thinking' ? 'working' : m.phase,
+      };
+    }
+    case 'call':
+      return withCalls(m, [event.call], names);
+    case 'done':
+      // What the guard settled on replaces whatever was streamed.
+      return { ...withCalls(m, event.turn.calls, names), text: event.turn.say, phase: 'done' };
+    case 'error':
+      return {
+        ...m,
+        phase: 'failed',
+        problem: {
+          message: event.message,
+          retryable: event.retryable,
+          ...(event.retryAfterMs !== undefined ? { retryAt: now + event.retryAfterMs } : {}),
+        },
+      };
+  }
+}
+
+/** The verdict and details from a turn's calls; a later verdict replaces an earlier one. */
+function withCalls(m: Message, calls: ToolCall[], names?: Names): Message {
+  let verdict = m.verdict;
+  for (const c of calls) {
+    verdict = chipFor(c.name, c.result.structuredContent as Record<string, unknown>) ?? verdict;
+  }
+  const details = calls.flatMap((c) => detailsFor(c, names));
+  return {
+    ...m,
+    ...(verdict ? { verdict } : {}),
+    ...(details.length > 0 ? { details } : {}),
+  };
 }
 
 // The details view
