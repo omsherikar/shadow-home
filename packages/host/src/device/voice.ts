@@ -3,6 +3,7 @@
  * available (no key, no account), from the browser's own voice. Listening uses the
  * browser's speech recognition, which Chrome provides.
  */
+import { type Clip, speechQueue } from './speech-queue.ts';
 
 let voiceAvailable = true;
 /**
@@ -43,6 +44,43 @@ export async function speak(text: string): Promise<void> {
 export function stopSpeaking(): void {
   current.abort();
   current = new AbortController();
+}
+
+/**
+ * One sentence's clip from /api/speak. 503 (no voice, or this instance has spoken enough this
+ * hour): the browser speaks for the rest of the session. 429 (this visitor has heard enough this
+ * hour): the browser says the rest of this answer, and the next asks again. Anything else (400: a
+ * line too long) is this sentence only.
+ */
+async function fetchClip(text: string, signal: AbortSignal): Promise<Clip> {
+  if (!voiceAvailable) return { kind: 'browser', refused: true };
+  try {
+    const res = await fetch('/api/speak', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text }),
+      signal,
+    });
+    if (res.ok) return { kind: 'audio', audio: await res.blob() };
+    if (res.status === 503) voiceAvailable = false;
+    return { kind: 'browser', refused: res.status === 503 || res.status === 429 };
+  } catch {
+    // Stopped: nothing to say. Unreachable: the browser speaks from now on.
+    if (signal.aborted) return { kind: 'browser', refused: false };
+    voiceAvailable = false;
+    return { kind: 'browser', refused: true };
+  }
+}
+
+/** Say one sentence: its clip, or the browser's voice. Stops at once when the signal aborts. */
+function playClip(clip: Clip, text: string, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) return Promise.resolve();
+  try {
+    return clip.kind === 'audio' ? playAudio(clip.audio, signal) : browserVoice(text, signal);
+  } catch {
+    // No way to play it here (no audio element): the words are on screen.
+    return Promise.resolve();
+  }
 }
 
 function playAudio(blob: Blob, signal: AbortSignal): Promise<void> {
@@ -88,6 +126,9 @@ function browserVoice(text: string, signal: AbortSignal): Promise<void> {
     synth.speak(utterance);
   });
 }
+
+/** The device's voice: sentences as they stream in (`write`), then the answer as it ends. */
+export const speech = speechQueue({ fetch: fetchClip, play: playClip });
 
 interface RecognitionResult {
   isFinal: boolean;
