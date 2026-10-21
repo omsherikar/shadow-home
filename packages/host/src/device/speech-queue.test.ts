@@ -233,6 +233,15 @@ describe('following a turn as it streams', () => {
   });
 });
 
+describe('whether the answer was heard aloud', () => {
+  test('every sentence played to its end: yes', async () => {
+    const v = fakeVoice();
+    const said = speechQueue(v.voice).finish(WEEKEND);
+    await v.drain();
+    expect(await said).toBe(true);
+  });
+});
+
 describe('whether she is speaking', () => {
   test('from the moment the first clip starts, until the last one ends', async () => {
     const v = fakeVoice();
