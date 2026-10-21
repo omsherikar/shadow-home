@@ -80,6 +80,28 @@ export function nightsOf(run: Run): { fromMs: number; toMs: number }[] {
   return out.filter((n) => n.toMs > n.fromMs);
 }
 
+/**
+ * How the timeline was moved: a drag starting, moving or let go, or a step with the keys.
+ */
+export type SeekPhase = 'start' | 'move' | 'end' | 'key';
+
+/** Whether a show is playing, and whether a drag under way stopped it (to carry on after). */
+export interface Seeking {
+  playing: boolean;
+  resume: boolean;
+}
+
+/**
+ * What moving the timeline does to playing: a drag holds the show while it's held and carries on
+ * playing after only if it was playing when the drag began; a step with the keys leaves it as it
+ * is, paused or playing.
+ */
+export function seeking(state: Seeking, phase: SeekPhase): Seeking {
+  if (phase === 'start') return { playing: false, resume: state.playing };
+  if (phase === 'end') return { playing: state.playing || state.resume, resume: false };
+  return state;
+}
+
 /** Where a home time sits along the run, from 0 at its start to 1 at its end. */
 export function fractionOf(run: Run, ms: number): number {
   const span = run.endMs - run.startMs;
