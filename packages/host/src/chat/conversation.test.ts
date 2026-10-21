@@ -39,6 +39,8 @@ const WEEKEND = call(
   }),
 );
 
+const labels = (calls: ToolCall[]) => followUpsFor(calls).map((f) => f.label);
+
 describe('an answer as it streams', () => {
   const start = (): Message => {
     const [, alexa] = ask([], 't1', "I'm away for the weekend", {
@@ -145,6 +147,11 @@ describe('what to offer next', () => {
       { label: 'Why?', says: 'Why?' },
       { label: "Don't run", says: 'No.' },
     ]);
+  });
+
+  test('leaving with nothing to run, the fix is the plan: "Fix it"', () => {
+    const leaving = call('preview_plan', preview({ diff: [], repair: { verdict: 'SAFE' } }));
+    expect(labels([leaving])).toEqual(['Fix it', 'Why?', "Don't run"]);
   });
 });
 
