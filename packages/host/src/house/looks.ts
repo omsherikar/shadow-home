@@ -136,6 +136,30 @@ export function daylight(iso: string): Daylight {
   };
 }
 
+/** The sky behind the house at a moment: its top, the band at the horizon, and the far ground. */
+export interface Sky {
+  top: string;
+  horizon: string;
+  ground: string;
+}
+
+/** Night navy, a dusk of violet over an orange glow, or a pale day: from the light outside. */
+export function skyColors(light: Daylight): Sky {
+  const d = light.day;
+  // The glow at the horizon is strongest around sunset and sunrise, when the sun is near it.
+  const glow = Math.max(0, 1 - Math.abs(light.elevation) / 9);
+  const top =
+    d < 0.45 ? mix('#0b1228', '#352f5c', d / 0.45) : mix('#352f5c', '#6fa2d6', (d - 0.45) / 0.55);
+  const clear =
+    d < 0.45 ? mix('#16203e', '#5a4c7c', d / 0.45) : mix('#5a4c7c', '#cfe1f1', (d - 0.45) / 0.55);
+  return {
+    top,
+    horizon: mix(clear, '#f0a26f', glow * 0.75),
+    ground:
+      d < 0.45 ? mix('#0d120f', '#232a22', d / 0.45) : mix('#232a22', '#56643f', (d - 0.45) / 0.55),
+  };
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
