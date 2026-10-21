@@ -365,6 +365,16 @@ describe('repairs', () => {
     ]);
   });
 
+  test('a now with seconds gives the same fixes, described by the value before the plan', () => {
+    // The live server's now is whole seconds past the minute; the timeline is by the minute.
+    const p001 = bench('P001');
+    const p: Plan = { ...p001, context: { ...p001.context, now: '2027-01-15T17:45:20-06:00' } };
+    const fixed = repair(home, p, check(home, p));
+    expect(fixed?.repairs.map((r) => r.description).sort()).toEqual(
+      [...(beat('weekend_away')?.repairs ?? [])].sort(),
+    );
+  });
+
   test('nothing to repair on a SAFE plan', () => {
     const p = bench('P002');
     expect(repair(home, p, check(home, p))).toBeNull();
