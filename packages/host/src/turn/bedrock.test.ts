@@ -13,7 +13,7 @@ import {
 import { visibleToModel } from './mcp.ts';
 import { runTurn } from './run.ts';
 import { devicesNamed } from './scripted.ts';
-import type { ModelInput, ToolCall } from './types.ts';
+import type { ModelInput, Remembered, ToolCall } from './types.ts';
 
 const home: HomeBrief = {
   now: '2027-01-15T17:45:00-06:00',
@@ -100,6 +100,34 @@ describe('the Bedrock model', () => {
     const { converse } = fakeConverse(text('All done, your TV is off and everything is great!'));
     const model = bedrockModel({ converse, tools, home });
     expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({ say: 'Safe: TV off.' });
+  });
+
+  test("after a check, a greeting, thanks or a no is plain conversation, not a question about the check: its own words, as long as they don't talk about the check", async () => {
+    const history: Remembered[] = [
+      {
+        name: 'preview_plan',
+        arguments: {},
+        structuredContent: {
+          verdict: 'UNSAFE',
+          speech: {
+            headline: 'Blocked: that breaks a house rule.',
+            reason: "No TV after 10 PM. That's Om's rule.",
+            ask: 'Do it with 1 fix instead?',
+          },
+        },
+      },
+    ];
+    const reply = async (heard: string, words: string) => {
+      const { converse } = fakeConverse(text(words));
+      return bedrockModel({ converse, tools, home }).next(input({ text: heard, history }));
+    };
+    expect(await reply('Good morning!', 'Good morning!')).toEqual({ say: 'Good morning!' });
+    expect(await reply('Thanks.', "You're welcome, the plan is safe.")).toEqual({
+      say: NOT_SURE,
+    });
+    expect(await reply('No.', "Okay, I'll leave everything as it is.")).toEqual({
+      say: "Okay, I'll leave everything as it is.",
+    });
   });
 
   test("after get_home_state, a device's state only as it says; in plain conversation, never", async () => {
