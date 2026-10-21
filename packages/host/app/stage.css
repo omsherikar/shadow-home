@@ -476,6 +476,15 @@
   overflow-y: auto;
 }
 
+.home-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* Beside the device, one card runs across the top of the panel and the house sits below it. */
 .stage.split .house-card {
   right: 24px;
