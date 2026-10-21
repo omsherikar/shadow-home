@@ -188,3 +188,10 @@
     transform: translateY(-3px);
   }
 }
+
+.chat-notice {
+  margin: 12px 0 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+  text-align: center;
+}
