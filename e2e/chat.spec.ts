@@ -246,3 +246,25 @@ test('Try again sends the very same request: a failed "yes" still commits what w
   await expect(view(page).getByText('Done', { exact: true })).toBeVisible();
   await expect(lastAnswer(page).locator('.said')).toHaveText('Done: 10 changes.');
 });
+
+test('the hourly limit says when to come back', async ({ page }) => {
+  await page.route('**/api/turn', (route) =>
+    route.fulfill({
+      headers: { 'content-type': 'text/event-stream; charset=utf-8' },
+      body: `event: error\ndata: ${JSON.stringify({
+        message: "I've had a lot of requests this hour. Try again later.",
+        retryable: true,
+        retryAfterMs: 20 * 60_000,
+      })}\n\n`,
+    }),
+  );
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  const problem = lastAnswer(page).getByRole('alert');
+  await expect(problem).toHaveText(
+    /^I've had a lot of requests this hour\. Try again at \d{1,2}:\d\d (AM|PM)\.$/,
+  );
+  // Nothing to retry until then.
+  await expect(problem.getByRole('button')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/chat-limit.png' });
+});
