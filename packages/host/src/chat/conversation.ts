@@ -3,6 +3,7 @@
  * with the steps she took, the verdict and what to offer next. Pure functions over plain data, so
  * the chat is a drawing of these and they can be tested without a browser.
  */
+import { z } from 'zod';
 import { type Chip, chipFor } from '../stage/stage.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import type { StepState, TurnEvent } from './stream.ts';
@@ -312,6 +313,33 @@ export const KEEP_ENTRIES = 41;
 /** The most of the model's history kept, in characters of JSON. */
 const KEEP_HISTORY = 120_000;
 
+const keptMessage = z.object({
+  id: z.string().max(80),
+  who: z.enum(['you', 'alexa']),
+  text: z.string(),
+  phase: z.enum(['done', 'stopped']).optional(),
+  steps: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        state: z.enum(['running', 'done', 'failed']),
+      }),
+    )
+    .optional(),
+  verdict: z.enum(['SAFE', 'UNSAFE', 'UNPROVEN', 'DONE']).optional(),
+  details: z.array(z.string()).optional(),
+});
+
+const keptEntry = z.object({
+  name: z.string(),
+  arguments: z.record(z.string(), z.unknown()),
+  structuredContent: z.record(z.string(), z.unknown()).optional(),
+  by: z.literal('screen').optional(),
+});
+
+const keptLists = z.object({ messages: z.array(z.unknown()), history: z.array(z.unknown()) });
+
 export type Kept = { messages: Message[]; history: Remembered[] };
 
 /**
@@ -341,5 +369,39 @@ export function saveConversation(storage: Pick<Storage, 'setItem'> | null, k: Ke
     storage?.setItem(CONVERSATION_KEY, JSON.stringify(toKeep(k.messages, k.history)));
   } catch {
     // Nothing to do: the conversation still holds until the page reloads.
+  }
+}
+
+/**
+ * The conversation kept last time, checked message by message and entry by entry: one that
+ * doesn't read is dropped, and the rest are cut to the caps, so nothing else is lost with it. A
+ * question still open isn't kept open: after a reload the screen no longer shows it, so the
+ * history says it was closed.
+ */
+export function loadConversation(storage: Pick<Storage, 'getItem'> | null): Kept {
+  try {
+    const raw = storage?.getItem(CONVERSATION_KEY);
+    if (!raw) return { messages: [], history: [] };
+    const lists = keptLists.safeParse(JSON.parse(raw));
+    if (!lists.success) return { messages: [], history: [] };
+    const readable = <T>(schema: z.ZodType<T>, items: unknown[]) =>
+      items.flatMap((item) => {
+        const r = schema.safeParse(item);
+        return r.success ? [r.data] : [];
+      });
+    const k = toKeep(
+      readable(keptMessage, lists.data.messages) as Message[],
+      readable(keptEntry, lists.data.history) as Remembered[],
+    );
+    const last = k.history.at(-1);
+    return {
+      messages: k.messages,
+      history:
+        last && last.name !== 'closed'
+          ? [...k.history, { name: 'closed', arguments: {} }]
+          : k.history,
+    };
+  } catch {
+    return { messages: [], history: [] };
   }
 }
