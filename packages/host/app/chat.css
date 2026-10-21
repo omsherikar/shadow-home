@@ -112,3 +112,79 @@
     opacity: 0.45;
   }
 }
+
+.chat-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 16px 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.msg p {
+  margin: 0;
+}
+
+.msg.you {
+  align-self: flex-end;
+  max-width: 78%;
+  padding: 9px 15px;
+  border-radius: 18px 18px 5px 18px;
+  background: var(--you);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.msg.alexa {
+  align-self: flex-start;
+  max-width: 88%;
+  padding: 11px 16px 12px;
+  border: 1px solid var(--well-edge);
+  border-radius: 5px 18px 18px 18px;
+  background: var(--well);
+}
+
+.msg.alexa .said {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+/* Three dots while she thinks. */
+.dots {
+  display: inline-flex;
+  gap: 5px;
+  padding: 6px 0;
+}
+
+.dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  animation: dot 1.2s ease-in-out infinite;
+}
+
+.dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot {
+  40% {
+    opacity: 0.25;
+    transform: translateY(-3px);
+  }
+}
