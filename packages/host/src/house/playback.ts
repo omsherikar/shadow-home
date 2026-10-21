@@ -4,6 +4,7 @@
  * trace); the house never simulates anything itself.
  */
 import { z } from 'zod';
+import type { HouseLayout } from './layout.ts';
 import { type LiveDevice, mix, type Value, valueSchema } from './looks.ts';
 
 export interface Change {
@@ -403,4 +404,18 @@ export function temperatureColor(c: number): string {
     if (c <= c1) return mix(hex0, hex1, (c - c0) / (c1 - c0));
   }
   return stops.at(-1)?.[1] ?? '#ffffff';
+}
+
+/** The room a device is in, by where the layout puts it (the porch light: the nearest room). */
+export function roomOf(layout: HouseLayout, device: string): string | undefined {
+  const p = layout.devices.find((d) => d.device === device);
+  if (!p) return undefined;
+  let best: { id: string; distance: number } | undefined;
+  for (const r of layout.rooms) {
+    const dx = Math.max(r.x - p.x, 0, p.x - (r.x + r.width));
+    const dz = Math.max(r.z - p.z, 0, p.z - (r.z + r.depth));
+    const distance = Math.hypot(dx, dz);
+    if (!best || distance < best.distance) best = { id: r.id, distance };
+  }
+  return best?.id;
 }
