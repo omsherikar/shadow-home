@@ -8,6 +8,11 @@ const conversation = (page: Page) => page.getByRole('list', { name: 'Conversatio
 const lastAnswer = (page: Page) => conversation(page).locator('li.alexa').last();
 const composer = (page: Page) => page.getByLabel('Say something to Alexa');
 
+async function say(page: Page, text: string) {
+  await composer(page).fill(text);
+  await page.getByRole('button', { name: 'Send' }).click();
+}
+
 /**
  * Plays each turn back as the event stream the turn route sends: the scripted model's own turn,
  * asked for as JSON, then its steps (running), held until the test lets the turn go on, then the
@@ -215,4 +220,29 @@ test('an error is plain words with Try again, which sends the same words again',
   // The answer that failed gives way to the one that worked: the request shows once.
   await expect(conversation(page).locator('li.you', { hasText: WEEKEND })).toHaveCount(1);
   await expect(conversation(page).getByRole('alert')).toHaveCount(0);
+});
+
+test('Try again sends the very same request: a failed "yes" still commits what was asked', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
+  let failed = false;
+  await page.route('**/api/turn', async (route) => {
+    if (!failed) {
+      failed = true;
+      await route.fulfill({ status: 502, json: { error: 'down' } });
+      return;
+    }
+    await route.fallback();
+  });
+  await say(page, 'yes');
+  const problem = lastAnswer(page).getByRole('alert');
+  await expect(problem).toHaveText(/Something went wrong on my side/);
+  // Nothing came of it, so the plan isn't set aside and its question is still open.
+  await expect(page.getByText('This plan was set aside. Ask again to act on it.')).toHaveCount(0);
+  await problem.getByRole('button', { name: 'Try again' }).click();
+  await expect(view(page).getByText('Done', { exact: true })).toBeVisible();
+  await expect(lastAnswer(page).locator('.said')).toHaveText('Done: 10 changes.');
 });
