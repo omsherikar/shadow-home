@@ -32,6 +32,14 @@ function weakensSecurity(kind: string, attr: string, value: Value): boolean {
   );
 }
 
+/** The rule that forbids the plan outright, when one breaks in any run. */
+export function refusingRule(result: CheckResult): string | undefined {
+  for (const r of result.reasons) {
+    if ((r.kind === 'violation' || r.kind === 'not_robust') && r.refuse) return r.rule;
+  }
+  return undefined;
+}
+
 export function confirmationTier(
   home: Home,
   plan: Plan,
