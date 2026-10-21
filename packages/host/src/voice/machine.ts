@@ -39,7 +39,9 @@ export type HandsFreeEvent =
   | { type: 'turn-ended'; asked: boolean }
   | { type: 'speaking'; on: boolean }
   /** The Stop button. */
-  | { type: 'stopped' };
+  | { type: 'stopped' }
+  /** The microphone failed; `lasting` when it won't work again (permission refused). */
+  | { type: 'mic-error'; lasting: boolean };
 
 export type Effect =
   | { kind: 'send'; text: string }
@@ -91,6 +93,9 @@ export function next(state: HandsFree, event: HandsFreeEvent): Step {
   if (event.type === 'on')
     return state.mode === 'off' ? stay({ ...OFF, mode: 'idle', epoch: state.epoch }) : stay(state);
   if (event.type === 'off') return stay({ ...OFF, epoch: state.epoch });
+  if (event.type === 'mic-error') {
+    return event.lasting ? stay({ ...OFF, epoch: state.epoch }) : stay(state);
+  }
   if (state.mode === 'off') return stay(state);
 
   switch (event.type) {
