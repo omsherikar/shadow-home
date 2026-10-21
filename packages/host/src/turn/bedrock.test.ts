@@ -447,6 +447,15 @@ describe("the live session's turns", () => {
       { say: 'Safe: home mode to away. Om asked for away mode for the weekend.' },
     ]);
   });
+
+  test('"Good morning! How are you?" after a finished change is small talk, with no headline in front', async () => {
+    expect(
+      await reply(
+        { text: 'Good morning! How are you?', history: afterAway },
+        "Good morning! I'm doing well, thank you for asking.",
+      ),
+    ).toEqual([{ say: "Good morning! I'm doing well, thank you for asking." }]);
+  });
 });
 
 describe('the demo', () => {
