@@ -319,3 +319,10 @@ export function devicesAt(start: LiveDevice[], changes: Change[], atMs: number):
   }
   return start.map((d) => (touched.has(d.id) ? { ...d, state: touched.get(d.id) ?? d.state } : d));
 }
+
+/** How many of a run's changes have happened by a home time: the state changes only when this does. */
+export function changesBy(changes: Change[], atMs: number): number {
+  let n = 0;
+  while (n < changes.length && (changes[n]?.atMs ?? Number.POSITIVE_INFINITY) <= atMs) n++;
+  return n;
+}
