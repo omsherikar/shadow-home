@@ -125,6 +125,15 @@ export function replace(messages: Message[], id: string, f: (m: Message) => Mess
   return messages.map((m) => (m.id === id ? f(m) : m));
 }
 
+/** "3:40 PM", in the visitor's own time (or the zone given). */
+export function clockAt(ms: number, timeZone?: string): string {
+  return new Date(ms).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    ...(timeZone ? { timeZone } : {}),
+  });
+}
+
 // The details view
 
 interface ViolationLike {
