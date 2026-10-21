@@ -1,6 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/client';
+import { type Step, stepLabel, type TurnEvent } from './events.ts';
 import { spokenFrom } from './scripted.ts';
-import type { Model, ToolCall, TurnRequest, TurnResponse } from './types.ts';
+import type { Model, ModelEvent, ToolCall, TurnRequest, TurnResponse } from './types.ts';
 
 /** The MCP side of a turn: call a tool, and say which view (if any) it declares. */
 export interface ToolRunner {
@@ -33,14 +34,21 @@ export class TurnStoppedError extends Error {
  * call already started finishes (it has its own timeout in mcp.ts), so the person hears what
  * really happened.
  *
- * When `signal` aborts, the model stops writing and no further tool call starts. A model step left
- * behind is stopped too.
+ * `emit` hears the turn as it happens (decision 107): a step for each tool call (running from when
+ * the model begins it, then done or failed), and each call once it returns. When `signal` aborts,
+ * the model stops writing and no further tool call starts. A model step left behind is stopped
+ * too, and nothing it writes afterwards is sent.
  */
 export async function runTurn(
   model: Model,
   tools: ToolRunner,
   request: TurnRequest,
-  options: { deadline?: number; now?: () => number; signal?: AbortSignal } = {},
+  options: {
+    deadline?: number;
+    now?: () => number;
+    signal?: AbortSignal;
+    emit?: (event: TurnEvent) => void;
+  } = {},
 ): Promise<TurnResponse> {
   const now = options.now ?? Date.now;
   const deadline = options.deadline ?? now() + TURN_DEADLINE_MS;
@@ -49,6 +57,25 @@ export async function runTurn(
   const stopped = () => stop.abort();
   if (options.signal?.aborted) stop.abort();
   else options.signal?.addEventListener('abort', stopped, { once: true });
+  let over = false;
+  const emit = (event: TurnEvent) => {
+    if (!over) options.emit?.(event);
+  };
+  let steps = 0;
+  let open: Omit<Step, 'state'> | undefined;
+  const begin = (tool: string) => {
+    if (open) return;
+    open = { id: `s${++steps}`, tool, label: stepLabel(tool) };
+    emit({ event: 'step', data: { ...open, state: 'running' } });
+  };
+  const end = (state: 'done' | 'failed') => {
+    if (!open) return;
+    emit({ event: 'step', data: { ...open, state } });
+    open = undefined;
+  };
+  const onEvent = (event: ModelEvent) => {
+    if ('tool' in event) begin(event.tool);
+  };
   try {
     for (let i = 0; i < MAX_STEPS; i++) {
       // A tool call may end past the deadline (a rule compile can take 40 s): then no new model
@@ -56,23 +83,38 @@ export async function runTurn(
       if (now() >= deadline) throw new TurnDeadlineError('The turn ran out of time');
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
       const step = await within(
-        model.next({ ...request, thisTurn: calls }, { signal: stop.signal }),
+        model.next({ ...request, thisTurn: calls }, { signal: stop.signal, onEvent }),
         deadline - now(),
         stop.signal,
       );
-      if ('say' in step) return { say: step.say, calls };
+      if ('say' in step) {
+        end('failed');
+        return { say: step.say, calls };
+      }
       // Stopped while the model decided: its call isn't made.
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
-      const result = await tools.callTool(step.call.name, step.call.arguments);
+      begin(step.call.name);
+      let result: CallToolResult;
+      try {
+        result = await tools.callTool(step.call.name, step.call.arguments);
+      } catch (e) {
+        end('failed');
+        throw e;
+      }
+      end(result.isError === true ? 'failed' : 'done');
       const resourceUri = tools.resourceUriFor(step.call.name);
-      calls.push({ ...step.call, result, ...(resourceUri ? { resourceUri } : {}) });
+      const call: ToolCall = { ...step.call, result, ...(resourceUri ? { resourceUri } : {}) };
+      calls.push(call);
+      emit({ event: 'call', data: { call } });
     }
   } catch (e) {
+    end('failed');
     // Nothing ran: the caller says it couldn't reach the model.
     if (calls.length === 0) throw e;
     // Something ran (a commit, perhaps) before the model failed or ran out of time: report it.
   } finally {
-    // A model step left behind stops writing.
+    // A model step left behind stops writing, and nothing it writes is heard.
+    over = true;
     stop.abort();
     options.signal?.removeEventListener('abort', stopped);
   }
