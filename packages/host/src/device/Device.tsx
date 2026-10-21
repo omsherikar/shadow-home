@@ -14,10 +14,13 @@ import {
   type FollowUp,
   followUpsFor,
   forgetConversation,
+  type Glance,
+  glanceFor,
   loadConversation,
   type Message,
   replace,
   saveConversation,
+  splitFollowUps,
   stopped,
   withEvent,
 } from '../chat/conversation.ts';
@@ -34,11 +37,12 @@ import {
 } from '../house/playback.ts';
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
-import { Stage } from '../stage/Stage.tsx';
+import { NARROW, Stage, useMedia } from '../stage/Stage.tsx';
 import { browserStorage } from '../stage/stage.ts';
 import { fitHistory, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
+import { Strip } from './Strip.tsx';
 import { canListen, listenOnce, speak, stopSpeaking } from './voice.ts';
 
 const NAMES_META_KEY = 'shadow-home/names';
@@ -90,6 +94,9 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [homeBroken, setHomeBroken] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  // What the screen shows, in brief, for the strip a phone shows in its place.
+  const [glance, setGlance] = useState<Glance | null>(null);
+  const narrow = useMedia(NARROW);
   const [activity, setActivity] = useState<Activity>('idle');
   const [heard, setHeard] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -178,6 +185,8 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       });
       const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
       if (fresh) names.current = fresh;
+      const brief = glanceFor(call);
+      if (brief) setGlance(brief);
       // What the house plays: a checked plan (and its fixes), a new rule's sample day, or, once a
       // plan is committed, the home as it now is. Both are read with zod, and what the house
       // can't read plays nothing; the house is never a reason for a turn to fail, so anything
@@ -517,6 +526,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     screenNote.current = undefined;
     setMessages([]);
     setFollowUps([]);
+    setGlance(null);
     setNotice(null);
     setAside(false);
     forgetConversation(browserStorage());
@@ -551,6 +561,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   }, [client, demo, demoState, refreshHome, say, forget, silent]);
 
   const ready = client !== null && demoState !== 'playing';
+  const phone = splitFollowUps(followUps);
   return (
     <Stage
       home={home}
@@ -569,6 +580,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
                   className="home-button"
                   onClick={() => {
                     setScreen({ kind: 'home' });
+                    setGlance(null);
                     setAside(false);
                   }}
                 >
@@ -600,11 +612,22 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           </div>
         </div>
       }
+      strip={(open) => (
+        <Strip
+          glance={screen.kind === 'home' ? null : glance}
+          home={home}
+          stale={stale && screen.kind === 'view'}
+          answers={phone.answers}
+          ready={ready && !busy}
+          onOpen={open}
+          onAnswer={(a) => void say(a.says, a.label)}
+        />
+      )}
       chat={
         <Chat
           messages={messages}
-          followUps={followUps}
-          placeholder="Ask Alexa to change something"
+          followUps={narrow ? phone.rest : followUps}
+          placeholder={narrow ? 'Ask Alexa' : 'Ask Alexa to change something'}
           starters={suggestions.map((s) => ({ label: s, says: s }))}
           activity={activity}
           heard={heard}
