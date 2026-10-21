@@ -30,6 +30,8 @@ export type Dropped =
 
 export interface FilterFacts {
   context: Context;
+  /** In a chat turn: a check came back earlier in the conversation. */
+  afterPlan: boolean;
   /** The home's device and routine names, taken out before a sentence is checked. */
   names: string[];
   /** The rule texts and reasons of the check the turn is about, taken out too (they're quotes). */
@@ -88,6 +90,9 @@ const FRAGMENT =
 /** Says a device, the home or the household is in some state, or got there. */
 const STATE =
   /\b(?:(?:is|are|was|were|be|been|being|stays?|stayed|turns?|turned|switch(?:es|ed)?|left|leaves|keeps?|kept|goes|went|comes|came|gets?|got|remains?|remained|still)\s+(?:on|off|open|closed|shut|locked|unlocked|running|down|up|low|high|warm|cold|cool|hot|empty|home|away|out)|locked|unlocked|(?:un)?locking|turning (?:on|off)|switching (?:on|off)|set to|setting|on now|off now|right now|now (?:on|off|open|closed|locked|unlocked|set|running|in)|is now|are now|(?:in|to) (?:\w+ )?mode|secure|secured|insecure|unsecured|dim|dimmed|dimmer|brighter|lowered|raised|engaged|disengaged|armed|disarmed|heating|cooling|occupied|vacant|(?:nobody|no one|someone|everyone|everybody|anyone|somebody)\s+(?:is|'s)\s+(?:home|away|here|out|in))\b|°\s?[cf]\b/;
+/** After a check, plain conversation may still not talk about it: "Thanks." can't get "It's safe." */
+const PLAN_TALK =
+  /\b(?:safe|unsafe|risk\w*|danger\w*|allow\w*|approv\w*|block\w*|break\w*|broke\w*|violat\w*|rule|rules|plan|plans|fix|fixes|fixed|verdict|check|checked|proven|unproven|confirm\w*)\b/;
 
 const HOUR_WORDS = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve';
 const UNIT_WORDS = 'one|two|three|four|five|six|seven|eight|nine';
@@ -238,6 +243,8 @@ export function filterFacts(input: {
   routines: string[];
   /** The check the turn is about, for its quotes. */
   about?: unknown;
+  /** In a chat turn: a check came back earlier in the conversation. */
+  afterPlan?: boolean;
 }): FilterFacts {
   const names = [...input.devices.map((d) => d.name), ...input.routines]
     .map(lower)
@@ -245,6 +252,7 @@ export function filterFacts(input: {
   const quotes = quotesOf(input.about).sort((a, b) => b.length - a.length);
   return {
     context: input.context,
+    afterPlan: input.afterPlan ?? false,
     names,
     quotes,
   };
@@ -299,6 +307,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
   if (context === 'chat') {
+    if (facts.afterPlan && PLAN_TALK.test(text)) return 'verdict';
     if (STATE.test(text)) return 'state';
     return null;
   }
