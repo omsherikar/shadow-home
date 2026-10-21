@@ -3,6 +3,7 @@
  * clips play in order. The voice itself (the network, the speaker) is passed in, so the order, the
  * clearing and the replacing can be tested without a browser.
  */
+import type { TurnEvent } from '../chat/stream.ts';
 import { allSentences, sentenceSplitter } from './sentences.ts';
 
 /** One sentence's sound: a clip from /api/speak, or the browser's own voice saying it. */
@@ -117,5 +118,20 @@ export function speechQueue(voice: Voice) {
       return finish(text);
     },
     clear,
+    /**
+     * A turn's event, as it streams. A step starting clears whatever is queued or playing: words
+     * written before a tool call aren't the answer (decision 108's server drops them), so nothing
+     * of them is said. Words then queue sentence by sentence, and `done` says the rest of `say`, or
+     * `say` instead of what streamed, resolving once it has been said. An error clears the queue;
+     * the page says what went wrong.
+     */
+    follow(event: TurnEvent): Promise<void> | null {
+      if (event.type === 'step' && event.state === 'running') clear();
+      if (event.type === 'error') clear();
+      if (event.type === 'text') {
+        for (const sentence of now.split.push(event.delta)) queue(now, sentence);
+      }
+      return event.type === 'done' ? finish(event.turn.say) : null;
+    },
   };
 }
