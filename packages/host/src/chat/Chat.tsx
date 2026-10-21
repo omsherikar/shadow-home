@@ -10,7 +10,8 @@ export type Activity = 'idle' | 'listening' | 'thinking' | 'working' | 'answerin
 
 export interface ChatProps {
   messages: Message[];
-  /** What a first-time visitor can tap to start. */
+  /** What to offer after the last answer; the starters when there's nothing to follow up. */
+  followUps: FollowUp[];
   starters: FollowUp[];
   activity: Activity;
   /** While listening: the words heard so far. */
@@ -65,7 +66,7 @@ export function Chat(props: ChatProps) {
     if (last?.who === 'you' || last?.phase === 'thinking') following.current = true;
     const el = list.current;
     if (el && following.current) el.scrollTop = el.scrollHeight;
-  }, [messages]);
+  }, [messages, props.followUps]);
 
   // What was pressed (a suggestion, Send, Try again) goes away once it's used, so focus comes back
   // to the text box, where a keyboard carries on. Not on a touch screen, where that would open
@@ -89,7 +90,7 @@ export function Chat(props: ChatProps) {
     setDraft('');
   };
 
-  const offers = props.starters;
+  const offers = props.followUps.length > 0 ? props.followUps : props.starters;
   return (
     <div className="chat" data-activity={activity}>
       <header className="chat-head">

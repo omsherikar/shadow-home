@@ -9,7 +9,15 @@ import {
 } from '@modelcontextprotocol/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Activity, Chat } from '../chat/Chat.tsx';
-import { ask as asked, type Message, replace, stopped, withEvent } from '../chat/conversation.ts';
+import {
+  ask as asked,
+  type FollowUp,
+  followUpsFor,
+  type Message,
+  replace,
+  stopped,
+  withEvent,
+} from '../chat/conversation.ts';
 import { streamTurn } from '../chat/stream.ts';
 import type { DemoStep } from '../demo/steps.ts';
 import { type LiveHome, parseLiveHome } from '../house/looks.ts';
@@ -61,6 +69,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [houseRequest, setHouseRequest] = useState<HouseRequest | null>(null);
   const [homeBroken, setHomeBroken] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [activity, setActivity] = useState<Activity>('idle');
   const [heard, setHeard] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -243,6 +252,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           }
           return next;
         });
+        setFollowUps(followUpsFor(calls));
         if (say) {
           note({ name: 'said', arguments: { text: say } });
           void voice(say);
@@ -297,6 +307,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       const id = `t${seq}`;
       const alexa = `${id}-alexa`;
       setMessages((m) => asked(m, id, said, request));
+      setFollowUps([]);
       setNotice(null);
       setActivity('thinking');
       // The screen's note goes with this request (and with it again on a retry).
@@ -376,7 +387,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         screenNote.current = request.screen;
       }
       if (gone()) return;
-      if (answer !== null) note({ name: 'said', arguments: { text: answer } });
+      if (answer !== null) {
+        setFollowUps(followUpsFor(calls));
+        note({ name: 'said', arguments: { text: answer } });
+      }
       if (client) await refreshHome(client).catch(() => undefined);
       if (gone()) return;
       if (answer !== null) await voice(answer);
@@ -458,6 +472,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     history.current = [];
     screenNote.current = undefined;
     setMessages([]);
+    setFollowUps([]);
     setNotice(null);
     ask({ play: null });
     setScreen({ kind: 'home' });
@@ -515,6 +530,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       chat={
         <Chat
           messages={messages}
+          followUps={followUps}
           placeholder="Ask Alexa to change something"
           starters={suggestions.map((s) => ({ label: s, says: s }))}
           activity={activity}
