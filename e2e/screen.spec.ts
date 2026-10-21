@@ -35,12 +35,6 @@ async function fastFrames(page: Page) {
   for (let i = 0; i < 12; i++) await page.clock.fastForward(16);
 }
 
-/** Closes the demo controls' drawer, which covers the bottom of the house and its timeline. */
-async function closeControls(page: Page) {
-  const hide = page.getByRole('button', { name: 'Hide demo controls', exact: true });
-  if (await hide.isVisible()) await hide.click();
-}
-
 /** The house's clock running (not acting out the plan, nor stopped on a break). */
 const sweeping = (page: Page) => page.locator('.pins[data-phase="sweep"]');
 
@@ -166,7 +160,6 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   await stepUntil(page, r1, 200, 3000);
   // The rest at four times the pace, so the test draws as few frames as before (stops on a
   // break still last as long).
-  await closeControls(page);
   await house.getByRole('button', { name: '4x speed' }).click();
   // The playback judges its pace by the frames of its clock running; these come as fast as a GPU
   // draws them.
@@ -229,7 +222,6 @@ test('where frames come slowly, the verdict comes first and the house shows wher
   await say(page, WEEKEND);
   await expect(house.locator('.run-chip')).toHaveCount(0);
   const faster = house.getByRole('button', { name: '4x speed' });
-  await closeControls(page);
   await stepUntil(page, faster, 100, 3000);
   await faster.click();
   await stepUntil(page, sweeping(page), 500, 10_000);
@@ -279,7 +271,6 @@ test('the timeline under the house pauses the clock, speeds it up and goes to an
   await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
   const clock = house.locator('.timeline-clock');
   const faster = house.getByRole('button', { name: '4x speed' });
-  await closeControls(page);
   await stepUntil(page, faster, 100, 3000);
   await expect(house.getByRole('button', { name: '1x speed' })).toHaveAttribute(
     'aria-pressed',
