@@ -157,3 +157,24 @@ export interface TemperatureRule {
 
 /** Where the server puts the temperature rules, rule ID to `TemperatureRule`, beside the traces. */
 export const TEMPERATURE_RULES_META_KEY = 'shadow-home/temperature-rules';
+
+/** Who a check took to be home from `from` to `to`: everyone, nobody, or the people named. */
+export interface PresenceWindow {
+  from: string;
+  to: string;
+  presence: 'nobody' | 'everyone' | { home: string[] };
+}
+
+/**
+ * What the screen needs to replay a preview's run, from the same check that gave its verdict.
+ * `presence` is who that check took to be home, window by window (where windows overlap, the last
+ * one wins; outside them all, the household as it is). A repair's entry also carries its run,
+ * which the result doesn't: the changes it makes over time, the rules it breaks and what it can't
+ * establish.
+ */
+export interface Replay {
+  presence: PresenceWindow[];
+  timeline?: TimelineEntry[];
+  violations?: Violation[];
+  unknowns?: string[];
+}
