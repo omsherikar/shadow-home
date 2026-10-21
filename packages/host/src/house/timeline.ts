@@ -3,8 +3,9 @@
  * marker for each moment that matters (a rule breaking, the plan acting, a routine, someone
  * leaving or coming home) and the playhead. Pure functions of the run.
  */
-import type { LiveDevice } from './looks.ts';
-import { type Break, presenceAt, type Run } from './playback.ts';
+import { daylight, type LiveDevice } from './looks.ts';
+import { twilightsBetween } from './pacing.ts';
+import { type Break, homeIso, presenceAt, type Run } from './playback.ts';
 import { changeWords, stepWords } from './words.ts';
 
 export type MarkerKind = Break['kind'] | 'plan' | 'routine' | 'leaves' | 'arrives';
@@ -61,3 +62,20 @@ export function markersOf(
 
 const leaving = (n: number) => (n === 1 ? 'Someone leaves' : `${n} people leave`);
 const arriving = (n: number) => (n === 1 ? 'Someone comes home' : `${n} people come home`);
+
+/** The stretches of a run that are night outside (the sky darker than half light). */
+export function nightsOf(run: Run): { fromMs: number; toMs: number }[] {
+  const turns = twilightsBetween(run.startMs, run.endMs, run.offset);
+  const darkAt = (ms: number) => daylight(homeIso(ms, run.offset)).day < 0.5;
+  const out: { fromMs: number; toMs: number }[] = [];
+  let from: number | null = darkAt(run.startMs) ? run.startMs : null;
+  for (const t of turns) {
+    if (from === null) from = t;
+    else {
+      out.push({ fromMs: from, toMs: t });
+      from = null;
+    }
+  }
+  if (from !== null) out.push({ fromMs: from, toMs: run.endMs });
+  return out.filter((n) => n.toMs > n.fromMs);
+}
