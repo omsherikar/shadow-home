@@ -327,7 +327,11 @@ function BreakCard({
           ? `Guarded from ${when}`
           : 'Can’t confirm';
   return (
-    <div className={`break-card glass ${b.kind}${inline ? ' inline' : ''}`} role="status">
+    <div
+      className={`break-card glass ${b.kind}${inline ? ' inline' : ''}`}
+      role="status"
+      data-covers={inline ? undefined : ''}
+    >
       <p className="break-head">{head}</p>
       <p className="break-text">{readable(b.text, name)}</p>
       {b.author ? <p className="break-who">{AUTHOR(b.author)}’s rule</p> : null}
