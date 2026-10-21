@@ -474,11 +474,12 @@ function BreakCard({
   inline?: boolean;
 }) {
   const when = offset ? homeClock(b.atMs, offset) : '';
+  // Plain words: the rule's own words say which rule, so its number stays on the device's screen.
   const head =
     b.kind === 'violation'
-      ? `${b.rule} breaks ${when}`
+      ? `Breaks ${when}`
       : b.kind === 'not_robust'
-        ? `${b.rule} may break ${when}`
+        ? `Might break ${when}`
         : b.kind === 'guard'
           ? `Guarded from ${when}`
           : 'Can’t confirm';

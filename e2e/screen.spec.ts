@@ -182,7 +182,7 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   // house's card gives the rule's words and whose rule it is.
   const r3 = house
     .getByRole('status')
-    .filter({ hasText: 'R3 breaks Sat 10:37 PM' })
+    .filter({ hasText: 'Breaks Sat 10:37 PM' })
     .filter({ hasText: "Don't let the garage pipes freeze." })
     .filter({ hasText: 'Om’s rule' });
   // Half-second steps: the plan's stops last 1.3 s, so at least two steps land in each.
@@ -234,7 +234,10 @@ test('where frames come slowly, the verdict comes first and the house shows wher
   await say(page, WEEKEND);
   await expect(house.locator('.run-chip')).toHaveCount(0);
   await fastFrames(page);
-  const r3 = house.getByRole('status').filter({ hasText: 'R3 breaks Sat 10:37 PM' });
+  const r3 = house
+    .getByRole('status')
+    .filter({ hasText: 'Breaks Sat 10:37 PM' })
+    .filter({ hasText: "Don't let the garage pipes freeze." });
   await stepUntil(page, r3, 500, 20_000);
   await expect(house.getByText(/^Saturday, 10:37 PM$/)).toBeVisible();
 });
