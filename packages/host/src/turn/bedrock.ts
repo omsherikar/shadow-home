@@ -162,7 +162,7 @@ type Turn =
   | { context: 'plan'; spoke: ToolCall }
   | { context: 'anchored'; anchor: { speech: { headline: string; reason?: string } } }
   | { context: 'read' }
-  | { context: 'chat'; afterPlan: boolean };
+  | { context: 'chat'; afterPlan: boolean; checkOpen: boolean };
 
 /** Words that ask about the check on screen: "why?", "what does that mean?", "tell me more". */
 const ASKS_ABOUT =
@@ -194,7 +194,8 @@ function turnOf(input: ModelInput): Turn {
       anchor: anchor.structuredContent as { speech: { headline: string; reason?: string } },
     };
   }
-  return { context: 'chat', afterPlan: anchor !== undefined };
+  const checkOpen = openCheck(input.history) !== undefined;
+  return { context: 'chat', afterPlan: anchor !== undefined, checkOpen };
 }
 
 /**
@@ -262,6 +263,7 @@ function factsFor(input: ModelInput, home: HomeBrief, turn: Turn) {
           : undefined,
     heard: input.text,
     afterPlan: turn.context === 'chat' && turn.afterPlan,
+    checkOpen: turn.context === 'chat' && turn.checkOpen,
   });
 }
 
