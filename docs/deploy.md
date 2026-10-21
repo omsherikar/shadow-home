@@ -112,6 +112,13 @@ The same container runs on a laptop against the Firestore emulator:
 - `docker run --rm -p 127.0.0.1:3300:8080 -e FIRESTORE_EMULATOR_HOST=host.docker.internal:8080 -e GOOGLE_CLOUD_PROJECT=demo-shadow-home -e METADATA_SERVER_DETECTION=none -e SHADOW_HOME_SECRET=local-only shadow-home-server`
   serves it at http://localhost:3300/mcp
 
+### Custom domain
+
+Cloud Run domain mappings put both services on your own domain, with Google-managed certificates,
+without a load balancer's fixed monthly charge (`docs/decisions.md`, 106). Ours: the Echo Show at https://shadowhome.omstudio.tech and
+the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only in some regions,
+`us-central1` among them.
+
 ### If a deploy goes wrong
 
 Each deploy is a new revision, and the earlier ones stay. Find the last good one and send all
