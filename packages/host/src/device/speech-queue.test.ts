@@ -115,3 +115,17 @@ describe('speaking an answer as it streams', () => {
     expect(v.played.map((p) => p.text)).toEqual(['Done: 10 changes.', 'Anything else?']);
   });
 });
+
+describe('when the end replaces what streamed', () => {
+  test('what was queued is dropped and only the final words are said', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.write("It's safe, I think. Shall I");
+    await settle();
+    expect(v.asked).toEqual(["It's safe, I think."]);
+    const said = speech.finish('Blocked: that breaks 4 house rules.');
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual(['Blocked: that breaks 4 house rules.']);
+  });
+});
