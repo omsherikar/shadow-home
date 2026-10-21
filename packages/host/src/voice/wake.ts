@@ -11,7 +11,7 @@ export type Wake = { woke: false } | { woke: true; request: string };
 /**
  * Whether `heard` holds the wake word and, if so, what was asked after it: "Alexa, I'm away for
  * the weekend" asks "I'm away for the weekend"; "Alexa" alone asks nothing yet. Words before the
- * wake word ("hey") are dropped.
+ * wake word ("hey") are dropped, and so is a wake word said twice.
  */
 export function parseWake(heard: string): Wake {
   const m = ALEXA.exec(heard);
@@ -21,5 +21,7 @@ export function parseWake(heard: string): Wake {
     .replace(/^'s\b/i, '')
     .replace(/^[\s,.!?:;-]+/, '')
     .trim();
+  // "Alexa, Alexa, turn the lights off".
+  if (ALEXA.exec(rest)?.index === 0) return parseWake(rest);
   return { woke: true, request: rest };
 }
