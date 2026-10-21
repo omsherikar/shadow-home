@@ -5,6 +5,16 @@ import { ask, detailsFor } from './conversation.ts';
 const call = (name: string, structuredContent: Record<string, unknown>, isError = false) =>
   ({ name, arguments: {}, result: { content: [], structuredContent, isError } }) as ToolCall;
 
+const preview = (extra: Record<string, unknown>) => ({
+  planId: 'p1',
+  kind: 'plan',
+  verdict: 'UNSAFE',
+  tier: 'T3',
+  diff: [{ target: 'plug_tv' }],
+  violations: [],
+  ...extra,
+});
+
 describe('an answer as it streams', () => {
   test('starts thinking, keeping the exact request to retry', () => {
     const request = {
@@ -34,6 +44,19 @@ describe('the details view', () => {
     });
     expect(detailsFor(rule)).toEqual([
       'Clashes with R6: “Unlock the doors when the smoke alarm goes off.” (safety priority). R6 wins by priority.',
+    ]);
+  });
+
+  test("whose rule uses the household's names when the server sent them", () => {
+    const names = { devices: {}, routines: {}, members: { om: 'Om', maya: 'Maya' } };
+    const v = {
+      rule: 'R2',
+      text: 'Keep the aquarium heater on.',
+      author: 'maya',
+      priority: 'comfort',
+    };
+    expect(detailsFor(call('preview_plan', preview({ violations: [v] })), names)).toEqual([
+      'R2: “Keep the aquarium heater on.” Maya’s rule, comfort priority.',
     ]);
   });
 });
