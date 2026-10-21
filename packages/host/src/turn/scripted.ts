@@ -46,8 +46,9 @@ const WHY = /^(why|how come)\b/;
 /**
  * A stand-in for the model that knows the demo lines. It drafts the scripted plan for a demo
  * request, checks the house when someone leaves, answers yes and no to the last question asked,
- * undoes, and reads the log. It speaks only from the server's speech fields, which is what the
- * real model is told to do too. `home.now` is the home's time, as the real model is told it.
+ * says why from the last answer's reason, undoes, and reads the log. It speaks only from the
+ * server's speech fields, so it never says anything a tool didn't. `home.now` is the home's time,
+ * as the real model is told it.
  */
 export function scriptedModel(beats: Beat[], home?: { now: string }): Model {
   return {
@@ -63,6 +64,7 @@ export function scriptedModel(beats: Beat[], home?: { now: string }): Model {
 }
 
 function firstStep(text: string, input: ModelInput, beats: Beat[], now?: string): ModelStep {
+  if (WHY.test(text)) return { say: why(input.history) };
   if (YES.test(text))
     return answerYes(input.history) ?? { say: "There's nothing waiting for a yes." };
   if (NO.test(text)) return { say: 'Okay, nothing changed.' };
@@ -122,6 +124,22 @@ interface PreviewLike {
   tier: string;
   repair?: { planId: string; verdict: string } | null;
   safePart?: { planId: string } | null;
+}
+
+/**
+ * Why, from the last answer that gave a reason: the reason the server gave, and its question
+ * again while it's still open, so a yes still answers it.
+ */
+function why(history: Remembered[]): string {
+  const last = history.findLast((h) => speechOf(h.structuredContent)?.headline);
+  const speech = speechOf(last?.structuredContent);
+  if (!speech?.reason) return "That's all the check told me.";
+  const open = last !== undefined && openQuestion(history) !== null && lastAnswer(history) === last;
+  return open && speech.ask ? `${speech.reason} ${speech.ask}` : speech.reason;
+}
+
+function speechOf(sc: Record<string, unknown> | undefined) {
+  return sc?.speech as { headline?: string; reason?: string; ask?: string } | undefined;
 }
 
 /**
