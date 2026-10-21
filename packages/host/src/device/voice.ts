@@ -34,6 +34,22 @@ async function fetchClip(text: string, signal: AbortSignal): Promise<Clip> {
   }
 }
 
+const held = new Set<() => void>();
+
+/**
+ * Hear when the browser holds her voice back (it plays sound only after a tap on the page), so
+ * the page can offer a tap to hear her. Returns how to stop hearing it.
+ */
+export function watchHeldBack(watcher: () => void): () => void {
+  held.add(watcher);
+  return () => held.delete(watcher);
+}
+
+const heldBack = (e: unknown) => {
+  if ((e as { name?: unknown } | null)?.name !== 'NotAllowedError') return;
+  for (const w of held) w();
+};
+
 /**
  * Say one sentence: its clip, or the browser's voice. Stops at once when the signal aborts.
  * Resolves true when it was heard to the end.
@@ -64,7 +80,10 @@ function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
     signal.addEventListener('abort', stop, { once: true });
     audio.onended = () => done(true);
     audio.onerror = () => done(false);
-    audio.play().catch(() => done(false));
+    audio.play().catch((e: unknown) => {
+      heldBack(e);
+      done(false);
+    });
   });
 }
 
@@ -87,7 +106,11 @@ function browserVoice(text: string, signal: AbortSignal): Promise<boolean> {
     };
     signal.addEventListener('abort', stop, { once: true });
     utterance.onend = () => done(true);
-    utterance.onerror = () => done(false);
+    utterance.onerror = (e) => {
+      // Chrome says "not-allowed" when it won't speak before a tap.
+      if (e.error === 'not-allowed') heldBack({ name: 'NotAllowedError' });
+      done(false);
+    };
     synth.speak(utterance);
   });
 }
