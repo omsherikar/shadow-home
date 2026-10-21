@@ -191,4 +191,25 @@ describe('following a turn as it streams', () => {
     ]);
     expect(v.asked).toEqual(v.played.map((p) => p.text));
   });
+
+  test('words before a step starts are never said: the step clears them', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.follow(text('Let me check that on your home first. I'));
+    await settle();
+    // Its clip was asked for, but the step comes before it can play.
+    expect(v.asked).toEqual(['Let me check that on your home first.']);
+    speech.follow(step('running'));
+    // The clip arrives after the step, still before any done: the step alone keeps it unsaid.
+    await v.arrive();
+    expect(v.played).toEqual([]);
+    let said: Promise<void> | null = null;
+    for (const event of [step('done'), text('Done: TV off.'), done('Done: TV off.')]) {
+      said = speech.follow(event) ?? said;
+    }
+    await v.drain();
+    await said;
+    expect(v.played.map((p) => p.text)).toEqual(['Done: TV off.']);
+    expect(v.played.map((p) => p.text)).not.toContain('Let me check that on your home first.');
+  });
 });
