@@ -15,6 +15,21 @@ const preview = (extra: Record<string, unknown>) => ({
   ...extra,
 });
 
+const WEEKEND = call(
+  'preview_plan',
+  preview({
+    repair: { planId: 'p2', verdict: 'SAFE' },
+    violations: [
+      {
+        rule: 'R3',
+        text: "Don't let the garage pipes freeze.",
+        author: 'om',
+        priority: 'safety',
+      },
+    ],
+  }),
+);
+
 describe('an answer as it streams', () => {
   const start = (): Message => {
     const [, alexa] = ask([], 't1', "I'm away for the weekend", {
@@ -48,6 +63,15 @@ describe('an answer as it streams', () => {
     expect(m.steps).toEqual([{ id: 's1', label: 'Checking', state: 'running' }]);
     m = withEvent(m, { ...step, state: 'done' }, 0);
     expect(m.steps).toEqual([{ id: 's1', label: 'Checking', state: 'done' }]);
+  });
+
+  test('a call puts its verdict and details on the answer before it finishes', () => {
+    const m = withEvent(start(), { type: 'call', call: WEEKEND }, 0);
+    expect(m.verdict).toBe('UNSAFE');
+    expect(m.details).toEqual([
+      "R3: “Don't let the garage pipes freeze.” Om’s rule, safety priority.",
+    ]);
+    expect(m.phase).toBe('thinking');
   });
 });
 
