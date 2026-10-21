@@ -7,6 +7,7 @@ import {
   followUpsFor,
   type Message,
   problemWords,
+  splitFollowUps,
   stopped,
   withEvent,
 } from './conversation.ts';
@@ -209,6 +210,18 @@ describe('what to offer next', () => {
     expect(followUpsFor([])).toEqual([]);
     expect(followUpsFor([call('preview_plan', preview({}), true)])).toEqual([]);
     expect(followUpsFor([call('add_house_rule', { status: 'added', conflicts: [] })])).toEqual([]);
+  });
+});
+
+describe('on a phone', () => {
+  test("the strip takes the screen's answers, and the chat keeps Why?", () => {
+    expect(splitFollowUps(followUpsFor([WEEKEND]))).toEqual({
+      answers: [
+        { label: 'Run the safer plan', says: 'Yes.' },
+        { label: "Don't run", says: 'No.' },
+      ],
+      rest: [{ label: 'Why?', says: 'Why?' }],
+    });
   });
 });
 
