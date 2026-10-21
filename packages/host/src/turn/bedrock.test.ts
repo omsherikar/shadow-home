@@ -104,10 +104,38 @@ describe('the Bedrock model', () => {
     expect(await model.next(input())).toEqual({ say: "Sorry, I can't do that." });
   });
 
-  test('once a tool has spoken, the reply is the server’s speech, not the model’s words', async () => {
-    const { converse } = fakeConverse(text('All done, your TV is off and everything is great!'));
+  // Decision 108 replaces decision 65: once a tool has spoken, the reply is the engine's headline,
+  // the model's own explanation, and the engine's question; the server's words alone only when
+  // none of the model's sentences may be said.
+  test("once a tool has spoken: the engine's headline, the model's explanation, the engine's question", async () => {
+    const { converse } = fakeConverse(text("That's the TV in the living room."));
     const model = bedrockModel({ converse, tools, home });
-    expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({ say: 'Safe: TV off.' });
+    expect(await model.next(input({ thisTurn: [previewCall] }))).toEqual({
+      say: "Safe: TV off. That's the TV in the living room.",
+    });
+    const asking: ToolCall = {
+      ...previewCall,
+      result: {
+        content: [],
+        structuredContent: {
+          verdict: 'UNSAFE',
+          tier: 'T3',
+          speech: {
+            headline: 'Blocked: that breaks a house rule.',
+            reason: "No TV after 10 PM. That's Om's rule.",
+            ask: 'Do it with 1 fix instead?',
+          },
+        },
+      },
+    };
+    const { converse: explains } = fakeConverse(
+      text("Om's rule is about the TV in the living room. It's fine, really. Shall I?"),
+    );
+    expect(
+      await bedrockModel({ converse: explains, tools, home }).next(input({ thisTurn: [asking] })),
+    ).toEqual({
+      say: "Blocked: that breaks a house rule. Om's rule is about the TV in the living room. Do it with 1 fix instead?",
+    });
   });
 
   test("with none of its sentences left, the server's speech, and only counts are logged", async () => {
