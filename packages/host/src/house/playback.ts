@@ -4,7 +4,7 @@
  * trace); the house never simulates anything itself.
  */
 import { z } from 'zod';
-import { type Value, valueSchema } from './looks.ts';
+import { type LiveDevice, type Value, valueSchema } from './looks.ts';
 
 export interface Change {
   atMs: number;
@@ -306,4 +306,16 @@ export function playhead(s: Schedule, realMs: number): { homeMs: number; held: B
   }
   const last = s.segments.at(-1);
   return { homeMs: last?.toMs ?? 0, held: [] };
+}
+
+/** Each device's state at a home time: how it started, with every change up to then applied. */
+export function devicesAt(start: LiveDevice[], changes: Change[], atMs: number): LiveDevice[] {
+  const touched = new Map<string, Record<string, Value>>();
+  for (const c of changes) {
+    if (c.atMs > atMs) break;
+    if (c.device === 'home') continue;
+    const before = start.find((d) => d.id === c.device)?.state ?? {};
+    touched.set(c.device, { ...(touched.get(c.device) ?? before), [c.attr]: c.to });
+  }
+  return start.map((d) => (touched.has(d.id) ? { ...d, state: touched.get(d.id) ?? d.state } : d));
 }
