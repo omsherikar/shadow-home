@@ -419,3 +419,14 @@ export function roomOf(layout: HouseLayout, device: string): string | undefined 
   }
   return best?.id;
 }
+
+/** "Sat 10:37 PM" for an instant, read in the home's own UTC offset ("-06:00"). */
+export function homeClock(ms: number, offset: string): string {
+  const m = /^([+-])(\d{2}):(\d{2})$/.exec(offset);
+  const minutes = m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 0;
+  const local = new Date(ms + minutes * MINUTE_MS);
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][local.getUTCDay()];
+  const h = local.getUTCHours();
+  const mi = local.getUTCMinutes();
+  return `${day} ${h % 12 || 12}:${String(mi).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
