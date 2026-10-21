@@ -201,4 +201,18 @@ describe('a turn as it streams', () => {
     const [event] = await all(streamTurn(REQUEST, { fetch: fake }));
     expect(event).toMatchObject({ type: 'error', retryable: true });
   });
+
+  test('stops at the error that ends a turn, with when to try again', async () => {
+    const { fake } = answering(
+      'event: error\ndata: {"message":"I\'ve had a lot of requests this hour.","retryable":true,"retryAfterMs":120000}\n\nevent: text\ndata: {"delta":"after"}\n\n',
+    );
+    expect(await all(streamTurn(REQUEST, { fetch: fake }))).toEqual([
+      {
+        type: 'error',
+        message: "I've had a lot of requests this hour.",
+        retryable: true,
+        retryAfterMs: 120000,
+      },
+    ]);
+  });
 });
