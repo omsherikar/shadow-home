@@ -153,6 +153,17 @@ describe('what to offer next', () => {
     const leaving = call('preview_plan', preview({ diff: [], repair: { verdict: 'SAFE' } }));
     expect(labels([leaving])).toEqual(['Fix it', 'Why?', "Don't run"]);
   });
+
+  test("a plan that can't be confirmed: run it anyway, why, or not", () => {
+    const blind = call('preview_plan', preview({ verdict: 'UNPROVEN', tier: 'T4' }));
+    expect(followUpsFor([blind])).toEqual([
+      { label: 'Run it anyway', says: 'Yes.' },
+      { label: 'Why?', says: 'Why?' },
+      { label: "Don't run", says: 'No.' },
+    ]);
+    const part = call('preview_plan', preview({ tier: 'T4', safePart: { planId: 'p3' } }));
+    expect(labels([part])).toEqual(['Just the part you can confirm', 'Run it anyway', "Don't run"]);
+  });
 });
 
 describe('the details view', () => {
