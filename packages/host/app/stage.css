@@ -18,12 +18,6 @@
   --device-share: 60vw;
 }
 
-.stage {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
-}
-
 .house-panel {
   position: relative;
   flex: 1 1 auto;
@@ -510,33 +504,64 @@
   color: var(--done);
 }
 
-.room .device-panel {
+/* The device takes what room it has and is zoomed to fit; the chat sits under it. */
+.stage,
+.room {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.room {
+  justify-content: center;
+}
+
+.device-panel {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  gap: 14px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .stage .device-panel {
-  display: flex;
   flex: 0 0 auto;
-  flex-direction: column;
-  justify-content: center;
   width: var(--device-share);
-  padding: 24px 24px 24px 4px;
+  padding: 20px 24px 20px 4px;
 }
 
-.stage .device-scaled {
-  width: 1180px;
-  zoom: var(--device-scale);
-}
-
-.stage .device {
-  width: 1180px;
+.room .device-panel {
+  flex: 1 1 auto;
+  max-width: 1240px;
+  padding: 20px 24px;
 }
 
 .stage.house-only .device-panel {
   display: none;
+}
+
+.device-fit {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.device-scaled {
+  flex: 0 0 auto;
+  width: 1180px;
+  zoom: var(--device-scale);
+}
+
+.device-scaled .device {
+  width: 1180px;
+}
+
+.chat-dock {
+  flex: 0 0 clamp(300px, 41vh, 420px);
 }
 
 /* Alone, a card that lists what broke keeps a reading width and stays clear of the buttons. */
