@@ -308,3 +308,21 @@ describe('stopping', () => {
     expect(v.played.map((p) => p.text)).toEqual(['Second answer.']);
   });
 });
+
+describe('when the voice is refused', () => {
+  test('the browser says the refused sentence and the rest of the answer, with no more asking', async () => {
+    const v = fakeVoice((text) =>
+      text.startsWith('No coffee')
+        ? { kind: 'browser', refused: true }
+        : { kind: 'audio', audio: new Blob() },
+    );
+    const said = speechQueue(v.voice).finish(WEEKEND);
+    await v.drain();
+    await said;
+    expect(v.asked).toEqual([
+      'Blocked: that breaks 4 house rules.',
+      "No coffee maker running when nobody's home.",
+    ]);
+    expect(v.played.map((p) => p.kind)).toEqual(['audio', 'browser', 'browser', 'browser']);
+  });
+});
