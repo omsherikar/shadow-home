@@ -468,6 +468,17 @@ describe("the live session's turns", () => {
       ),
     ).toEqual([{ say: 'The front door is locked.' }]);
   });
+
+  test('"Yes." with nothing waiting is plain conversation: the model may ask what to do', async () => {
+    const history: Remembered[] = [
+      ...afterAway,
+      { name: 'heard', arguments: { text: 'Is the front door locked?' } },
+      { name: 'said', arguments: { text: 'The front door is locked.' } },
+    ];
+    const words =
+      "I'm sorry, I'm not sure what you'd like me to do next. Could you tell me what you need?";
+    expect(await reply({ text: 'Yes.', history }, words)).toEqual([{ say: words }]);
+  });
 });
 
 describe('the demo', () => {
