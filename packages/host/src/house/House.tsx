@@ -8,7 +8,7 @@ import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vec
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Devices } from './Devices.tsx';
 import { Furniture, People } from './Furniture.tsx';
-import { type Band, bandBetween, frame, groundBounds, houseBounds } from './geometry.ts';
+import { type Band, bandBetween, frame, groundBounds, houseBounds, overlaps } from './geometry.ts';
 import { ghost } from './ghost.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveDevice } from './looks.ts';
@@ -264,9 +264,31 @@ function CameraRig(props: {
       // Near the right edge a dot's name goes on its left, so it isn't cut off.
       if (!room) el.dataset.side = x > width - 120 ? 'left' : 'right';
     }
+    hideCovered(props.anchors.map((a) => props.pinned(a.id)));
     if (now.position.distanceToSquared(goal.position) > 1e-4) invalidate();
   });
   return null;
+}
+
+/**
+ * Hides each label or dot that a card pinned to the house covers, even in part, so nothing shows
+ * half hidden. A card marks itself with `data-covers`.
+ */
+function hideCovered(pins: (HTMLElement | null | undefined)[]) {
+  const shown = pins.filter((el): el is HTMLElement => !!el && el.style.visibility === 'visible');
+  const covers = shown.flatMap((el) => {
+    const card = el.querySelector('[data-covers]');
+    return card ? [card.getBoundingClientRect()] : [];
+  });
+  if (covers.length === 0) return;
+  for (const el of shown) {
+    if (el.querySelector('[data-covers]')) continue;
+    const under = Array.from(el.children).some((part) => {
+      const box = part.getBoundingClientRect();
+      return covers.some((c) => overlaps(box, c));
+    });
+    if (under) el.style.visibility = 'hidden';
+  }
 }
 
 /** Fades the house into the shadow twin and back. */
