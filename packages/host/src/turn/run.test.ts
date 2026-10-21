@@ -183,6 +183,31 @@ describe('a turn as it happens', () => {
     expect(turn.say).toBe('Not safe: the garage would freeze. Do it with 4 fixes instead?');
   });
 
+  test('a model that writes nothing as it goes: its answer is sent as one piece at the end', async () => {
+    let step = 0;
+    const model: Model = {
+      async next() {
+        step += 1;
+        return step === 1
+          ? { call: { name: 'preview_plan', arguments: {} } }
+          : { say: 'Not safe: the garage would freeze. Do it with 4 fixes instead?' };
+      },
+    };
+    const events: TurnEvent[] = [];
+    await runTurn(
+      model,
+      { callTool: async () => unsafe, resourceUriFor: () => VIEW },
+      { text: 'away', history: [] },
+      { emit: (e) => events.push(e) },
+    );
+    expect(followed(events)).toEqual([
+      { step: 's1 preview_plan running' },
+      { step: 's1 preview_plan done' },
+      { call: 'preview_plan' },
+      { text: 'Not safe: the garage would freeze. Do it with 4 fixes instead?' },
+    ]);
+  });
+
   test('a tool call that fails or answers with an error is a failed step', async () => {
     const events: TurnEvent[] = [];
     const model: Model = {
