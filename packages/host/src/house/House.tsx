@@ -48,6 +48,11 @@ export interface HouseProps {
   still: boolean;
   /** The browser took the WebGL context away. Anything that throws is the caller's to catch. */
   onFail(): void;
+  /**
+   * Drawn on the CPU (software WebGL): no ambient occlusion, glow or shadows, which there make
+   * each frame take seconds. Known before the first frame, so nothing is built twice.
+   */
+  lean?: boolean;
 }
 
 const FOV = 30;
@@ -75,9 +80,10 @@ export default function House(props: HouseProps) {
     <Canvas
       className="house-canvas"
       frameloop="demand"
-      shadows="percentage"
-      flat
-      dpr={[1, 2]}
+      shadows={props.lean ? false : 'percentage'}
+      // The finish tone-maps the picture; without it, the renderer does.
+      flat={!props.lean}
+      dpr={props.lean ? 1 : [1, 2]}
       camera={{ fov: FOV, near: 0.5, far: 300, position: [0, 30, 30] }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
@@ -91,7 +97,7 @@ export default function House(props: HouseProps) {
   );
 }
 
-function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
+function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) {
   const light = daylight(view.time);
   return (
     <>
@@ -111,7 +117,7 @@ function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
       <Furniture layout={layout} />
       <Devices layout={layout} devices={view.devices} />
       <People layout={layout} presence={view.presence} />
-      <Finish />
+      {lean ? null : <Finish />}
     </>
   );
 }
