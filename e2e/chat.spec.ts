@@ -344,3 +344,44 @@ test('the conversation is kept across a reload, with no question left open', asy
   await say(page, 'yes');
   await expect(lastAnswer(page).locator('.said')).toHaveText("There's nothing waiting for a yes.");
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('the page stacks and the composer stays whole at the bottom', async ({ page }) => {
+    await page.goto('/');
+    const input = composer(page);
+    await expect(input).toBeVisible();
+    const inside = async () => {
+      for (const control of [input, page.getByRole('button', { name: 'Send' })]) {
+        const box = await control.boundingBox();
+        if (!box) throw new Error('A control is not on screen.');
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(390);
+        expect(box.y + box.height).toBeLessThanOrEqual(844);
+        // Nothing covers it.
+        const hit = await control.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const at = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+          return at !== null && (el === at || el.contains(at));
+        });
+        expect(hit).toBe(true);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+        390,
+      );
+    };
+    await inside();
+    // A short placeholder that fits.
+    await expect(input).toHaveAttribute('placeholder', 'Ask Alexa');
+    // The house is there when asked for.
+    await expect(page.getByRole('button', { name: 'Show the house' })).toBeVisible();
+    await page.screenshot({ path: 'test-results/chat-phone-empty.png' });
+    await page.getByRole('button', { name: WEEKEND }).click();
+    await expect(lastAnswer(page).locator('.said')).toHaveText(
+      /^Blocked: that breaks 4 house rules\./,
+    );
+    await inside();
+    await page.screenshot({ path: 'test-results/chat-phone-answer.png' });
+  });
+});
