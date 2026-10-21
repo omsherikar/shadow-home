@@ -112,7 +112,12 @@ const metaSchema = z.object({
   [TEMPERATURE_RULES_META_KEY]: z
     .record(
       z.string(),
-      z.object({ zone: z.string(), minC: z.number().nullable(), maxC: z.number().nullable() }),
+      z.object({
+        zone: z.string(),
+        zoneName: z.string().optional(),
+        minC: z.number().nullable(),
+        maxC: z.number().nullable(),
+      }),
     )
     .optional(),
   [REPLAY_META_KEY]: z.record(z.string(), replaySchema).optional(),
@@ -143,6 +148,11 @@ export interface Run {
   trace: Trace | null;
   /** Each zone's temperature limits from the house rules (the garage: 4 °C at least). */
   limits: Record<string, { minC: number | null; maxC: number | null }>;
+  /** The house rules that keep a zone's temperature within bounds, by rule ID. */
+  temperatureRules: Record<
+    string,
+    { zone: string; zoneName?: string; minC: number | null; maxC: number | null }
+  >;
   /** Who the check took to be home, window by window; outside them, the household as it is. */
   presence: { fromMs: number; toMs: number; who: Presence }[];
 }
@@ -169,7 +179,8 @@ export function runsFrom(
   const traces = meta[TEMPERATURES_META_KEY] ?? {};
   const replays = meta[REPLAY_META_KEY] ?? {};
   const limits: Run['limits'] = {};
-  for (const r of Object.values(meta[TEMPERATURE_RULES_META_KEY] ?? {})) {
+  const temperatureRules = meta[TEMPERATURE_RULES_META_KEY] ?? {};
+  for (const r of Object.values(temperatureRules)) {
     limits[r.zone] = { minC: r.minC, maxC: r.maxC };
   }
   // Without who the check took to be home, the house would have to guess; it doesn't.
@@ -211,6 +222,7 @@ export function runsFrom(
       breaks,
       trace: traces[planId] ?? null,
       limits,
+      temperatureRules,
       presence: presence.map((w) => ({
         fromMs: Date.parse(w.from),
         toMs: Date.parse(w.to),
@@ -706,6 +718,7 @@ export function sampleDay(guard: Guard, nowIso: string): Run {
     breaks: [{ kind: 'guard', atMs: begins, text: guard.words, device: guard.device }],
     trace: null,
     limits: {},
+    temperatureRules: {},
     presence: [],
   };
 }
