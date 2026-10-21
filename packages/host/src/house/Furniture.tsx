@@ -4,6 +4,7 @@ import { useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
 import type { Material, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { ghostly } from './ghost.ts';
 import type { HouseLayout, Prop } from './layout.ts';
 import { palette } from './palette.ts';
 
@@ -46,6 +47,7 @@ function Placed({ prop, scene }: { prop: Prop; scene: Object3D }) {
         return c;
       };
       mesh.material = Array.isArray(mesh.material) ? mesh.material.map(own) : own(mesh.material);
+      for (const m of [mesh.material].flat()) ghostly(m);
     });
     return copy;
   }, [scene, prop.tint]);

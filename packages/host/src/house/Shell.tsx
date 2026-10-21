@@ -1,9 +1,16 @@
 'use client';
 
-import { useLoader } from '@react-three/fiber';
+import { useFrame, useLoader } from '@react-three/fiber';
 import { useMemo } from 'react';
-import { MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TextureLoader } from 'three';
+import {
+  type Material,
+  MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
+  TextureLoader,
+} from 'three';
 import { groundBounds, houseBounds, type WallPiece, wallHeightAt, wallPieces } from './geometry.ts';
+import { ghost, ghostly } from './ghost.ts';
 import type { Built, HouseLayout, Opening, Room } from './layout.ts';
 import { type LiveHome, lookOf } from './looks.ts';
 import { palette } from './palette.ts';
@@ -38,6 +45,9 @@ export function Shell({ layout, home }: { layout: HouseLayout; home: LiveHome | 
     </>
   );
 }
+
+/** Lets a JSX material take part in the shadow twin. */
+const twin = (m: Material | null) => ghostly(m);
 
 /** A diorama plinth: lawn on top, soil at the sides, a drive to the garage and a path to the door. */
 function Grounds({ layout }: { layout: HouseLayout }) {
@@ -129,6 +139,7 @@ function Floor({ room, layout }: { room: Room; layout: HouseLayout }) {
     >
       <planeGeometry args={[room.width, room.depth]} />
       <meshStandardMaterial
+        ref={twin}
         map={map}
         normalMap={normalMap}
         aoMap={arm}
@@ -139,13 +150,27 @@ function Floor({ room, layout }: { room: Room; layout: HouseLayout }) {
   );
 }
 
+/** The walls: solid in the real house, half see-through in the twin. */
 function Walls({ layout }: { layout: HouseLayout }) {
   const pieces = useMemo(() => wallPieces(layout), [layout]);
-  const plaster = useMemo(
-    () => new MeshStandardMaterial({ color: palette.plaster, roughness: 0.92 }),
-    [],
-  );
-  const cut = useMemo(() => new MeshStandardMaterial({ color: palette.cut, roughness: 0.8 }), []);
+  const plaster = useMemo(() => {
+    const m = new MeshStandardMaterial({
+      color: palette.plaster,
+      roughness: 0.92,
+      transparent: true,
+    });
+    ghostly(m);
+    return m;
+  }, []);
+  const cut = useMemo(() => {
+    const m = new MeshStandardMaterial({ color: palette.cut, roughness: 0.8, transparent: true });
+    ghostly(m);
+    return m;
+  }, []);
+  // Always blended, so turning see-through costs no shader rebuild mid-playback.
+  useFrame(() => {
+    for (const m of [plaster, cut]) m.opacity = 1 - 0.5 * ghost.value;
+  });
   return (
     <group>
       {pieces.map((p) => (
@@ -234,7 +259,7 @@ function OpeningFill(props: { opening: Opening; wallHeight: number; open: boolea
   return (
     <mesh position={[cx, height / 2, cz]} rotation-y={turn} castShadow receiveShadow>
       <boxGeometry args={[span - 0.03, height, 0.05]} />
-      <meshStandardMaterial color={color} roughness={0.6} />
+      <meshStandardMaterial ref={twin} color={color} roughness={0.6} />
     </mesh>
   );
 }
@@ -252,7 +277,7 @@ function Frame({ width, height }: { width: number; height: number }) {
       {bars.map(([x, y, w, h]) => (
         <mesh key={`${x},${y}`} position={[x, y, 0]} castShadow>
           <boxGeometry args={[w, h, 0.05]} />
-          <meshStandardMaterial color={palette.ivory} roughness={0.5} />
+          <meshStandardMaterial ref={twin} color={palette.ivory} roughness={0.5} />
         </mesh>
       ))}
     </>
@@ -269,6 +294,7 @@ function BuiltPiece({ piece: b, glow }: { piece: Built; glow: number }) {
         <mesh position={[0, b.height / 2, 0]} receiveShadow>
           <boxGeometry args={[b.width, b.height, b.depth]} />
           <meshStandardMaterial
+            ref={twin}
             color={b.room === 'living_room' ? palette.rugLiving : palette.rugBedroom}
             roughness={1}
           />
@@ -302,11 +328,11 @@ function Counter({ b }: { b: Built }) {
     <>
       <mesh position={[0, (b.height - 0.04) / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[b.width, b.height - 0.04, b.depth]} />
-        <meshStandardMaterial color={palette.counterFront} roughness={0.7} />
+        <meshStandardMaterial ref={twin} color={palette.counterFront} roughness={0.7} />
       </mesh>
       <mesh position={[0, b.height - 0.02, 0.01]} castShadow receiveShadow>
         <boxGeometry args={[b.width + 0.02, 0.04, b.depth + 0.02]} />
-        <meshStandardMaterial color={palette.counterTop} roughness={0.35} />
+        <meshStandardMaterial ref={twin} color={palette.counterTop} roughness={0.35} />
       </mesh>
     </>
   );
