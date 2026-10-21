@@ -492,6 +492,70 @@ describe('checking the house as someone leaves', () => {
   });
 });
 
+describe("away mode without saying who's away", () => {
+  let env: Awaited<ReturnType<typeof start>>;
+  let api: Awaited<ReturnType<typeof connect>>;
+  beforeAll(async () => {
+    env = await start();
+    api = await connect(env.url, 'legacy');
+  });
+  afterAll(async () => {
+    await api.client.close();
+    await env.close();
+  });
+
+  const WHO_IS_AWAY = "Who's away, and until when?";
+
+  test("asks who's away and until when, and no yes or tap commits it", async () => {
+    const shown = await api.client.callTool({
+      name: 'preview_plan',
+      arguments: {
+        intent: 'Set the house to away.',
+        requestedBy: 'om',
+        actions: [{ mode: 'away' }],
+      },
+    });
+    const p = previewOutput.parse(shown.structuredContent);
+    expect(p).toMatchObject({
+      verdict: 'UNPROVEN',
+      tier: 'T5',
+      tierWhy: "who's away isn't given",
+      unknowns: ["who's away, and until when, isn't given"],
+      repair: null,
+      safePart: null,
+    });
+    expect(p.speech).toEqual({
+      headline: "I can't confirm that yet: I don't know who's away.",
+      reason:
+        "House rules for when nobody's home depend on who's out, and away mode alone doesn't say.",
+      ask: WHO_IS_AWAY,
+    });
+
+    // A yes to "Who's away?" says nothing about who's away.
+    const refusal = {
+      status: 'refused',
+      reason: 'who_is_away_unknown',
+      planId: p.planId,
+      speech: { headline: "I can't run that until I know who's away, and until when." },
+      applied: [],
+      held: [],
+    };
+    const yes = await api.call<CommitOutput>('commit_plan', { planId: p.planId, confirmed: true });
+    expect(commitOutput.parse(yes)).toMatchObject(refusal);
+
+    // Nor does a tap: the screen can't approve it, and a commit after trying is still refused.
+    const tap = await api.call<{ status: string; reason?: string }>('approve_plan', {
+      planId: p.planId,
+      approvalToken: tokenFor(shown, p.planId),
+    });
+    expect(tap).toMatchObject({ status: 'refused', reason: 'unsafe' });
+    expect(await api.call<CommitOutput>('commit_plan', { planId: p.planId })).toMatchObject(
+      refusal,
+    );
+    expect((await api.call<HomeStateOutput>('get_home_state', {})).mode).toBe('home');
+  });
+});
+
 describe('house rules', () => {
   let env: Awaited<ReturnType<typeof start>>;
   let api: Awaited<ReturnType<typeof connect>>;
