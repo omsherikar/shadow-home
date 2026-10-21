@@ -34,10 +34,12 @@ export class TurnStoppedError extends Error {
  * call already started finishes (it has its own timeout in mcp.ts), so the person hears what
  * really happened.
  *
- * `emit` hears the turn as it happens (decision 107): a step for each tool call (running from when
- * the model begins it, then done or failed), and each call once it returns. When `signal` aborts,
- * the model stops writing and no further tool call starts. A model step left behind is stopped
- * too, and nothing it writes afterwards is sent.
+ * `emit` hears the turn as it happens (decision 107): the model's words, a step for each tool call
+ * (running from when the model begins it, then done or failed), and each call once it returns.
+ * Words written in separate model calls are joined with a space; a turn whose model wrote nothing
+ * as it went (the scripted one, Bedrock) sends what it says as one piece at the end. When `signal`
+ * aborts, the model stops writing and no further tool call starts. A model step left behind is
+ * stopped too, and nothing it writes afterwards is sent.
  */
 export async function runTurn(
   model: Model,
@@ -61,11 +63,22 @@ export async function runTurn(
   const emit = (event: TurnEvent) => {
     if (!over) options.emit?.(event);
   };
+  let said = '';
+  // Set where the words that follow belong to a new piece: a new model call, or after a step.
+  let gap = false;
+  const say = (delta: string) => {
+    if (!delta) return;
+    const joined = gap && said !== '' && !/\s$/.test(said) && !/^\s/.test(delta);
+    gap = false;
+    said += joined ? ` ${delta}` : delta;
+    emit({ event: 'text', data: { delta: joined ? ` ${delta}` : delta } });
+  };
   let steps = 0;
   let open: Omit<Step, 'state'> | undefined;
   const begin = (tool: string) => {
     if (open) return;
     open = { id: `s${++steps}`, tool, label: stepLabel(tool) };
+    gap = true;
     emit({ event: 'step', data: { ...open, state: 'running' } });
   };
   const end = (state: 'done' | 'failed') => {
@@ -75,6 +88,11 @@ export async function runTurn(
   };
   const onEvent = (event: ModelEvent) => {
     if ('tool' in event) begin(event.tool);
+    else say(event.text);
+  };
+  const finish = (words: string): TurnResponse => {
+    if (said === '') say(words);
+    return { say: words, calls };
   };
   try {
     for (let i = 0; i < MAX_STEPS; i++) {
@@ -82,6 +100,7 @@ export async function runTurn(
       // step starts, since its answer would be thrown away and it costs a model call.
       if (now() >= deadline) throw new TurnDeadlineError('The turn ran out of time');
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
+      gap = true;
       const step = await within(
         model.next({ ...request, thisTurn: calls }, { signal: stop.signal, onEvent }),
         deadline - now(),
@@ -89,7 +108,7 @@ export async function runTurn(
       );
       if ('say' in step) {
         end('failed');
-        return { say: step.say, calls };
+        return finish(step.say);
       }
       // Stopped while the model decided: its call isn't made.
       if (stop.signal.aborted) throw new TurnStoppedError('The turn was stopped');
@@ -107,19 +126,22 @@ export async function runTurn(
       calls.push(call);
       emit({ event: 'call', data: { call } });
     }
+    return finish(lastSpoken(calls) ?? UNFINISHED);
   } catch (e) {
     end('failed');
     // Nothing ran: the caller says it couldn't reach the model.
     if (calls.length === 0) throw e;
     // Something ran (a commit, perhaps) before the model failed or ran out of time: report it.
+    return finish(lastSpoken(calls) ?? UNFINISHED);
   } finally {
     // A model step left behind stops writing, and nothing it writes is heard.
     over = true;
     stop.abort();
     options.signal?.removeEventListener('abort', stopped);
   }
-  return { say: lastSpoken(calls) ?? "Sorry, I couldn't finish that.", calls };
 }
+
+const UNFINISHED = "Sorry, I couldn't finish that.";
 
 /**
  * The promise, or a TurnDeadlineError after `ms`, or a TurnStoppedError when `signal` aborts. The
