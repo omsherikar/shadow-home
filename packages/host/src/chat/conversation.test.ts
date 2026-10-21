@@ -189,6 +189,14 @@ describe('what to offer next', () => {
     });
     expect(labels([undo])).toEqual(['Yes, undo it', 'Why?', 'Keep it']);
   });
+
+  test('a stale plan checked again offers what the fresh check offers', () => {
+    const refused = call('commit_plan', {
+      status: 'refused',
+      freshPreview: preview({ repair: { verdict: 'SAFE' } }),
+    });
+    expect(labels([refused])).toEqual(['Run the safer plan', 'Why?', "Don't run"]);
+  });
 });
 
 describe('the details view', () => {
