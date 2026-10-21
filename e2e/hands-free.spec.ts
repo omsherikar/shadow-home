@@ -63,6 +63,31 @@ async function hear(page: Page, text: string) {
     .toBe(true);
 }
 
+/**
+ * Says `words` the moment the pill shows she's listening (`listening`: for an answer, or for a
+ * request after "Alexa"), checking in the page itself. Those windows last 8 s by design, and a
+ * test's round trips on a slow machine mustn't use them up. Gives back what the pill and the chat
+ * said at that moment.
+ */
+async function sayWhenListening(page: Page, listening: string, words: string) {
+  const seen = await page.evaluate(
+    async ({ listening, words }) => {
+      const w = window as unknown as { hear(t: string): boolean };
+      const until = performance.now() + 15_000;
+      while (performance.now() < until) {
+        const pill = document.querySelector('.hands-free')?.textContent ?? '';
+        const state = document.querySelector('.chat-state')?.textContent ?? '';
+        if (pill.includes(listening) && w.hear(words)) return { pill, state };
+        await new Promise((r) => setTimeout(r, 10));
+      }
+      return null;
+    },
+    { listening, words },
+  );
+  expect(seen, `listening for ${listening}`).not.toBeNull();
+  return seen as { pill: string; state: string };
+}
+
 /** The text of each turn the page sends, in order. */
 function turnsSent(page: Page): string[] {
   const sent: string[] = [];
@@ -184,11 +209,8 @@ test('one tap, then by voice alone: a request, her question aloud, and the answe
   await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   // She says her question aloud, then listens for the answer with no wake word.
   await expect.poll(() => spoken).toContain('Do it with 4 fixes instead?');
-  await expect(pill(page)).toContainText('Listening for your answer');
-  await expect(page.locator('.chat-state')).toHaveText('Listening for your answer');
-  await page.locator('.chat-head').screenshot({ path: 'test-results/hands-free-answer.png' });
-
-  await hear(page, 'yes');
+  const answering = await sayWhenListening(page, 'Listening for your answer', 'yes');
+  expect(answering.state).toBe('Listening for your answer');
   await expect.poll(() => sent).toEqual([WEEKEND, 'yes']);
   await expect(view(page).getByText('Done', { exact: true })).toBeVisible();
   // Nothing more to answer: back to listening for "Alexa".
