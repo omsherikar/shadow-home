@@ -111,6 +111,15 @@ function withCalls(m: Message, calls: ToolCall[], names?: Names): Message {
   };
 }
 
+/** The person stopped the answer: what came so far stays, and any step still running stops. */
+export function stopped(m: Message): Message {
+  return {
+    ...m,
+    phase: 'stopped',
+    steps: (m.steps ?? []).map((s) => (s.state === 'running' ? { ...s, state: 'failed' } : s)),
+  };
+}
+
 // The details view
 
 interface ViolationLike {
