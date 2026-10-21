@@ -1,7 +1,8 @@
 import { type Home, own, type Plan, type Value } from '@shadow-home/twin';
 import type { DiffRow } from './diff.ts';
+import { whoIsAwayUnknown } from './presence.ts';
 import { ruleDevices } from './rules.ts';
-import type { TierResult } from './tier.ts';
+import { refusingRule, type TierResult } from './tier.ts';
 import type { CheckResult, Reason, Verdict } from './verdict.ts';
 
 /** What Alexa speaks from. Data, not a script: each field fits in one breath. */
@@ -15,6 +16,9 @@ export interface Speech {
 }
 
 export const SPEECH_LIMITS = { headline: 15, reason: 25, ask: 25 } as const;
+
+/** The question for a plan that sets away mode without saying who's away. */
+const WHO_IS_AWAY = "Who's away, and until when?";
 
 export function wordCount(s: string): number {
   return s.split(/\s+/).filter(Boolean).length;
@@ -72,6 +76,17 @@ export function speech(
     }
     switch (tier.tier) {
       case 'T5':
+        // Refused until a new preview says who's away: the rules for an empty house depend on it.
+        // No part of the plan can be confirmed without it either, since the safe part keeps the
+        // mode change, so the only question is who.
+        if (whoIsAwayUnknown(result) && !refusingRule(result)) {
+          return {
+            headline: "I can't confirm that yet: I don't know who's away.",
+            reason:
+              "House rules for when nobody's home depend on who's out, and away mode alone doesn't say.",
+            ask: WHO_IS_AWAY,
+          };
+        }
         return {
           headline: "I can't do that.",
           reason: top && 'text' in top && top.text ? `${top.text} ${ownedBy(top, name)}` : '',
