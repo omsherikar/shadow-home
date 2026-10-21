@@ -22,6 +22,7 @@ import {
   PLAN_VIEW_MIME,
   PLAN_VIEW_URI,
   planViewHtml,
+  REPLAY_META_KEY,
   TEMPERATURE_RULES_META_KEY,
   TEMPERATURES_META_KEY,
 } from './view.ts';
@@ -82,6 +83,7 @@ export function buildServer(service: ShadowHomeService): McpServer {
     ),
     [TEMPERATURES_META_KEY]: service.temperatures(out),
     [TEMPERATURE_RULES_META_KEY]: service.temperatureRules(out),
+    [REPLAY_META_KEY]: service.replays(out),
   });
 
   server.registerResource(
