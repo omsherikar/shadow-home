@@ -24,6 +24,8 @@ export interface ChatProps {
   notice: string | null;
   onSend(says: string, label?: string): void;
   onMic(): void;
+  /** Stop the answer coming in, or the voice. */
+  onStop(): void;
   /** The small menu: "Play the demo". */
   menu: ReactNode;
 }
@@ -48,6 +50,7 @@ export function Chat(props: ChatProps) {
   const input = useRef<HTMLInputElement>(null);
   const following = useRef(true);
   const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
+  const live = busy || activity === 'speaking';
   const last = messages.at(-1);
 
   // Follow the newest message, unless the person has scrolled up to read.
@@ -148,14 +151,20 @@ export function Chat(props: ChatProps) {
           disabled={!ready}
           enterKeyHint="send"
         />
-        <button
-          type="submit"
-          className="round send"
-          aria-label="Send"
-          disabled={!ready || busy || !draft.trim()}
-        >
-          <SendIcon />
-        </button>
+        {live ? (
+          <button type="button" className="round stop" aria-label="Stop" onClick={props.onStop}>
+            <StopIcon />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="round send"
+            aria-label="Send"
+            disabled={!ready || !draft.trim()}
+          >
+            <SendIcon />
+          </button>
+        )}
       </form>
     </div>
   );
@@ -186,6 +195,7 @@ function Answer({ m }: { m: Message }) {
         </p>
       ) : null}
       {steps.length > 0 ? <Steps steps={steps} open={!finished} /> : null}
+      {m.phase === 'stopped' ? <p className="aside">Stopped.</p> : null}
       {m.details && m.details.length > 0 ? (
         <details className="more">
           <summary>Details</summary>
@@ -257,6 +267,14 @@ function SendIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" />
     </svg>
   );
 }
