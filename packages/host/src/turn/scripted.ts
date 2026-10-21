@@ -40,6 +40,8 @@ const NO = /^(no|nope|cancel|never ?mind|stop|keep it)\b/;
 const LEAVING = /^(im|i am|were|we are) (heading out|leaving|going out|off)( now)?$/;
 /** How long the house is checked empty when someone leaves without saying when they'll be back. */
 const LEAVING_HOURS = 4;
+/** A question about the last answer: "why?", "why not?", "how come?", "why is that?". */
+const WHY = /^(why|how come)\b/;
 
 /**
  * A stand-in for the model that knows the demo lines. It drafts the scripted plan for a demo
@@ -123,12 +125,24 @@ interface PreviewLike {
 }
 
 /**
+ * The last thing in the conversation that can be answered: neither the assistant's own words nor
+ * a "why?", which leave a question open.
+ */
+function lastAnswer(history: Remembered[]): Remembered | undefined {
+  return history.findLast(
+    (h) =>
+      h.name !== 'said' &&
+      !(h.name === 'heard' && WHY.test(normalise(String(h.arguments.text ?? '')))),
+  );
+}
+
+/**
  * The question still open: the one asked by the last thing in the conversation. Anything said or
- * tapped since (a "no", Cancel, another request) closes it, so a later yes can't answer it.
+ * tapped since (a "no", Cancel, another request) closes it, so a later yes can't answer it; the
+ * assistant's own words (asking the question) and a "why?" don't.
  */
 function openQuestion(history: Remembered[]): { preview?: PreviewLike; confirm?: string } | null {
-  // The assistant's own words (asking the question) don't close it.
-  const last = history.findLast((h) => h.name !== 'said');
+  const last = lastAnswer(history);
   const sc = last?.structuredContent;
   if (!last || !sc) return null;
   if (last.name === 'preview_plan') return { preview: sc as unknown as PreviewLike };
