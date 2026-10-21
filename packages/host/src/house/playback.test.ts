@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
   carriesPreview,
+  playhead,
   REPLAY_META_KEY,
   type Run,
   runsFrom,
+  schedule,
   TEMPERATURES_META_KEY,
   type Trace,
 } from './playback.ts';
@@ -228,5 +230,16 @@ describe('runs from a tool result', () => {
     expect(carriesPreview('commit_plan', { status: 'refused', freshPreview: preview })).toBe(true);
     expect(carriesPreview('commit_plan', { status: 'committed' })).toBe(false);
     expect(carriesPreview('get_home_state', { now: FRI })).toBe(false);
+  });
+});
+
+describe('the schedule', () => {
+  const [run] = runsFrom('preview_plan', preview, meta) as [Run];
+  const s = schedule(run, { sweepMs: 8000, holdMs: 1000 });
+
+  test('sweeps the whole run in the sweep time, plus a stop at each break', () => {
+    expect(s.totalMs).toBeCloseTo(8000 + 2 * 1000, 6);
+    expect(playhead(s, 0)).toEqual({ homeMs: run.startMs, held: [run.breaks[0]] });
+    expect(playhead(s, s.totalMs).homeMs).toBe(run.endMs);
   });
 });
