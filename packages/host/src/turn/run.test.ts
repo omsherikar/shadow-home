@@ -175,6 +175,13 @@ describe('a turn as it happens', () => {
       { call: 'preview_plan' },
       { text: `Not safe: the garage would freeze. ${explanation} Do it with 4 fixes instead?` },
     ]);
+    // A piece at a time: the headline as the check returned, the model's sentence once it passed
+    // (its own question never did), and the engine's question last.
+    expect(events.flatMap((e) => (e.event === 'text' ? [e.data.delta] : []))).toEqual([
+      'Not safe: the garage would freeze.',
+      ` ${explanation}`,
+      ' Do it with 4 fixes instead?',
+    ]);
     expect(events[events.findIndex((e) => e.event === 'step')]).toEqual({
       event: 'step',
       data: { id: 's1', tool: 'preview_plan', label: stepLabel('preview_plan'), state: 'running' },
