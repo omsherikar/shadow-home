@@ -3,7 +3,7 @@
 import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
 import { CHIPS } from '../stage/stage.ts';
 import { MAX_TEXT } from '../turn/bounds.ts';
-import type { FollowUp, Message, Step } from './conversation.ts';
+import { type FollowUp, type Message, problemWords, type Step } from './conversation.ts';
 
 /** What the person can see Alexa doing. */
 export type Activity = 'idle' | 'listening' | 'thinking' | 'working' | 'answering' | 'speaking';
@@ -26,6 +26,7 @@ export interface ChatProps {
   onMic(): void;
   /** Stop the answer coming in, or the voice. */
   onStop(): void;
+  onRetry(m: Message): void;
   /** The small menu: "Play the demo". */
   menu: ReactNode;
 }
@@ -66,7 +67,7 @@ export function Chat(props: ChatProps) {
     if (el && following.current) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // What was pressed (a suggestion, Send) goes away once it's used, so focus comes back
+  // What was pressed (a suggestion, Send, Try again) goes away once it's used, so focus comes back
   // to the text box, where a keyboard carries on. Not on a touch screen, where that would open
   // the keyboard over the answer.
   const refocus = () => {
@@ -74,6 +75,10 @@ export function Chat(props: ChatProps) {
   };
   const send = (says: string, label?: string) => {
     props.onSend(says, label);
+    refocus();
+  };
+  const retry = (m: Message) => {
+    props.onRetry(m);
     refocus();
   };
 
@@ -106,7 +111,7 @@ export function Chat(props: ChatProps) {
                 <p className="said">{m.text}</p>
               </li>
             ) : (
-              <Answer key={m.id} m={m} />
+              <Answer key={m.id} m={m} latest={m === last} onRetry={retry} />
             ),
           )}
         </ol>
@@ -170,7 +175,15 @@ export function Chat(props: ChatProps) {
   );
 }
 
-function Answer({ m }: { m: Message }) {
+function Answer({
+  m,
+  latest,
+  onRetry,
+}: {
+  m: Message;
+  latest: boolean;
+  onRetry(m: Message): void;
+}) {
   const steps = m.steps ?? [];
   const finished = m.phase === 'done' || m.phase === 'stopped' || m.phase === 'failed';
   const look = m.verdict ? CHIPS[m.verdict] : null;
@@ -196,6 +209,16 @@ function Answer({ m }: { m: Message }) {
       ) : null}
       {steps.length > 0 ? <Steps steps={steps} open={!finished} /> : null}
       {m.phase === 'stopped' ? <p className="aside">Stopped.</p> : null}
+      {m.problem ? (
+        <div className="problem" role="alert">
+          <p>{problemWords(m.problem)}</p>
+          {m.problem.retryable && m.problem.retryAt === undefined && latest && m.request ? (
+            <button type="button" className="retry" onClick={() => onRetry(m)}>
+              Try again
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {m.details && m.details.length > 0 ? (
         <details className="more">
           <summary>Details</summary>
