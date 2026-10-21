@@ -43,7 +43,8 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 - Demo mode (DEMO_MODE=1) replays fixtures/demo-script.json with recorded plans, no model calls.
 - MOCK_MODEL=1 swaps the live model for a scripted one so the app runs with no keys.
 - DEMO_CLOCK=1: before a turn, move home time to the scene of the demo line heard (server needs
-  SHADOW_HOME_DEMO=1). SHADOW_HOME_SILENT=1: don't speak (browser tests).
+  SHADOW_HOME_DEMO=1). SHADOW_HOME_SILENT=1: don't speak (browser tests; `?speak=1` speaks
+  anyway, for a test with /api/speak stubbed).
 - Keys: ANTHROPIC_API_KEY (ANTHROPIC_MODEL_ID overrides the model), ELEVENLABS_API_KEY
   (ELEVENLABS_VOICE_ID overrides the voice). AWS, when chosen: AWS_PROFILE (default shadow-home on a
   laptop; in AWS, the role's own credentials), AWS_REGION (default us-east-1), BEDROCK_MODEL_ID,
