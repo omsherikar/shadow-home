@@ -43,6 +43,7 @@ import { NARROW, Stage, useMedia } from '../stage/Stage.tsx';
 import { browserStorage } from '../stage/stage.ts';
 import { fitHistory, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnRequest } from '../turn/types.ts';
+import { HandsFreeButton } from '../voice/HandsFreeButton.tsx';
 import { useHandsFree } from '../voice/useHandsFree.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
 import { Strip } from './Strip.tsx';
@@ -714,6 +715,18 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           }}
           onStop={stop}
           onRetry={retry}
+          voiceControl={
+            <HandsFreeButton
+              mode={handsFree.state.mode}
+              available={handsFree.available}
+              resumable={handsFree.resumable}
+              onStart={() => {
+                stopSpeaking();
+                handsFree.turnOn();
+              }}
+              onStop={handsFree.turnOff}
+            />
+          }
           menu={
             <details className="menu">
               <summary aria-label="More">
