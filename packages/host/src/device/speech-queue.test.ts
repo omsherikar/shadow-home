@@ -240,6 +240,15 @@ describe('whether the answer was heard aloud', () => {
     await v.drain();
     expect(await said).toBe(true);
   });
+
+  test('stopped before the end: no', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    const said = speech.finish(WEEKEND);
+    await v.arrive();
+    speech.clear();
+    expect(await said).toBe(false);
+  });
 });
 
 describe('whether she is speaking', () => {
