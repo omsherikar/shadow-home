@@ -60,6 +60,29 @@ async function stepUntil(page: Page, target: Locator, stepMs: number, limitMs: n
   await expect(target).toBeVisible({ timeout: 1000 });
 }
 
+/** Frames at a display's refresh, as a GPU draws them: enough for a playback to find it can sweep. */
+async function fastFrames(page: Page) {
+  for (let i = 0; i < 12; i++) await page.clock.fastForward(16);
+}
+
+/**
+ * Has WebGL give `name` as its renderer, whatever really draws: the house knows software WebGL
+ * from it, so a GPU's name lets a test see the sweep in CI too, where SwiftShader draws.
+ */
+async function rendererNamed(page: Page, name: string) {
+  await page.addInitScript((renderer) => {
+    const UNMASKED_RENDERER = 0x9246;
+    for (const kind of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      const read = kind.prototype.getParameter;
+      kind.prototype.getParameter = function (this: WebGLRenderingContext, which: number) {
+        return which === UNMASKED_RENDERER ? renderer : read.call(this, which);
+      } as typeof read;
+    }
+  }, name);
+}
+
+const A_GPU = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)';
+
 async function say(page: Page, text: string) {
   await openControls(page);
   await page.getByLabel('Say something').fill(text);
@@ -145,12 +168,7 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   // or the whole show, and the playback lands past it. Stepping the twin a frame at a time takes
   // about a minute on software WebGL.
   test.setTimeout(150_000);
-  // The house sweeps where it has found it can (a GPU); this is that session, whatever draws it.
-  await page.addInitScript(() => {
-    try {
-      sessionStorage.setItem('shadow-home/pace', 'animate');
-    } catch {}
-  });
+  await rendererNamed(page, A_GPU);
   await page.clock.install();
   await page.goto('/');
   await openControls(page);
@@ -158,6 +176,8 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   await page.getByRole('button', { name: WEEKEND }).click();
   const house = page.getByRole('region', { name: 'The house' });
   await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
+  // The playback judges its pace by its first frames; these come as fast as a GPU draws them.
+  await fastFrames(page);
   // The engine's own run: the playback stops where R3 breaks, its clock on the minute, and the
   // house's card gives the rule's words and whose rule it is.
   const r3 = house
@@ -183,12 +203,15 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   await expect(playing(page)).toHaveAttribute('data-playing', 'no');
 });
 
-test('on a machine too slow to sweep, the verdict comes first and the house shows where the plan ends', async ({
+test('where frames come slowly, the verdict comes first and the house shows where the plan ends; the next playback, drawn fast, sweeps', async ({
   page,
 }) => {
-  // On software WebGL the house knows from its renderer; elsewhere the gaps between a playback's
-  // first frames tell it, on the page's clock. The test holds that clock and moves it a second a
-  // frame, as software WebGL draws.
+  // The gaps between a playback's first frames, on the page's clock, tell it whether to sweep.
+  // The test holds that clock and moves it a second a frame, as software WebGL draws, with a GPU's
+  // name on the renderer so that the frames alone decide. Stepping frame by frame takes about a
+  // minute on software WebGL.
+  test.setTimeout(150_000);
+  await rendererNamed(page, A_GPU);
   await page.clock.install();
   await page.goto('/');
   await openControls(page);
@@ -205,6 +228,37 @@ test('on a machine too slow to sweep, the verdict comes first and the house show
   await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'plan');
   await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
   await expect(view(page).getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
+  // That slow start cost only that playback its sweep. Asked again (the same scene, so home time
+  // stays where it is for the tests after this one), the plan plays anew; its frames come fast,
+  // and it sweeps, stopping where R3 breaks.
+  await say(page, WEEKEND);
+  await expect(house.locator('.run-chip')).toHaveCount(0);
+  await fastFrames(page);
+  const r3 = house.getByRole('status').filter({ hasText: 'R3 breaks Sat 10:37 PM' });
+  await stepUntil(page, r3, 500, 20_000);
+  await expect(house.getByText(/^Saturday, 10:37 PM$/)).toBeVisible();
+});
+
+test('on software WebGL the house shows where each run ends, however fast its frames come', async ({
+  page,
+}) => {
+  await rendererNamed(
+    page,
+    'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device), SwiftShader driver)',
+  );
+  await page.clock.install();
+  await page.goto('/');
+  await openControls(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  const house = page.getByRole('region', { name: 'The house' });
+  // A fifth of a second of frames at a GPU's pace, and it's on the plan's end, with either run to
+  // choose. Swept, it would still be on Friday evening.
+  await fastFrames(page);
+  await expect(house.getByRole('button', { name: 'With 4 fixes' })).toBeVisible();
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'plan');
+  await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
 });
 
 test('with less motion, the house shows where each run ends, without the sweep', async ({
