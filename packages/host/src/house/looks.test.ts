@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'vitest';
-import { daylight, type LiveDevice, lookOf, mix, parseLiveHome, skyColors } from './looks.ts';
+import {
+  daylight,
+  dotFor,
+  type LiveDevice,
+  lookOf,
+  mix,
+  parseLiveHome,
+  skyColors,
+} from './looks.ts';
 
 const device = (kind: string, state: LiveDevice['state'], trusted?: boolean): LiveDevice => ({
   id: 'd',
@@ -101,6 +109,25 @@ describe('the light outside', () => {
     expect(mix('#000000', '#ffffff', 1)).toBe('#ffffff');
     expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');
     expect(mix('#000000', '#ffffff', 2)).toBe('#ffffff');
+  });
+});
+
+describe('status dots', () => {
+  test('say what a lock, a plug and a thermostat are doing', () => {
+    expect(dotFor(device('lock', { lockState: 'LOCKED' }))).toEqual({
+      tone: 'locked',
+      label: 'Locked',
+    });
+    expect(dotFor(device('lock', { lockState: 'UNLOCKED' })).tone).toBe('unlocked');
+    expect(dotFor(device('plug', { onOff: true })).tone).toBe('on');
+    expect(dotFor(device('plug', { onOff: false })).tone).toBe('off');
+    const t = (mode: string, temp: number) =>
+      dotFor(
+        device('thermostat', { systemMode: mode, heatingSetpointC: 9, localTemperatureC: temp }),
+      );
+    expect(t('heat', 8)).toEqual({ tone: 'heating', label: 'Heating to 9 °C' });
+    expect(t('heat', 9.5)).toEqual({ tone: 'idle', label: 'Set to 9 °C' });
+    expect(t('off', 3).tone).toBe('off');
   });
 });
 
