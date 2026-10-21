@@ -21,7 +21,6 @@ import {
 import { ScreenHost } from '../screen/ScreenHost.ts';
 import type { HouseRequest } from '../stage/HousePanel.tsx';
 import { Stage } from '../stage/Stage.tsx';
-import { type Chip, chipFor } from '../stage/stage.ts';
 import { fitHistory, MAX_TEXT, spokenText } from '../turn/bounds.ts';
 import type { Names, Remembered, ToolCall, TurnResponse } from '../turn/types.ts';
 import { HomeCard, LogCard, type LogState, RuleCard, type RuleState } from './cards.tsx';
@@ -60,7 +59,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const [problem, setProblem] = useState<string | null>(null);
   const [home, setHome] = useState<LiveHome | null>(null);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
-  const [chip, setChip] = useState<Chip | null>(null);
   const [houseRequest, setHouseRequest] = useState<HouseRequest | null>(null);
   const [homeBroken, setHomeBroken] = useState(false);
   const [heard, setHeard] = useState('');
@@ -140,8 +138,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       });
       const fresh = call.result._meta?.[NAMES_META_KEY] as Names | undefined;
       if (fresh) names.current = fresh;
-      const verdict = chipFor(call.name, sc);
-      if (verdict) setChip(verdict);
       // What the house plays: a checked plan (and its fixes), a new rule's sample day, or, once a
       // plan is committed, the home as it now is. Both are read with zod, and what the house
       // can't read plays nothing; the house is never a reason for a turn to fail, so anything
@@ -342,7 +338,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     history.current = [];
     screenNote.current = undefined;
     setTranscript([]);
-    setChip(null);
     ask({ play: null });
     setScreen({ kind: 'home' });
     if (client) await refreshHome(client);
@@ -366,10 +361,6 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   return (
     <Stage
       home={home}
-      heard={heard}
-      said={said}
-      busy={busy}
-      chip={chip}
       request={houseRequest}
       homeBroken={homeBroken}
       device={
@@ -394,7 +385,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
           </div>
         </div>
       }
-      controls={
+      chat={
         <>
           <form className="voice" onSubmit={submit}>
             {micAvailable ? (

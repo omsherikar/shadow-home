@@ -13,7 +13,7 @@ import type { LiveHome } from '../house/looks.ts';
 import { drawsInSoftware } from '../house/pace.ts';
 import { webglRenderer } from '../house/webgl.ts';
 import { HousePanel, type HouseRequest } from './HousePanel.tsx';
-import { browserStorage, CHIPS, type Chip, type Layout, readLayout, writeLayout } from './stage.ts';
+import { browserStorage, type Layout, readLayout, writeLayout } from './stage.ts';
 
 // The device lays out at its full size beside the house and is zoomed out to fit, as a real screen
 // looks smaller from further away rather than rearranging itself.
@@ -22,33 +22,28 @@ const DEVICE_HEIGHT = DEVICE_WIDTH / 1.6;
 
 export interface StageProps {
   home: LiveHome | null;
-  heard: string;
-  said: string;
-  busy: boolean;
-  chip: Chip | null;
   /** What the house should play, from the latest tool results. */
   request: HouseRequest | null;
   /** The home's state didn't come back as expected: draw no house rather than a wrong one. */
   homeBroken: boolean;
   /** The Echo Show itself. It stays mounted in every layout, so its screen keeps its view. */
   device: ReactNode;
-  /** The demo controls: typed input, suggestions, transcript. */
-  controls: ReactNode;
+  /** The conversation and the composer: on the page in every layout. */
+  chat: ReactNode;
 }
 
 /**
- * The page: the house in 3D beside the device (split), or the house alone with a caption and the
- * verdict (house only), with the demo controls in a drawer. Without WebGL, or if the house fails,
- * it's the device and its controls as before.
+ * The page: the house in 3D beside the device with the chat under it (split), or the house alone
+ * with a compact chat over it (house only). Without WebGL, or if the house fails, it's the device
+ * with the chat under it.
  */
 export function Stage(props: StageProps) {
   const [house, setHouse] = useState<'checking' | 'on' | 'off'>('checking');
   // WebGL that draws on the CPU, where the house draws lean and doesn't sweep.
   const [lean, setLean] = useState(false);
   const [layout, setLayout] = useState<Layout>('split');
-  const [drawer, setDrawer] = useState(false);
-  const panel = useRef<HTMLElement>(null);
-  const scale = useFit(panel);
+  const fitBox = useRef<HTMLDivElement>(null);
+  const scale = useFit(fitBox);
   const still = useMedia('(prefers-reduced-motion: reduce)');
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
@@ -67,6 +62,7 @@ export function Stage(props: StageProps) {
 
   const withHouse = house !== 'off' && !props.homeBroken;
   const houseOnly = withHouse && layout === 'house';
+  const chat = <div className="chat-dock">{props.chat}</div>;
   return (
     <div className={withHouse ? `stage ${houseOnly ? 'house-only' : 'split'}` : 'room'}>
       {withHouse ? (
@@ -90,28 +86,16 @@ export function Stage(props: StageProps) {
           >
             {houseOnly ? 'Show the device' : 'House only'}
           </button>
-          {houseOnly ? <Caption {...props} /> : null}
-          <div className={drawer ? 'drawer open' : 'drawer'}>
-            <div id="demo-controls" className="drawer-body glass" hidden={!drawer}>
-              {props.controls}
-            </div>
-            <button
-              type="button"
-              className="drawer-handle glass"
-              aria-expanded={drawer}
-              aria-controls="demo-controls"
-              onClick={() => setDrawer(!drawer)}
-            >
-              {drawer ? 'Hide demo controls' : 'Demo controls'}
-            </button>
-          </div>
+          {houseOnly ? chat : null}
         </section>
       ) : null}
-      <section ref={panel} className="device-panel" aria-label="The device">
-        <div className="device-scaled" style={{ '--device-scale': scale } as CSSProperties}>
-          {props.device}
+      <section className="device-panel" aria-label="The device">
+        <div ref={fitBox} className="device-fit">
+          <div className="device-scaled" style={{ '--device-scale': scale } as CSSProperties}>
+            {props.device}
+          </div>
         </div>
-        {withHouse ? null : props.controls}
+        {houseOnly ? null : chat}
       </section>
     </div>
   );
@@ -151,49 +135,22 @@ export function useMedia(query: string): boolean {
   return matches;
 }
 
-/** How far to scale the device down to fit its panel. */
-function useFit(panel: { current: HTMLElement | null }): number {
+/** How far to scale the device down to fit the room it has. */
+function useFit(box: { current: HTMLElement | null }): number {
   const [scale, setScale] = useState(0.55);
   useEffect(() => {
-    const el = panel.current;
+    const el = box.current;
     if (!el) return;
-    const fit = () => {
+    const measure = () => {
       const style = getComputedStyle(el);
-      const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-      const height =
-        el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-      setScale(Math.max(0.2, Math.min(1, width / DEVICE_WIDTH, height / DEVICE_HEIGHT)));
+      const w = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const h = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      setScale(Math.max(0.2, Math.min(1, w / DEVICE_WIDTH, h / DEVICE_HEIGHT)));
     };
-    fit();
-    const observer = new ResizeObserver(fit);
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [panel]);
+  }, [box]);
   return scale;
-}
-
-/** In house-only mode, what was heard and said, and the verdict, float over the house. */
-function Caption({ heard, said, busy, chip }: StageProps) {
-  if (!heard && !said && !chip) return null;
-  return (
-    <div
-      className={busy ? 'float-caption glass thinking' : 'float-caption glass'}
-      aria-live="polite"
-    >
-      {chip ? <VerdictChip chip={chip} /> : null}
-      <div className="float-words">
-        {heard ? <p className="heard">“{heard}”</p> : null}
-        {said ? <p className="said">{said}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function VerdictChip({ chip }: { chip: Chip }) {
-  const { icon, tone } = CHIPS[chip];
-  return (
-    <span className={`verdict-chip ${tone}`}>
-      <span aria-hidden="true">{icon}</span> {chip}
-    </span>
-  );
 }
