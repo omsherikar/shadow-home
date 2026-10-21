@@ -101,6 +101,13 @@ const RULE_STATUS: Record<RuleState['status'], string> = {
   needs_compiler: 'Not added yet',
 };
 
+/** A test day's verdict as a person would say it. */
+const SAMPLE_DAY: Record<string, string> = {
+  SAFE: 'safe',
+  UNSAFE: 'not safe',
+  UNPROVEN: "can't confirm",
+};
+
 /**
  * A new house rule: read back in fixed words, what it clashes with and which comes first, a test
  * day. Rule numbers and priorities are in the chat's details.
@@ -134,7 +141,7 @@ export function RuleCard({ rule }: { rule: RuleState }) {
       ) : null}
       {rule.sampleDay ? (
         <p className="sample-day">
-          The next 24 hours as things stand: {rule.sampleDay.verdict}
+          The next 24 hours as things stand: {SAMPLE_DAY[rule.sampleDay.verdict] ?? 'checked'}
           {rule.sampleDay.brokenAt ? `, broken at ${rule.sampleDay.brokenAt}` : ''}.
         </p>
       ) : null}
