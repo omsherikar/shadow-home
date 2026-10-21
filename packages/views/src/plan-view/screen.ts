@@ -271,7 +271,7 @@ export function commitScreen(
     return {
       tone: 'done',
       icon: '✓',
-      word: 'DONE',
+      word: 'Done',
       ...speech,
       rowsTitle: 'Changed',
       rows: limitRows(
@@ -299,7 +299,7 @@ export function commitScreen(
     return {
       tone: 'unsure',
       icon: '?',
-      word: 'NEEDS A YES',
+      word: 'Needs a yes',
       ...speech,
       rowsTitle: 'What changes',
       rows: [],
@@ -319,7 +319,7 @@ export function commitScreen(
   return {
     tone: 'blocked',
     icon: '✕',
-    word: 'NOT DONE',
+    word: 'Not done',
     ...speech,
     rowsTitle: 'What changes',
     rows: [],
@@ -346,7 +346,7 @@ export function undoScreen(u: Undo, names?: Names, temps: Temperatures = NO_TEMP
   return {
     tone: 'neutral',
     icon: '–',
-    word: 'NOTHING TO UNDO',
+    word: 'Nothing to undo',
     headline: u.speech.headline,
     ...(u.speech.reason ? { reason: u.speech.reason } : {}),
     rowsTitle: 'What changes',

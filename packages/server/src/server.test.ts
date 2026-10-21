@@ -654,7 +654,7 @@ describe('the plan view', () => {
     const r = await api.client.callTool({ name: 'commit_plan', arguments: { planId: p.planId } });
     const commit = r.structuredContent as CommitOutput;
     const s = planScreen.commitScreen(commit, r._meta?.[NAMES_META_KEY] as Names);
-    expect(s).toMatchObject({ tone: 'done', word: 'DONE' });
+    expect(s).toMatchObject({ tone: 'done', word: 'Done' });
     expect(s.rows).toEqual([{ place: 'Living room', chips: [{ text: 'Lights 70 → 30%' }] }]);
     expect(s.controls.map((c) => [c.label, c.say])).toEqual([
       ['Undo', 'undo'],
