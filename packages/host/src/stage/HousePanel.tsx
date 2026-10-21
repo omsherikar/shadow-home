@@ -228,7 +228,7 @@ export const HousePanel = memo(function HousePanel(props: {
   } as CSSProperties;
 
   // What's broken so far in this run, by device; and what's shown as a card right now.
-  const fired = run ? run.breaks.filter((b) => b.atMs <= homeMs) : [];
+  const fired = m?.fired ?? [];
   const brokenAt = new Map<string, Break['kind']>();
   for (const b of fired) if (b.device && b.kind !== 'guard') brokenAt.set(b.device, b.kind);
   const cards = done ? fired.filter((b) => b.kind !== 'guard' || calm) : held;
