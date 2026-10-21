@@ -178,7 +178,7 @@ export function runsFrom(
       endMs: Date.parse(preview.horizon.end),
       offset: preview.horizon.start.slice(-6),
       changes,
-      breaks: breaksOf(replay, changes, startMs),
+      breaks: breaksOf(replay, startMs),
       trace: traces[planId] ?? null,
       limits,
       presence: presence.map((w) => ({
@@ -222,21 +222,21 @@ function previewIn(tool: string, sc: Record<string, unknown> | undefined): unkno
 
 /**
  * Rule breaks at their times, and what the twin couldn't establish. An unknown has no time of its
- * own in the result, so it shows when the plan first acts (the dishwasher starting at 2 AM).
+ * own in the result, so it shows when the plan first acts (the dishwasher starting at 2 AM), or
+ * at the start where the plan changes nothing itself (the leaving check).
  */
 function breaksOf(
   replay: Pick<Preview, 'timeline' | 'violations' | 'unknowns'>,
-  changes: Change[],
   startMs: number,
 ): Break[] {
-  // The plan's own first action, not a routine that happens to fire before it; failing that, the
-  // first change of all.
+  // The plan's own first action, never a routine's: a plan with none of its own (nothing to do,
+  // or writes that change nothing) is checked from the start, so that's where it stops.
   const planAt = replay.timeline
     .filter((e) => e.source === 'plan')
     .map((e) => Date.parse(e.at))
     .filter((ms) => ms >= startMs)
     .sort((a, b) => a - b)[0];
-  const firstAction = planAt ?? changes.find((c) => c.atMs >= startMs)?.atMs ?? startMs;
+  const firstAction = planAt ?? startMs;
   const broken: Break[] = replay.violations.map((v) => ({
     kind: v.run === 'nominal' ? 'violation' : 'not_robust',
     atMs: Date.parse(v.firstAt),
