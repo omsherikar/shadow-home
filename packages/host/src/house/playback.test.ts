@@ -332,6 +332,24 @@ describe('runs from a tool result', () => {
         ['unknown', Date.parse(FRI), 'front_door_contact'],
       ]);
     });
+
+    test('a plan that acts more than once stops at its first action', () => {
+      const act = (at: string) => ({
+        at,
+        source: 'plan',
+        device: 'dishwasher',
+        attr: 'onOff',
+        from: false,
+        to: true,
+      });
+      expect(
+        unknownAt([
+          ...routines,
+          act('2027-01-16T02:00:00-06:00'),
+          act('2027-01-16T01:00:00-06:00'),
+        ]),
+      ).toEqual([['unknown', at('2027-01-16T01:00:00'), 'front_door_contact']]);
+    });
   });
 
   test('an undo’s preview and a fresh preview after a stale plan ID play too; other results don’t', () => {
