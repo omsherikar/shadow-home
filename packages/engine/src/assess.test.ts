@@ -375,6 +375,22 @@ describe('repairs', () => {
     );
   });
 
+  test('a dropped device action, at a now or a time with seconds, keeps the value before it', () => {
+    const freezerOff = (at?: string): Plan => ({
+      context: { now: '2027-01-15T21:30:40-06:00' },
+      actions: [
+        at
+          ? { device: 'plug_garage_freezer', set: { onOff: false }, at }
+          : { device: 'plug_garage_freezer', set: { onOff: false } },
+      ],
+    });
+    for (const p of [freezerOff(), freezerOff('2027-01-15T22:00:30-06:00')]) {
+      expect(repair(home, p, check(home, p))?.repairs).toMatchObject([
+        { rule: 'R1', kind: 'drop_action', description: 'keep plug_garage_freezer on' },
+      ]);
+    }
+  });
+
   test('nothing to repair on a SAFE plan', () => {
     const p = bench('P002');
     expect(repair(home, p, check(home, p))).toBeNull();
