@@ -319,3 +319,20 @@ test('when the browser holds her voice back, she offers a tap to hear her, and o
   await page.waitForTimeout(1000);
   expect(sent).toEqual([WEEKEND]);
 });
+
+test('without speech recognition, it says it needs Chrome, and typing works as before', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    for (const name of ['webkitSpeechRecognition', 'SpeechRecognition']) {
+      Object.defineProperty(window, name, { value: undefined, configurable: true });
+    }
+  });
+  await page.goto('/');
+  await expect(pill(page)).toHaveText('Hands-free needs Chrome');
+  await pill(page).click();
+  await expect(page.getByText(/^Hands-free needs a browser that recognises speech/)).toBeVisible();
+  await page.getByLabel('Say something to Alexa').fill(WEEKEND);
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
+});
