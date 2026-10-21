@@ -1,8 +1,8 @@
 import type { ConverseCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { describe, expect, test } from 'vitest';
-import { anthropicConverse, fromReply, toRequest } from './anthropic.ts';
+import { anthropicConverse, fromReply, type MessagesApi, toRequest } from './anthropic.ts';
 import { bedrockModel, type HomeBrief, toolSpecs } from './bedrock.ts';
-import { fakeApi, reply } from './test-helpers.ts';
+import { eventsOf, fakeApi, reply } from './test-helpers.ts';
 
 const home: HomeBrief = {
   now: '2027-01-15T17:45:00-06:00',
@@ -124,5 +124,51 @@ describe('the Anthropic API behind the Converse loop', () => {
     expect(sent[0]?.messages).toEqual([
       { role: 'user', content: [{ type: 'text', text: 'turn off the TV' }] },
     ]);
+  });
+
+  test("it streams: the model's words as they come, and a tool call's name as its block starts", async () => {
+    const order: string[] = [];
+    const api: MessagesApi = {
+      messages: {
+        stream() {
+          const message = reply(
+            [
+              { type: 'text', text: 'Checking.' },
+              { type: 'tool_use', id: 'toolu_1', name: 'preview_plan', input: { intent: 'x' } },
+            ],
+            'tool_use',
+          );
+          return {
+            async *[Symbol.asyncIterator]() {
+              for (const event of eventsOf(message)) {
+                if (
+                  event.type === 'content_block_delta' &&
+                  event.delta.type === 'input_json_delta'
+                ) {
+                  order.push('input written');
+                }
+                yield event;
+              }
+            },
+            finalMessage: async () => message,
+          };
+        },
+      },
+    };
+    const heard: unknown[] = [];
+    const out = await anthropicConverse(api)(
+      { modelId: 'm', messages: [{ role: 'user', content: [{ text: 'x' }] }] },
+      {
+        onEvent: (e) => {
+          heard.push(e);
+          if ('tool' in e) order.push('tool heard');
+        },
+      },
+    );
+    expect(heard).toEqual([{ text: 'Checking.' }, { tool: 'preview_plan' }]);
+    expect(order).toEqual(['tool heard', 'input written']);
+    expect(out.output?.message?.content?.[1]).toEqual({
+      toolUse: { toolUseId: 'toolu_1', name: 'preview_plan', input: { intent: 'x' } },
+    });
   });
 });
