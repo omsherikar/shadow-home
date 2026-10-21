@@ -8,6 +8,9 @@ import { type Clip, speechQueue } from './speech-queue.ts';
 
 let voiceAvailable = true;
 
+/** How long a clip may take to come from /api/speak before the browser's voice says it instead. */
+export const CLIP_WAIT_MS = 12_000;
+
 /**
  * One sentence's clip from /api/speak. 503 (no voice, or this instance has spoken enough this
  * hour): the browser speaks for the rest of the session. 429 (this visitor has heard enough this
