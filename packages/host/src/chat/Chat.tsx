@@ -54,6 +54,8 @@ export function Chat(props: ChatProps) {
   const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
   const live = busy || activity === 'speaking';
   const last = messages.at(-1);
+  // The newest finished answer, for screen readers: whole answers, not every word as it streams.
+  const finished = messages.findLast((m) => m.who === 'alexa' && m.phase === 'done');
 
   // Follow the newest message, unless the person has scrolled up to read.
   const onScroll = () => {
@@ -91,8 +93,9 @@ export function Chat(props: ChatProps) {
   };
 
   const offers = props.followUps.length > 0 ? props.followUps : props.starters;
+  const empty = messages.length === 0;
   return (
-    <div className="chat" data-activity={activity}>
+    <div className={empty ? 'chat empty' : 'chat'} data-activity={activity}>
       <header className="chat-head">
         <Ring activity={activity} />
         <p className="chat-title">
@@ -104,6 +107,14 @@ export function Chat(props: ChatProps) {
         {props.menu}
       </header>
       <div className="chat-scroll" ref={list} onScroll={onScroll}>
+        {empty ? (
+          <div className="welcome">
+            <p className="welcome-words">
+              Ask me to change something at home. I'll try it on a copy of your house first, and
+              tell you if it would break one of your house rules.
+            </p>
+          </div>
+        ) : null}
         <ol className="messages" aria-label="Conversation">
           {messages.map((m) =>
             m.who === 'you' ? (
@@ -118,6 +129,9 @@ export function Chat(props: ChatProps) {
         </ol>
         {props.notice ? <p className="chat-notice">{props.notice}</p> : null}
       </div>
+      <p className="sr-only" aria-live="polite">
+        {finished ? finished.text : ''}
+      </p>
       {offers.length > 0 && !busy ? (
         <div className="offers">
           {offers.map((o) => (
