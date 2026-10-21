@@ -294,6 +294,23 @@ describe('controls, each with the words that do the same by voice', () => {
     });
   });
 
+  test("refused until it says who's away: it reads as can't confirm, with nothing to do but close it", () => {
+    const p = preview('UNPROVEN', 'T5', {
+      unknowns: ["who's away, and until when, isn't given"],
+      speech: {
+        headline: "I can't confirm that yet: I don't know who's away.",
+        ask: "Who's away, and until when?",
+      },
+    });
+    expect(said(p)).toEqual([['OK', 'okay', { kind: 'dismiss' }]]);
+    expect(previewScreen(p, names)).toMatchObject({
+      tone: 'unsure',
+      icon: '?',
+      word: "Can't confirm",
+      ask: "Who's away, and until when?",
+    });
+  });
+
   test(`at most ${MAX_CARDS} cards; the other broken rules are counted`, () => {
     const v = (rule: string) => ({
       rule,
