@@ -325,6 +325,13 @@ describe('runs from a tool result', () => {
       // Only routines change anything: the plan is the house as it stands as someone leaves.
       expect(unknownAt(routines)).toEqual([['unknown', Date.parse(FRI), 'front_door_contact']]);
     });
+
+    test('so does a plan whose writes change nothing, which the timeline leaves out', () => {
+      // "Main thermostat to 20 °C" when it's already 20: no entry of the plan's own.
+      expect(unknownAt(routines.slice(1))).toEqual([
+        ['unknown', Date.parse(FRI), 'front_door_contact'],
+      ]);
+    });
   });
 
   test('an undo’s preview and a fresh preview after a stale plan ID play too; other results don’t', () => {
