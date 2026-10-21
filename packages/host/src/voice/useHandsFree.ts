@@ -50,6 +50,7 @@ export function useHandsFree(options: {
   const [available, setAvailable] = useState<boolean | null>(null);
   const [heard, setHeard] = useState('');
   const [problem, setProblem] = useState<string | null>(null);
+  const [visible, setVisible] = useState(true);
   const current = useRef<HandsFree>(OFF);
   const latest = useRef(options);
   latest.current = options;
@@ -97,12 +98,21 @@ export function useHandsFree(options: {
     };
   }, [dispatch]);
 
-  // The microphone follows the state: on while listening, off while she thinks or speaks.
+  // In view or not: a hidden tab pauses the microphone, and showing it again resumes it.
   useEffect(() => {
-    if (hears(state.mode)) listener.current?.resume();
+    const update = () => setVisible(document.visibilityState !== 'hidden');
+    update();
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+
+  // The microphone follows the state: on while listening and in view, off while she thinks or
+  // speaks, or the tab is hidden.
+  useEffect(() => {
+    if (shouldListen(state, visible)) listener.current?.resume();
     else listener.current?.pause();
     if (state.mode !== 'awake' && state.mode !== 'answer') setHeard('');
-  }, [state]);
+  }, [state, visible]);
 
   const turnOn = useCallback(() => {
     if (!recognitionCtor()) {
