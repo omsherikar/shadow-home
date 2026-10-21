@@ -5,6 +5,7 @@ import {
   clockAt,
   detailsFor,
   followUpsFor,
+  glanceFor,
   type Message,
   problemWords,
   splitFollowUps,
@@ -222,6 +223,29 @@ describe('on a phone', () => {
       ],
       rest: [{ label: 'Why?', says: 'Why?' }],
     });
+  });
+
+  test("the strip shows a result's verdict and headline", () => {
+    const blocked = call(
+      'preview_plan',
+      preview({ speech: { headline: 'Blocked: that breaks 4 house rules.' } }),
+    );
+    expect(glanceFor(blocked)).toEqual({
+      verdict: 'UNSAFE',
+      headline: 'Blocked: that breaks 4 house rules.',
+    });
+    const done = call('commit_plan', {
+      status: 'committed',
+      speech: { headline: 'Done: 10 changes.' },
+    });
+    expect(glanceFor(done)).toEqual({ verdict: 'DONE', headline: 'Done: 10 changes.' });
+    const rule = call('add_house_rule', { status: 'added', speech: { headline: 'Rule added.' } });
+    expect(glanceFor(rule)).toEqual({ headline: 'Rule added.' });
+    expect(glanceFor(call('get_activity_log', { entries: [] }))).toEqual({
+      headline: 'What changed',
+    });
+    expect(glanceFor(call('get_home_state', { mode: 'home' }))).toBeNull();
+    expect(glanceFor(call('preview_plan', preview({}), true))).toBeNull();
   });
 });
 
