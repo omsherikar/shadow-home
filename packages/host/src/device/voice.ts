@@ -93,7 +93,10 @@ function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   return new Promise((resolve) => {
+    let over = false;
     const done = (heard: boolean) => {
+      if (over) return;
+      over = true;
       signal.removeEventListener('abort', stop);
       URL.revokeObjectURL(url);
       resolve(heard);
