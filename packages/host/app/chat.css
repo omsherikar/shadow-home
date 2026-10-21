@@ -76,3 +76,39 @@
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
 }
+
+/* The light ring: still and dim when idle; turning while she works; a pulse while she listens. */
+.ring {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #1d3a44, #2b5560, #1d3a44);
+  -webkit-mask: radial-gradient(circle, transparent 5px, #000 6px);
+  mask: radial-gradient(circle, transparent 5px, #000 6px);
+}
+
+.ring.thinking,
+.ring.working,
+.ring.answering,
+.ring.speaking {
+  background: conic-gradient(from 0deg, var(--ring-deep), var(--ring), #e0fbff, var(--ring-deep));
+  animation: ring-turn 1.4s linear infinite;
+}
+
+.ring.listening {
+  background: var(--ring);
+  animation: ring-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes ring-turn {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes ring-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
