@@ -25,7 +25,7 @@ import {
   temperaturesAt,
 } from '../house/playback.ts';
 import { fractionOf, markersOf, nightsOf, type SeekPhase, seeking } from '../house/timeline.ts';
-import { changeWords, readable, stepWords } from '../house/words.ts';
+import { changeWords, readable, stepWords, summaryOf } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
 import { Timeline } from './Timeline.tsx';
 import './house-panel.css';
@@ -77,10 +77,12 @@ const CHANGE_LABEL_MS = 1800;
 
 /**
  * The house panel: the 3D house under a sky that follows its clock, with room names, status dots
- * and what breaks pinned to it, and a card with the home's time and temperatures. When a plan is
- * checked it plays the plan forward in the shadow twin, then the plan with its fixes. It draws
- * again only when what it shows changes: the device beside it re-renders on every word of a turn,
- * and on a slow renderer each frame of the house holds the page for a second or more.
+ * and what breaks pinned to it, a card with the home's time and temperatures, and while a plan
+ * plays a timeline under it. When a plan is checked it plays the plan forward in the shadow twin:
+ * first its own changes, one at a time, then the clock through to the end, then the plan with its
+ * fixes, and a card says what each came to. It can be paused, sped up or dragged to any moment.
+ * It draws again only when what it shows changes: the device beside it re-renders on every word
+ * of a turn, and on a slow renderer each frame of the house holds the page for a second or more.
  */
 export const HousePanel = memo(function HousePanel(props: {
   home: LiveHome | null;
@@ -278,6 +280,7 @@ export const HousePanel = memo(function HousePanel(props: {
   const inCard = docked ? held : cards.filter((b) => !pinnedCards.includes(b));
   const guardOn = show?.guard && guarding(show.guard, time) ? show.guard.device : undefined;
   const byId = new Map((devices ?? []).map((d) => [d.id, d]));
+  const nameOf = (id: string) => byId.get(id)?.name;
   const recent = useRecentChanges(devices, !!show);
   const acting = new Set(step?.changes.map((c) => c.device) ?? []);
   const lastChange = (id: string) =>
@@ -291,6 +294,8 @@ export const HousePanel = memo(function HousePanel(props: {
     [run, show],
   );
   const nights = useMemo(() => (run ? nightsOf(run) : []), [run]);
+  const zoneName = (id: string) => home?.zones.find((z) => z.id === id)?.name;
+  const summaries = show && done && m ? show.runs.map((r) => summaryOf(r, nameOf, zoneName)) : [];
 
   const withStrip = !!(run && m);
   useEffect(() => setStripShown(withStrip), [withStrip]);
@@ -387,7 +392,7 @@ export const HousePanel = memo(function HousePanel(props: {
                   key={`${b.kind}:${b.rule ?? b.text}`}
                   b={b}
                   offset={run?.offset}
-                  name={(id) => byId.get(id)?.name}
+                  name={nameOf}
                 />
               ))}
             </div>
@@ -420,29 +425,35 @@ export const HousePanel = memo(function HousePanel(props: {
             ))}
           </dl>
         </div>
-        {show && show.runs.length > 1 && done ? (
-          <div className="run-switch">
-            {show.runs.map((r, i) => (
-              <button
-                key={r.planId}
-                type="button"
-                aria-pressed={m?.run === i}
-                className={r.tone}
-                onClick={() => replay(i)}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+        {show && done && (show.runs.length > 1 || summaries.some((line) => line !== null)) ? (
+          // What each run came to, each with a button to play it again.
+          <section className="end-card run-switch" aria-label="What the house showed">
+            {show.runs.map((r, i) => {
+              const line = summaries[i];
+              return (
+                <div key={r.planId} className={`end-row verdict-${r.verdict}`}>
+                  {show.runs.length > 1 ? (
+                    <button
+                      type="button"
+                      aria-pressed={m?.run === i}
+                      className={r.tone}
+                      onClick={() => replay(i)}
+                    >
+                      {r.label}
+                    </button>
+                  ) : (
+                    <b className="end-label">{r.label}</b>
+                  )}
+                  {line ? (
+                    <p className="end-words">{sentence(line.slice(r.label.length + 2))}</p>
+                  ) : null}
+                </div>
+              );
+            })}
+          </section>
         ) : null}
         {inCard.map((b) => (
-          <BreakCard
-            key={`${b.kind}:${b.text}`}
-            b={b}
-            offset={run?.offset}
-            name={(id) => byId.get(id)?.name}
-            inline
-          />
+          <BreakCard key={`${b.kind}:${b.text}`} b={b} offset={run?.offset} name={nameOf} inline />
         ))}
       </div>
       {run && !docked ? <ZoneChart run={run} homeMs={homeMs} zone="garage" /> : null}
@@ -530,6 +541,8 @@ function useRecentChanges(
 }
 
 const AUTHOR = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+/** A sentence that now stands on its own, beside its run's name: it starts with a capital. */
+const sentence = (words: string) => words.charAt(0).toUpperCase() + words.slice(1);
 
 /** A rule breaking (coral), a rule that may break or a reading that can't be trusted (amber). */
 function BreakCard({
