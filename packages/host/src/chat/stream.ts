@@ -5,7 +5,7 @@
  * (one that doesn't stream yet) gives one `done`. Everything that arrives is checked with zod.
  */
 import { z } from 'zod';
-import type { ToolCall, TurnResponse } from '../turn/types.ts';
+import type { ToolCall, TurnRequest, TurnResponse } from '../turn/types.ts';
 
 export type StepState = 'running' | 'done' | 'failed';
 
@@ -131,6 +131,22 @@ export function eventParser(): { push(chunk: string, last?: boolean): TurnEvent[
   };
 }
 
+const CANT_REACH: TurnEvent = {
+  type: 'error',
+  message: "I can't reach the house right now. Check your connection, then try again.",
+  retryable: true,
+};
+const CUT_OFF: TurnEvent = {
+  type: 'error',
+  message: 'My answer stopped partway. Try again.',
+  retryable: true,
+};
+const GARBLED: TurnEvent = {
+  type: 'error',
+  message: "My answer didn't come through properly. Try again.",
+  retryable: true,
+};
+
 /** What to say when the turn route refuses before it starts. */
 export function refusal(status: number, retryAfter?: string | null): TurnEvent {
   if (status === 400) {
@@ -157,4 +173,83 @@ export function refusal(status: number, retryAfter?: string | null): TurnEvent {
     };
   }
   return { type: 'error', message: 'Something went wrong on my side. Try again.', retryable: true };
+}
+
+export interface StreamOptions {
+  signal?: AbortSignal;
+  /** For tests; the page uses the browser's own. */
+  fetch?: typeof fetch;
+  /** Where the turn route is. */
+  url?: string;
+}
+
+/**
+ * One turn, as it happens. It ends after `done` or `error`; anything that goes wrong on the way
+ * (no connection, a cut-off stream, a refusal) comes as an `error` in plain words. Aborting the
+ * signal stops the turn: the request is cancelled and the generator ends with nothing more.
+ */
+export async function* streamTurn(
+  request: TurnRequest,
+  { signal, fetch: send = fetch, url = '/api/turn' }: StreamOptions = {},
+): AsyncGenerator<TurnEvent, void, undefined> {
+  let res: Response;
+  try {
+    res = await send(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+      body: JSON.stringify(request),
+      ...(signal ? { signal } : {}),
+    });
+  } catch {
+    if (!signal?.aborted) yield CANT_REACH;
+    return;
+  }
+  if (!res.ok) {
+    yield refusal(res.status, res.headers.get('retry-after'));
+    return;
+  }
+  const kind = res.headers.get('content-type') ?? '';
+  if (kind.includes('application/json')) {
+    let json: unknown;
+    try {
+      json = await res.json();
+    } catch {
+      if (!signal?.aborted) yield GARBLED;
+      return;
+    }
+    if (signal?.aborted) return;
+    const turn = turnResponse.safeParse(json);
+    yield turn.success ? { type: 'done', turn: turn.data as TurnResponse } : GARBLED;
+    return;
+  }
+  if (!kind.includes('text/event-stream') || !res.body) {
+    yield GARBLED;
+    return;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const parser = eventParser();
+  try {
+    while (true) {
+      let read: ReadableStreamReadResult<Uint8Array>;
+      try {
+        read = await reader.read();
+      } catch {
+        if (!signal?.aborted) yield CUT_OFF;
+        return;
+      }
+      const chunk = read.done ? decoder.decode() : decoder.decode(read.value, { stream: true });
+      for (const event of parser.push(chunk, read.done)) {
+        // Stopped: nothing more, not even what this chunk already held.
+        if (signal?.aborted) return;
+        yield event;
+        if (event.type === 'done' || event.type === 'error') return;
+      }
+      if (read.done) break;
+    }
+    if (!signal?.aborted) yield CUT_OFF;
+  } finally {
+    // Stops the download when the turn ends early, or the page stopped listening.
+    reader.cancel().catch(() => undefined);
+  }
 }
