@@ -1,10 +1,11 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
 import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../house/looks.ts';
+import { type Pace, paceFrom, rememberPace, sessionPace } from '../house/pace.ts';
 import {
   type Break,
   changesBy,
@@ -68,17 +69,21 @@ interface Show {
 /**
  * The house panel: the 3D house under a sky that follows its clock, with room names, status dots
  * and what breaks pinned to it, and a card with the home's time and temperatures. When a plan is
- * checked it plays the plan forward in the shadow twin, then the plan with its fixes.
+ * checked it plays the plan forward in the shadow twin, then the plan with its fixes. It draws
+ * again only when what it shows changes: the device beside it re-renders on every word of a turn,
+ * and on a slow renderer each frame of the house holds the page for a second or more.
  */
-export function HousePanel(props: {
+export const HousePanel = memo(function HousePanel(props: {
   home: LiveHome | null;
   request: HouseRequest | null;
   mode: 'split' | 'house';
   /** The person asked for less motion: no sweep, no glides, just where each run ends. */
   still: boolean;
+  /** WebGL here draws on the CPU: the house draws lean and shows where each run ends. */
+  lean: boolean;
   onFail(): void;
 }) {
-  const { home, request, mode, still } = props;
+  const { home, request, mode, still, lean } = props;
   const pins = useRef(new Map<string, HTMLElement>());
   // Beside the device the card runs across the top of the panel; the house is framed below it.
   const card = useRef<HTMLDivElement>(null);
@@ -93,8 +98,22 @@ export function HousePanel(props: {
   );
 
   const [show, setShow] = useState<Show | null>(null);
+  // A show begins drawing once the page is next idle (a second at most): by then the screen beside
+  // the house has drawn what it was sent, the plan view with its verdict, so the twin's first
+  // frame comes after it however long that frame takes.
+  const [begun, setBegun] = useState(false);
   const [only, setOnly] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
+  // Whether this machine draws the house fast enough to sweep through a plan; found in the first
+  // playback, then kept for the session. Read after mounting: the server has no session.
+  const [pace, setPace] = useState<Pace>('unsure');
+  useEffect(() => setPace(sessionPace()), []);
+  // Software WebGL is too slow to sweep: no need to spend frames finding out.
+  useEffect(() => {
+    if (!lean || sessionPace() !== 'unsure') return;
+    rememberPace('still');
+    setPace('still');
+  }, [lean]);
   const started = useRef(0);
   const homeNow = useRef(home);
   homeNow.current = home;
@@ -105,6 +124,7 @@ export function HousePanel(props: {
   useEffect(() => {
     const live = homeNow.current;
     if (!request) return;
+    setBegun(false);
     if (!request.play || !live) {
       setShow(null);
       return;
@@ -117,26 +137,55 @@ export function HousePanel(props: {
       presence: live.presence,
     });
     setOnly(undefined);
-    started.current = performance.now();
     setElapsed(0);
+    const begin = () => {
+      started.current = performance.now();
+      setBegun(true);
+    };
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(begin, { timeout: 1000 });
+      return () => cancelIdleCallback(id);
+    }
+    const id = setTimeout(begin, 100);
+    return () => clearTimeout(id);
   }, [requestId]);
 
-  // With less motion, each run is shown where it ends: the plan first, then whichever is chosen.
-  const shown = still ? (only ?? 0) : only;
-  const m = show
-    ? moment(show.runs, SHOW_TIMING, still ? Number.POSITIVE_INFINITY : elapsed, shown)
-    : null;
-  const done = m?.done ?? true;
+  // With less motion, or where frames are too slow to sweep, each run is shown where it ends: the
+  // plan first, then whichever is chosen.
+  const calm = still || pace === 'still';
+  const shown = calm ? (only ?? 0) : only;
+  const m =
+    show && begun
+      ? moment(show.runs, SHOW_TIMING, calm ? Number.POSITIVE_INFINITY : elapsed, shown)
+      : null;
+  // Waiting to begin isn't done: nothing about the show is on the house or its card yet.
+  const done = show ? (m?.done ?? false) : true;
 
-  // The clock runs while a show plays, then stops.
+  // The clock runs while a show plays, then stops. Until the pace is known, the gaps between the
+  // first frames decide it; a machine too slow to sweep goes straight to where the run ends.
   useEffect(() => {
-    if (!show || still || done) return;
+    if (!show || !begun || calm || done) return;
+    let judging = sessionPace() === 'unsure';
+    const gaps: number[] = [];
+    let last = performance.now();
     let frame = requestAnimationFrame(function tick() {
-      setElapsed(performance.now() - started.current);
+      const now = performance.now();
+      if (judging) {
+        gaps.push(now - last);
+        last = now;
+        const found = paceFrom(gaps);
+        if (found !== 'unsure') {
+          judging = false;
+          rememberPace(found);
+          setPace(found);
+          if (found === 'still') return;
+        }
+      }
+      setElapsed(now - started.current);
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
-  }, [show, still, done]);
+  }, [show, begun, calm, done]);
 
   const replay = (i: number) => {
     setOnly(i);
@@ -163,14 +212,14 @@ export function HousePanel(props: {
   const time = run ? homeIso(homeMs, run.offset) : (home?.now ?? '');
   const held = m?.held ?? [];
   const focusDevice = held.find((b) => b.device)?.device;
-  const focus = !still && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
+  const focus = !calm && focusDevice ? (roomOf(layout, focusDevice) ?? null) : null;
 
   const view: HouseView = {
     devices,
     presence,
     time,
     zonesC: temps?.zonesC ?? null,
-    shadow: show ? 1 : 0,
+    shadow: m ? 1 : 0,
     focus,
   };
 
@@ -185,7 +234,7 @@ export function HousePanel(props: {
   const fired = run ? run.breaks.filter((b) => b.atMs <= homeMs) : [];
   const brokenAt = new Map<string, Break['kind']>();
   for (const b of fired) if (b.device && b.kind !== 'guard') brokenAt.set(b.device, b.kind);
-  const cards = done ? fired.filter((b) => b.kind !== 'guard' || still) : held;
+  const cards = done ? fired.filter((b) => b.kind !== 'guard' || calm) : held;
   // Beside the device, whose screen already shows each rule and the garage's chart, the house
   // keeps the scene clear: what breaks right now goes in its card, and its dots keep the rest.
   // Alone, one card is pinned where it breaks; several at once, as at a run's end, would cover
@@ -205,8 +254,9 @@ export function HousePanel(props: {
         anchors={ANCHORS}
         pinned={pinned}
         inset={docked ? { top: cardBottom, bottom: 76 } : NO_INSET}
-        still={still}
+        still={calm}
         onFail={props.onFail}
+        lean={lean}
       />
       <div className="pins" data-playing={show ? 'yes' : 'no'}>
         {layout.rooms.map((r) => {
@@ -318,7 +368,7 @@ export function HousePanel(props: {
       {run && !docked ? <ZoneChart run={run} homeMs={homeMs} zone="garage" /> : null}
     </>
   );
-}
+});
 
 const NO_INSET = { top: 0, bottom: 0 };
 

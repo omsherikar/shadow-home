@@ -10,7 +10,8 @@ import {
   useState,
 } from 'react';
 import type { LiveHome } from '../house/looks.ts';
-import { webglAvailable } from '../house/webgl.ts';
+import { drawsInSoftware } from '../house/pace.ts';
+import { webglRenderer } from '../house/webgl.ts';
 import { HousePanel, type HouseRequest } from './HousePanel.tsx';
 import { browserStorage, CHIPS, type Chip, type Layout, readLayout, writeLayout } from './stage.ts';
 
@@ -42,6 +43,8 @@ export interface StageProps {
  */
 export function Stage(props: StageProps) {
   const [house, setHouse] = useState<'checking' | 'on' | 'off'>('checking');
+  // WebGL that draws on the CPU, where the house draws lean and doesn't sweep.
+  const [lean, setLean] = useState(false);
   const [layout, setLayout] = useState<Layout>('split');
   const [drawer, setDrawer] = useState(false);
   const panel = useRef<HTMLElement>(null);
@@ -50,7 +53,9 @@ export function Stage(props: StageProps) {
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
   useEffect(() => {
-    setHouse(webglAvailable() ? 'on' : 'off');
+    const renderer = webglRenderer();
+    setHouse(renderer === null ? 'off' : 'on');
+    setLean(renderer !== null && drawsInSoftware(renderer));
     setLayout(readLayout(browserStorage()));
   }, []);
 
@@ -73,6 +78,7 @@ export function Stage(props: StageProps) {
                 request={props.request}
                 mode={houseOnly ? 'house' : 'split'}
                 still={still}
+                lean={lean}
                 onFail={fail}
               />
             </Contained>
