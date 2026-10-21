@@ -161,6 +161,35 @@ export function skyColors(light: Daylight): Sky {
   };
 }
 
+/** The status dot for a device the story turns on: what to call its state, and its colour's tone. */
+export interface Dot {
+  tone: 'on' | 'off' | 'locked' | 'unlocked' | 'heating' | 'idle' | 'unknown';
+  label: string;
+}
+
+export function dotFor(device: LiveDevice | undefined): Dot {
+  if (!device) return { tone: 'unknown', label: 'Unknown' };
+  const s = device.state;
+  if (device.sensor?.trusted === false) return { tone: 'unknown', label: 'Can’t tell' };
+  switch (device.kind) {
+    case 'lock':
+      if (s.lockState === 'LOCKED') return { tone: 'locked', label: 'Locked' };
+      if (s.lockState === 'UNLOCKED') return { tone: 'unlocked', label: 'Unlocked' };
+      return { tone: 'unknown', label: 'Jammed' };
+    case 'thermostat': {
+      if (s.systemMode !== 'heat') return { tone: 'off', label: 'Heating off' };
+      const set = typeof s.heatingSetpointC === 'number' ? s.heatingSetpointC : null;
+      const heating = lookOf(device).glow >= 1;
+      const at = set === null ? '' : ` ${set} °C`;
+      return heating
+        ? { tone: 'heating', label: `Heating to${at}` }
+        : { tone: 'idle', label: `Set to${at}` };
+    }
+    default:
+      return s.onOff === true ? { tone: 'on', label: 'On' } : { tone: 'off', label: 'Off' };
+  }
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
   return t * t * (3 - 2 * t);
