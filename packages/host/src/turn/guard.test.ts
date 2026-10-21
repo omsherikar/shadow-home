@@ -182,6 +182,22 @@ describe('softening a verdict without a verdict word: any negation, scope or jud
     expect(dropReason(sentence, home('plan'))).toBe('verdict');
     expect(dropReason(sentence, home('anchored'))).toBe('verdict');
   });
+
+  test("a rule's own words are a quote, negations and all", () => {
+    const about = {
+      violations: [{ rule: 'R9', text: 'Never turn off the garage freezer.', author: 'om' }],
+      speech: {
+        headline: 'Blocked.',
+        reason: "Never turn off the garage freezer. That's Om's rule.",
+      },
+    };
+    expect(
+      dropReason("Om's rule says never turn off the garage freezer.", home('plan', { about })),
+    ).toBeNull();
+    expect(dropReason("Om's rule says never turn off the garage freezer.", home('plan'))).toBe(
+      'verdict',
+    );
+  });
 });
 
 describe('a state after a check only as what would happen, since nothing has run', () => {
