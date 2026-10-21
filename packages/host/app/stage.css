@@ -528,6 +528,18 @@
   flex: 1 1 auto;
 }
 
+.house-toggle {
+  align-self: flex-start;
+  padding: 7px 14px;
+  border: 1px solid var(--glass-edge);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 /* A plan a later turn set aside: still there to read, but its buttons no longer answer. */
 .stale-cover {
   position: absolute;
