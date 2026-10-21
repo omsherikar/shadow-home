@@ -145,6 +145,12 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   // or the whole show, and the playback lands past it. Stepping the twin a frame at a time takes
   // about a minute on software WebGL.
   test.setTimeout(150_000);
+  // The house sweeps where it has found it can (a GPU); this is that session, whatever draws it.
+  await page.addInitScript(() => {
+    try {
+      sessionStorage.setItem('shadow-home/pace', 'animate');
+    } catch {}
+  });
   await page.clock.install();
   await page.goto('/');
   await openControls(page);
@@ -175,6 +181,30 @@ test('a checked plan plays forward in the house, then the plan with its fixes', 
   // Cancel on the screen: nothing changes, and the house goes back to the home as it is.
   await tap(page, view(page).getByRole('button', { name: /^Cancel/ }));
   await expect(playing(page)).toHaveAttribute('data-playing', 'no');
+});
+
+test('on a machine too slow to sweep, the verdict comes first and the house shows where the plan ends', async ({
+  page,
+}) => {
+  // On software WebGL the house knows from its renderer; elsewhere the gaps between a playback's
+  // first frames tell it, on the page's clock. The test holds that clock and moves it a second a
+  // frame, as software WebGL draws.
+  await page.clock.install();
+  await page.goto('/');
+  await openControls(page);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+  await page.getByRole('button', { name: WEEKEND }).click();
+  // The verdict is on screen before the house has drawn a frame of the plan.
+  await expect(view(page).getByText('UNSAFE', { exact: true })).toBeVisible();
+  const house = page.getByRole('region', { name: 'The house' });
+  await expect(playing(page)).toHaveAttribute('data-playing', 'yes');
+  await expect(house.locator('.run-chip')).toHaveCount(0);
+  // A few slow frames in, the house is on the plan's end, with either run to choose. Swept, it
+  // would take about twenty seconds of page time to get there.
+  await stepUntil(page, house.getByRole('button', { name: 'With 4 fixes' }), 1000, 8000);
+  await expect(house.locator('.run-chip')).toHaveAttribute('data-run', 'plan');
+  await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
+  await expect(view(page).getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
 });
 
 test('with less motion, the house shows where each run ends, without the sweep', async ({
