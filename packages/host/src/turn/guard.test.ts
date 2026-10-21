@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import {
   type Context,
@@ -74,5 +76,39 @@ describe('times and numbers as people say them', () => {
       4.5, 1500, 25, 4, 12, 3,
     ]);
     expect(numbersIn('no one, the one that, first, rule R3, plan p1')).toEqual([]);
+  });
+});
+
+/** The demo home itself, for the cases its own names and states make hard. */
+const demo = JSON.parse(
+  readFileSync(join(import.meta.dirname, '../../../../fixtures/demo-home.json'), 'utf8'),
+) as {
+  devices: { id: string; name: string; state: Record<string, unknown> }[];
+  routines: { name: string }[];
+};
+const home = (
+  context: Context,
+  over: { results?: unknown[]; about?: unknown; heard?: string; afterPlan?: boolean } = {},
+) =>
+  filterFacts({
+    context,
+    results: over.results ?? [],
+    devices: demo.devices,
+    routines: demo.routines.map((r) => r.name),
+    ...over,
+  });
+
+describe('a bare yes or no says nothing, in any turn', () => {
+  test.each(['Yes.', 'No.', 'Yes, it is.', 'Yep', 'Yes, the front door is.', 'No, it isn’t.'])(
+    '%s',
+    (sentence) => {
+      for (const context of ['plan', 'anchored', 'read', 'chat'] as const) {
+        expect(dropReason(sentence, home(context))).toBe('fragment');
+      }
+    },
+  );
+
+  test('"No problem." is not a bare no', () => {
+    expect(dropReason('No problem.', home('chat'))).toBeNull();
   });
 });
