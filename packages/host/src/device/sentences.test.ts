@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { allSentences } from './sentences.ts';
+import { allSentences, sentenceSplitter } from './sentences.ts';
 
 const WEEKEND =
   "Blocked: that breaks 4 house rules. No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?";
@@ -59,5 +59,16 @@ describe('sentences in whole words', () => {
   test('nothing to say is no sentences', () => {
     expect(allSentences('')).toEqual([]);
     expect(allSentences('   ')).toEqual([]);
+  });
+});
+
+describe('sentences as the words stream in', () => {
+  test('a sentence is finished only once the next word has started', () => {
+    const split = sentenceSplitter();
+    expect(split.push('Let me check')).toEqual([]);
+    expect(split.push('. ')).toEqual([]);
+    expect(split.push('T')).toEqual(['Let me check.']);
+    expect(split.push('hat breaks a rule.')).toEqual([]);
+    expect(split.end()).toEqual(['That breaks a rule.']);
   });
 });
