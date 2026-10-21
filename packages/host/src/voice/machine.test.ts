@@ -76,6 +76,17 @@ describe('waking', () => {
 describe('a turn, her voice, and the answer', () => {
   const asking = (): HandsFree => run([on, heard("Alexa, I'm away for the weekend")]).state;
 
+  test('nothing is heard while she thinks or speaks', () => {
+    const thinking = asking();
+    expect(hears(thinking.mode)).toBe(false);
+    const speaking = run([{ type: 'speaking', on: true }], thinking).state;
+    expect(speaking.mode).toBe('speaking');
+    expect(hears(speaking.mode)).toBe(false);
+    // Even her own words, or someone saying "Alexa", don't start anything.
+    const { effects } = run([heard('Alexa, do it with 4 fixes instead?')], speaking);
+    expect(effects).toEqual([]);
+  });
+
   test('a question nobody heard opens no window: the page says it was asked only if it was heard', () => {
     // Silent, or the browser held her voice back: the page ends the turn with asked false.
     const { state } = run([{ type: 'turn-ended', asked: false }], asking());
