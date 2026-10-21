@@ -74,10 +74,12 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
   const mic = useRef<{ stop(): void } | null>(null);
   const homeNow = useRef<LiveHome | null>(null);
   const requests = useRef(0);
+  const askedHouse = useRef(false);
 
   /** Ask the house to play something, or with `null` to show the home as it is. */
   const ask = useCallback((play: Omit<HouseRequest, 'id'>) => {
     requests.current += 1;
+    askedHouse.current = true;
     setHouseRequest({ id: requests.current, ...play });
   }, []);
 
@@ -245,7 +247,10 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
         screenNote.current = undefined;
         // What was said goes in before what it led to: a turn with no calls ("no") closes the question.
         note({ name: 'heard', arguments: { text: words } });
+        askedHouse.current = false;
         for (const call of turn.calls) remember(call);
+        // A turn that played nothing ("no", the activity log) leaves the house showing the home.
+        if (!askedHouse.current) ask({ play: null });
         await show(turn.calls);
         if (client) await refreshHome(client);
         answer = turn.say;
@@ -258,7 +263,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       }
       await reply(answer);
     },
-    [client, line, note, refreshHome, remember, reply, show],
+    [client, line, note, refreshHome, remember, reply, show, ask],
   );
 
   const toggleMic = useCallback(async () => {
