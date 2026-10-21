@@ -264,7 +264,7 @@ describe('a bare yes or no says nothing, in any turn', () => {
   });
 });
 
-describe('plain conversation: no claim about the home', () => {
+describe('plain conversation: no claim about the home, and after a check, no talk of it', () => {
   test.each([
     'The garage is warm.',
     'The front door is secure.',
@@ -274,5 +274,17 @@ describe('plain conversation: no claim about the home', () => {
     'Nobody is home right now.',
   ])('%s', (sentence) => {
     expect(dropReason(sentence, home('chat'))).toBe('state');
+  });
+
+  test('after a check: "Thanks." can\'t get "It\'s safe.", and a no may say nothing changed', () => {
+    const after = home('chat', { afterPlan: true });
+    expect(dropReason("You're welcome, the plan is safe.", after)).toBe('verdict');
+    expect(dropReason("You're welcome!", after)).toBeNull();
+    expect(dropReason("Okay, I'll leave everything as it is.", after)).toBeNull();
+    expect(dropReason('Okay, nothing changed.', after)).toBeNull();
+    expect(dropReason('Got it, nothing will change.', after)).toBeNull();
+    // The same words with no check waiting are a claim of an action.
+    expect(dropReason("Okay, I'll leave everything as it is.", home('chat'))).toBe('action');
+    expect(filterReply("Okay, I'll leave everything as it is.", home('anchored')).kept).toEqual([]);
   });
 });
