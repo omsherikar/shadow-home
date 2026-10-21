@@ -310,6 +310,21 @@ function structuredOf(c: { result: { structuredContent?: unknown } }) {
   return c.result.structuredContent as Record<string, unknown> | undefined;
 }
 
+/**
+ * The plan ID of this turn's undo, when it's the last call that spoke and its preview is T0 or
+ * T1, and no commit has been tried since (one that failed isn't tried again): it needs no yes.
+ */
+function undoToCommit(thisTurn: ToolCall[]): string | undefined {
+  const at = thisTurn.findLastIndex((c) => hasSpeech(structuredOf(c)));
+  const last = thisTurn[at];
+  const sc = last && structuredOf(last);
+  if (last?.name !== 'undo' || sc?.status !== 'preview') return undefined;
+  if (thisTurn.slice(at + 1).some((c) => c.name === 'commit_plan')) return undefined;
+  const preview = sc.preview as { planId?: unknown; tier?: unknown } | undefined;
+  const quick = preview?.tier === 'T0' || preview?.tier === 'T1';
+  return quick && typeof preview?.planId === 'string' ? preview.planId : undefined;
+}
+
 function hasSpeech(structured: Record<string, unknown> | undefined): boolean {
   const speech = structured?.speech as { headline?: unknown } | undefined;
   return typeof speech?.headline === 'string';
