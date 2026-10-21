@@ -7,6 +7,7 @@ import {
   type Trace,
 } from './playback.ts';
 
+const at = (local: string) => Date.parse(`${local}-06:00`);
 const FRI = '2027-01-15T17:45:00-06:00';
 const SUN = '2027-01-17T18:00:00-06:00';
 
@@ -105,5 +106,16 @@ describe('runs from a tool result', () => {
     ]);
     expect(plan.trace).toEqual(trace);
     expect(runs[1]?.trace).toBeNull();
+  });
+
+  test('who’s home in each run is who its own check took to be home', () => {
+    const [plan, fixed] = runsFrom('preview_plan', preview, meta) as [Run, Run];
+    expect(plan.presence).toEqual([
+      { fromMs: at('2027-01-15T18:00:00'), toMs: Date.parse(SUN), who: 'nobody' },
+    ]);
+    expect(fixed.presence).toEqual([
+      { fromMs: at('2027-01-15T18:00:00'), toMs: Date.parse(SUN), who: 'nobody' },
+      { fromMs: at('2027-01-17T14:00:00'), toMs: Date.parse(SUN), who: { home: ['om'] } },
+    ]);
   });
 });
