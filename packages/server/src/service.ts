@@ -1,10 +1,12 @@
 import {
   assess,
+  awayUnstated,
   type CheckResult,
   check,
   diffPlan,
   planSummary,
   type RuleAtom,
+  refusingRule,
   reversibility,
   ruleAtoms,
   type Speech,
@@ -276,6 +278,18 @@ export class ShadowHomeService {
         ...(record.related.repair ? { repairPlanId: record.related.repair } : {}),
         ...(record.related.safePart ? { safePartPlanId: record.related.safePart } : {}),
       };
+      // T5 is a rule that forbids the plan, or away mode with nobody said to be away. A yes can't
+      // say who's away, so only a new preview with a presence schedule goes on from there.
+      if (record.tier === 'T5' && awayUnstated(record.plan) && !refusingRule(recheck)) {
+        return {
+          ...refused(
+            'who_is_away_unknown',
+            planId,
+            "I can't run that until I know who's away, and until when.",
+          ),
+          alternatives,
+        };
+      }
       if (record.tier === 'T5') {
         return {
           ...refused('refused_by_rule', planId, record.speech.reason ?? "I can't do that."),
