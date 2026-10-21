@@ -255,4 +255,13 @@ describe('the schedule', () => {
     expect(stop?.fromMs).toBe(at('2027-01-16T22:37:00'));
     expect(stop?.toMs).toBe(stop?.fromMs);
   });
+
+  test('breaks in the same minute share one stop', () => {
+    const r1 = run.breaks[0] as Run['breaks'][number];
+    const twice = { ...run, breaks: [...run.breaks, { ...r1, rule: 'R2' }] };
+    const shared = schedule(twice, { sweepMs: 8000, holdMs: 1000 });
+    expect(shared.segments.filter((seg) => seg.hold).map((seg) => seg.hold?.length)).toEqual([
+      2, 1,
+    ]);
+  });
 });
