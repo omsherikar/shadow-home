@@ -330,3 +330,17 @@ test('a tap after a reload adds its own line, with no key the chat already has',
   }
   expect(repeated).toEqual([]);
 });
+
+test('the conversation is kept across a reload, with no question left open', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: WEEKEND }).click();
+  await expect(lastAnswer(page)).toHaveAttribute('data-phase', 'done');
+  await page.reload();
+  await expect(conversation(page).locator('li.you', { hasText: WEEKEND })).toBeVisible();
+  await expect(lastAnswer(page).locator('.said')).toHaveText(
+    /^Blocked: that breaks 4 house rules\./,
+  );
+  // The screen no longer shows the plan, so a yes can't commit it.
+  await say(page, 'yes');
+  await expect(lastAnswer(page).locator('.said')).toHaveText("There's nothing waiting for a yes.");
+});
