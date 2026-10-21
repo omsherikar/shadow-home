@@ -57,8 +57,9 @@ const MAX_SAY_CHARS = 600;
  * the engine's headline, the model's sentences that pass the sentence filter (guard.ts), and the
  * engine's question; with none, the engine's template. With no call that spoke, it's the model's
  * own words. The model's words are held until its call ends: words before a tool call are never
- * said (the step's label says what's happening). The start of the model's first tool call is
- * passed on, when that's a tool on offer, since that's the one that runs.
+ * said (the step's label says what's happening), and the sentences that pass go out once they
+ * have. The start of the model's first tool call is passed on, when that's a tool on offer, since
+ * that's the one that runs.
  */
 export function bedrockModel(options: {
   converse: Converse;
@@ -103,6 +104,9 @@ export function bedrockModel(options: {
       const spoke = input.thisTurn.findLast((c) => hasSpeech(structuredOf(c)));
       if (spoke) {
         const { kept } = filterReply(words, factsFor(input, options.home, spoke));
+        const say = (text: string) => step.onEvent?.({ text });
+        // The headline went out when the call returned (run.ts).
+        kept.forEach(say);
         return { say: sandwich(spoke, kept) };
       }
       return { say: words || 'Okay.' };

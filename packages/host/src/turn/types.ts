@@ -52,7 +52,11 @@ export interface ModelInput extends TurnRequest {
   thisTurn: ToolCall[];
 }
 
-/** What a model reports as it writes, when it can: its words, and the tool it has begun to call. */
+/**
+ * What a model reports as it writes, when it can: its words, and the tool it has begun to call.
+ * A Converse call passes on the words as they come; a Model, only whole sentences that the
+ * sentence filter has passed (guard.ts).
+ */
 export type ModelEvent = { text: string } | { tool: string };
 
 export interface StepOptions {
