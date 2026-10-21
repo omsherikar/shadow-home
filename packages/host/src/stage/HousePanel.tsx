@@ -23,7 +23,7 @@ import {
   temperaturesAt,
 } from '../house/playback.ts';
 import { fractionOf } from '../house/timeline.ts';
-import { readable, stepWords } from '../house/words.ts';
+import { changeWords, readable, stepWords } from '../house/words.ts';
 import { dayAndTime } from './stage.ts';
 import './house-panel.css';
 
@@ -68,6 +68,9 @@ interface Show {
   devices: LiveDevice[];
   presence: Record<string, 'home' | 'away'>;
 }
+
+/** How long a device keeps its name beside it after it changes while a plan plays. */
+const CHANGE_LABEL_MS = 1800;
 
 /**
  * The house panel: the 3D house under a sky that follows its clock, with room names, status dots
@@ -259,7 +262,13 @@ export const HousePanel = memo(function HousePanel(props: {
   const inCard = docked ? held : cards.filter((b) => !pinnedCards.includes(b));
   const guardOn = show?.guard && guarding(show.guard, time) ? show.guard.device : undefined;
   const byId = new Map((devices ?? []).map((d) => [d.id, d]));
+  const recent = useRecentChanges(devices, !!show);
   const acting = new Set(step?.changes.map((c) => c.device) ?? []);
+  const lastChange = (id: string) =>
+    run?.changes
+      .slice(0, applied)
+      .filter((c) => c.device === id)
+      .at(-1);
 
   return (
     <>
@@ -275,13 +284,18 @@ export const HousePanel = memo(function HousePanel(props: {
         onFail={props.onFail}
         lean={lean}
       />
-      <div className="pins" data-playing={show ? 'yes' : 'no'} data-phase={m?.phase ?? 'none'}>
+      <div
+        className="pins"
+        data-playing={show ? 'yes' : 'no'}
+        data-moving={moving ? 'yes' : 'no'}
+        data-phase={m?.phase ?? 'none'}
+      >
         {layout.rooms.map((r) => {
           const c = temps?.zonesC[r.zone];
           const showTemp = c !== undefined && (r.id === 'garage' || r.id === 'living_room');
           return (
             <div key={r.id} className="pin" ref={pin(`room:${r.id}`)} aria-hidden="true">
-              <span className="room-label">
+              <span className={showTemp ? 'room-label with-temp' : 'room-label'}>
                 {r.name}
                 {showTemp ? <b> {c.toFixed(1)} °C</b> : null}
               </span>
@@ -294,7 +308,11 @@ export const HousePanel = memo(function HousePanel(props: {
           const mine = pinnedCards.filter((b) => b.device === d.device);
           const first = step?.changes[0]?.device === d.device;
           const isActing = acting.has(d.device);
-          if (!dot && mine.length === 0 && !isActing) {
+          const changed = !isActing && moving && recent(d.device);
+          // The plan's own changes were named as they were acted out; routines are named here.
+          const latest = changed ? lastChange(d.device) : undefined;
+          const change = latest?.source === 'plan' ? undefined : latest;
+          if (!dot && mine.length === 0 && !isActing && !change) {
             return <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)} />;
           }
           return (
@@ -302,9 +320,10 @@ export const HousePanel = memo(function HousePanel(props: {
               {isActing ? <span className="act-ring" aria-hidden="true" /> : null}
               {dot ? (
                 <span
-                  className={
-                    mode === 'house' && NAME_LEFT.has(d.device) ? 'dot-name left' : 'dot-name'
-                  }
+                  className={[
+                    mode === 'house' && NAME_LEFT.has(d.device) ? 'dot-name left' : 'dot-name',
+                    changed || isActing ? 'recent' : '',
+                  ].join(' ')}
                 >
                   {DOTS.get(d.device)}
                 </span>
@@ -326,6 +345,9 @@ export const HousePanel = memo(function HousePanel(props: {
                 <span className="step-label" data-step="">
                   {stepWords(step.changes, devices)}
                 </span>
+              ) : null}
+              {change && !dot ? (
+                <span className="change-label">{changeWords(change, byId.get(d.device))}</span>
               ) : null}
               {mine.map((b) => (
                 <BreakCard
@@ -410,6 +432,31 @@ function useCardBottom(card: { current: HTMLElement | null }): number {
     return () => observer.disconnect();
   }, [card]);
   return bottom;
+}
+
+/**
+ * Which devices changed in the last moments of a playback, by the page's clock: the house names a
+ * device beside it when it changes, then lets the name go.
+ */
+function useRecentChanges(
+  devices: LiveDevice[] | null,
+  playing: boolean,
+): (device: string) => boolean {
+  const states = useRef(new Map<string, string>());
+  const changed = useRef(new Map<string, number>());
+  useEffect(() => {
+    if (!devices) return;
+    const now = performance.now();
+    for (const d of devices) {
+      const state = JSON.stringify(d.state);
+      const before = states.current.get(d.id);
+      if (playing && before !== undefined && before !== state) changed.current.set(d.id, now);
+      states.current.set(d.id, state);
+    }
+    if (!playing) changed.current.clear();
+  }, [devices, playing]);
+  return (device) =>
+    performance.now() - (changed.current.get(device) ?? Number.NEGATIVE_INFINITY) < CHANGE_LABEL_MS;
 }
 
 const AUTHOR = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
