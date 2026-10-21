@@ -60,9 +60,9 @@ const MAX_SAY_CHARS = 600;
  * (decision 108), which depends on the turn (guard.ts):
  * - after a call that spoke this turn (a check, a commit, an undo, a rule): the engine's
  *   headline, the model's sentences, the engine's question; with none, the engine's template;
- * - with no call this turn, when the person asks about a call that spoke earlier ("why?",
- *   "what does that mean?"): that call's headline, then the model's sentences; with none, its
- *   headline and reason;
+ * - with no call this turn, when the person asks anything while a check is open, or asks about
+ *   a finished change ("why?"): that check's headline (or the commit's, for a committed fix), then
+ *   the model's sentences; with none, that headline and the check's reason;
  * - after read-only calls (the home's state, the log): the model's sentences; with none, the
  *   log's own summary, or NOT_SURE;
  * - in plain conversation (a greeting, thanks, a no, small talk): the model's sentences, or
