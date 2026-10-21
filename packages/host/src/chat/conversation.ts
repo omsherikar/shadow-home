@@ -140,6 +140,89 @@ export function problemWords(p: Problem, timeZone?: string): string {
   return `${p.message.replace(/\s*Try again later\.?$/, '')} Try again at ${clockAt(p.retryAt, timeZone)}.`;
 }
 
+// What to offer next
+
+const WHY: FollowUp = { label: 'Why?', says: 'Why?' };
+const YES = 'Yes.';
+const NO = 'No.';
+
+interface PreviewLike {
+  kind?: string;
+  tier?: string;
+  diff?: unknown[];
+  repair?: { verdict?: string } | null;
+  safePart?: unknown;
+}
+
+/**
+ * What to offer after a turn, from what it ended on: the answers to the question the screen asks
+ * (the same choices as its buttons), "Why?" where something was refused or can't be confirmed, and
+ * Undo after a change. Each sends words both the assistant and the scripted demo understand.
+ */
+export function followUpsFor(calls: ToolCall[]): FollowUp[] {
+  const last = calls.at(-1);
+  if (!last || last.result.isError) return [];
+  const sc = last.result.structuredContent as Record<string, unknown> | undefined;
+  if (!sc) return [];
+  switch (last.name) {
+    case 'preview_plan':
+      return forPreview(sc as PreviewLike);
+    case 'undo':
+      return sc.preview ? forPreview(sc.preview as PreviewLike) : [];
+    case 'commit_plan':
+      if (sc.status === 'committed') return [{ label: 'Undo', says: 'Undo.' }];
+      if (sc.status === 'needs_confirmation') {
+        return [
+          { label: 'Yes, do it', says: YES },
+          { label: "Don't run", says: NO },
+        ];
+      }
+      return sc.freshPreview ? forPreview(sc.freshPreview as PreviewLike) : [];
+    case 'get_activity_log': {
+      const entries = sc.entries as { undoable?: boolean }[] | undefined;
+      return entries?.some((e) => e.undoable)
+        ? [{ label: 'Undo the last change', says: 'Undo.' }]
+        : [];
+    }
+    default:
+      return [];
+  }
+}
+
+function forPreview(p: PreviewLike): FollowUp[] {
+  const undo = p.kind === 'undo';
+  const no: FollowUp = undo ? { label: 'Keep it', says: NO } : { label: "Don't run", says: NO };
+  switch (p.tier) {
+    case 'T0':
+    case 'T1':
+      return [{ label: undo ? 'Undo it' : 'Run it', says: YES }, no];
+    case 'T2':
+      return [{ label: undo ? 'Yes, undo it' : 'Yes, run it', says: YES }, WHY, no];
+    case 'T3':
+      if (p.repair?.verdict === 'SAFE') {
+        // Nothing in the plan to run (someone heading out): the fix is the whole plan.
+        const label = p.diff?.length === 0 ? 'Fix it' : 'Run the safer plan';
+        return [{ label, says: YES }, WHY, no];
+      }
+      if (p.safePart)
+        return [{ label: 'Just the safe part', says: 'Just the safe part.' }, WHY, no];
+      return [WHY];
+    case 'T4':
+      if (p.safePart) {
+        return [
+          { label: 'Just the part you can confirm', says: 'Just the part you can confirm.' },
+          { label: 'Run it anyway', says: 'Run it anyway.' },
+          no,
+        ];
+      }
+      return [{ label: 'Run it anyway', says: YES }, WHY, no];
+    case 'T5':
+      return [WHY];
+    default:
+      return [];
+  }
+}
+
 // The details view
 
 interface ViolationLike {
