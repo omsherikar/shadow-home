@@ -222,4 +222,13 @@ describe('following a turn as it streams', () => {
     await said;
     expect(v.played.map((p) => p.text)).toEqual(["I can't confirm that's safe.", 'Run it anyway?']);
   });
+
+  test('an error clears what was queued; the page says what went wrong', async () => {
+    const v = fakeVoice();
+    const speech = speechQueue(v.voice);
+    speech.follow(text('Checking the garage. And'));
+    speech.follow({ type: 'error', message: 'Sorry, something went wrong.', retryable: true });
+    await v.drain();
+    expect(v.played).toEqual([]);
+  });
 });
