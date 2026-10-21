@@ -566,7 +566,8 @@ function timelineFor(p: Preview, names?: Names): { timeline?: Timeline } {
     lanes.push({ label: sourceName(source, names), marks: marks(byTime) });
   }
   if (p.violations.length > 0) {
-    // Rules that break in the same minute share one mark: "R1, R2 break".
+    // Rules that break in the same minute share one mark: "2 rules break". Their numbers are for
+    // the details, not the screen.
     const byMinute = new Map<number, string[]>();
     for (const v of p.violations) {
       const minute = Math.floor(Date.parse(v.firstAt) / 60_000) * 60_000;
@@ -576,7 +577,7 @@ function timelineFor(p: Preview, names?: Names): { timeline?: Timeline } {
       label: 'House rules',
       marks: [...byMinute].map(([atMs, rules]) => ({
         atMs,
-        label: `${rules.join(', ')} ${rules.length === 1 ? 'breaks' : 'break'}`,
+        label: rules.length === 1 ? 'A rule breaks' : `${rules.length} rules break`,
         tone: 'blocked' as const,
       })),
     });
