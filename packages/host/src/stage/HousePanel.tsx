@@ -1,10 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
-import { dotFor, type LiveDevice, type LiveHome } from '../house/looks.ts';
+import { daylight, dotFor, type LiveDevice, type LiveHome, skyColors } from '../house/looks.ts';
 import {
   type Break,
   changesBy,
@@ -169,6 +169,13 @@ export function HousePanel(props: {
     focus,
   };
 
+  const sky = skyColors(daylight(time));
+  const skyStyle = {
+    '--sky-top': sky.top,
+    '--sky-horizon': sky.horizon,
+    '--sky-ground': sky.ground,
+  } as CSSProperties;
+
   // What's broken so far in this run, by device; and what's shown as a card right now.
   const fired = run ? run.breaks.filter((b) => b.atMs <= homeMs) : [];
   const brokenAt = new Map<string, Break['kind']>();
@@ -185,6 +192,7 @@ export function HousePanel(props: {
 
   return (
     <>
+      <div className="sky" style={skyStyle} aria-hidden="true" />
       <House
         view={view}
         mode={mode}
