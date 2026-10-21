@@ -215,4 +215,12 @@ describe('a turn as it streams', () => {
       },
     ]);
   });
+
+  test('a stream that ends before done or error ends with an error to retry', async () => {
+    const { fake } = answering('event: text\ndata: {"delta":"Let me"}\n\n');
+    const events = await all(streamTurn(REQUEST, { fetch: fake }));
+    expect(events[0]).toEqual({ type: 'text', delta: 'Let me' });
+    expect(events[1]).toMatchObject({ type: 'error', retryable: true });
+    expect(events).toHaveLength(2);
+  });
 });
