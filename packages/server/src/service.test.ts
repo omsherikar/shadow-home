@@ -285,6 +285,24 @@ describe('undo', () => {
   });
 });
 
+describe('refusals say why', () => {
+  test("a plan refused by a rule is never told it's waiting on who's away, even when the re-check finds no rule", async () => {
+    const { clock, service } = setup('2027-01-15T17:45:00');
+    const p = await service.previewPlan({
+      intent: 'smoke alarm off at 17:46',
+      requestedBy: 'om',
+      actions: [
+        { device: 'smoke_alarm_kitchen', set: { enabled: false }, at: '2027-01-15T17:46:00-06:00' },
+      ],
+    });
+    expect(p).toMatchObject({ verdict: 'UNSAFE', tier: 'T5' });
+    // By 17:47 the step is in the past: lint rejects it, still UNSAFE, and no rule is broken.
+    clock.advance(2 * 60_000);
+    const c = await service.commitPlan({ planId: p.planId, confirmed: true });
+    expect(c).toMatchObject({ status: 'refused', reason: 'refused_by_rule' });
+  });
+});
+
 describe('the live home and the engine agree about now', () => {
   test("a preview at the start of a minute doesn't run that minute's routine steps again", async () => {
     // At 22:30 Good night locks the back door, then a held unlock opens it: it is unlocked.
