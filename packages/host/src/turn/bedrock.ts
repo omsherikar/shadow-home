@@ -197,6 +197,13 @@ function turnOf(input: ModelInput): Turn {
   return { context: 'chat', afterPlan: anchor !== undefined };
 }
 
+/** A check's preview: a plan's, or an undo's. */
+function isPreview(h: Remembered): boolean {
+  return (
+    h.name === 'preview_plan' || (h.name === 'undo' && h.structuredContent?.status === 'preview')
+  );
+}
+
 /**
  * The engine's headline, the model's sentences, and the engine's question. With no sentence of
  * the model's, or too long to say, the engine's own words, as before.
