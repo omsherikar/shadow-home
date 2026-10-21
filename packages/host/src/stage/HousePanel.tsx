@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Anchor, HouseView } from '../house/House.tsx';
 import { houseLayout as layout } from '../house/layout.ts';
-import type { LiveDevice, LiveHome } from '../house/looks.ts';
+import { dotFor, type LiveDevice, type LiveHome } from '../house/looks.ts';
 import {
   changesBy,
   devicesAt,
@@ -28,11 +28,26 @@ export interface HouseRequest {
   play: Run[] | null;
 }
 
+/** The devices the story turns on, each with a status dot over it and a short name beside it. */
+const DOTS = new Map<string, string>([
+  ['front_door_lock', 'Front door'],
+  ['back_door_lock', 'Back door'],
+  ['plug_garage_freezer', 'Freezer'],
+  ['plug_aquarium', 'Aquarium'],
+  ['plug_bedroom_space_heater', 'Space heater'],
+  ['plug_coffee_maker', 'Coffee maker'],
+  ['thermostat_main', 'Thermostat'],
+  ['garage_thermostat', 'Garage heat'],
+]);
+// Seen from the front, names that would cover a neighbour's dot sit on the dot's left instead.
+const NAME_LEFT = new Set(['garage_thermostat']);
+
 /** Where things are pinned to the house: each room's middle, and above each device. */
 const ANCHORS: Anchor[] = [
   ...layout.rooms.map(
     (r): Anchor => ({ id: `room:${r.id}`, at: [r.x + r.width / 2, 0.3, r.z + r.depth / 2] }),
   ),
+  ...layout.devices.map((d): Anchor => ({ id: `pin:${d.device}`, at: [d.x, d.y + 0.35, d.z] })),
 ];
 
 interface Show {
@@ -146,6 +161,7 @@ export function HousePanel(props: {
   };
 
   const docked = mode === 'split';
+  const byId = new Map((devices ?? []).map((d) => [d.id, d]));
 
   return (
     <>
@@ -168,6 +184,33 @@ export function HousePanel(props: {
                 {r.name}
                 {showTemp ? <b> {c.toFixed(1)} °C</b> : null}
               </span>
+            </div>
+          );
+        })}
+        {layout.devices.map((d) => {
+          const dot = DOTS.has(d.device) ? dotFor(byId.get(d.device)) : null;
+          if (!dot) {
+            return <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)} />;
+          }
+          return (
+            <div key={d.device} className="pin" ref={pin(`pin:${d.device}`)}>
+              {dot ? (
+                <span
+                  className={
+                    mode === 'house' && NAME_LEFT.has(d.device) ? 'dot-name left' : 'dot-name'
+                  }
+                >
+                  {DOTS.get(d.device)}
+                </span>
+              ) : null}
+              {dot ? (
+                <span
+                  className={['dot', `dot-${dot.tone}`].join(' ')}
+                  title={`${byId.get(d.device)?.name ?? d.device}: ${dot.label}`}
+                  data-device={d.device}
+                  data-state={dot.tone}
+                />
+              ) : null}
             </div>
           );
         })}
