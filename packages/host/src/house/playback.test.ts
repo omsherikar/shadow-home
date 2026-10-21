@@ -209,4 +209,14 @@ describe('runs from a tool result', () => {
       },
     ]);
   });
+
+  test('an undo’s preview and a fresh preview after a stale plan ID play too; other results don’t', () => {
+    expect(runsFrom('undo', { status: 'preview', preview }, planOnly)).toHaveLength(1);
+    expect(
+      runsFrom('commit_plan', { status: 'refused', freshPreview: preview }, planOnly),
+    ).toHaveLength(1);
+    expect(runsFrom('commit_plan', { status: 'committed' }, planOnly)).toEqual([]);
+    expect(runsFrom('get_home_state', { now: FRI }, planOnly)).toEqual([]);
+    expect(runsFrom('preview_plan', undefined, planOnly)).toEqual([]);
+  });
 });
