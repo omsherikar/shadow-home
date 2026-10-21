@@ -55,12 +55,12 @@ export interface HouseProps {
   lean?: boolean;
 }
 
-const FOV = 30;
-// Alone, from the front left and above: the dollhouse view. Beside the device, from the west, so
-// the house's long side runs up the narrow panel and fills it.
+const FOV = 40;
+// Alone, from the front left and about 40° up: the dollhouse view. Beside the device, from the
+// west, so the house's long side runs up the narrow panel and fills it.
 const VIEWS = {
-  house: new Vector3(-0.37, 0.73, 0.57),
-  split: direction(82, 56),
+  house: { azimuth: 33, elevation: 40 },
+  split: { azimuth: 82, elevation: 44 },
 } as const;
 
 function direction(azimuthFromSouth: number, elevation: number): Vector3 {
@@ -220,7 +220,8 @@ function CameraRig(props: {
   const { top, bottom } = props.inset;
   const goal = useMemo(() => {
     const aspect = width / Math.max(1, height);
-    const view = VIEWS[props.mode];
+    const base = VIEWS[props.mode];
+    const view = direction(base.azimuth, base.elevation);
     const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
     if (room) {
       const box = {
