@@ -13,4 +13,16 @@ describe('sentences in whole words', () => {
       'Do it with 4 fixes instead?',
     ]);
   });
+
+  test('a temperature, a time and a decimal stay inside their sentence', () => {
+    expect(
+      allSentences(
+        'The garage holds 5 °C. It breaks Sat 10:37 PM. The house is at 9.7 °C now, the garage 4.5 °C.',
+      ),
+    ).toEqual([
+      'The garage holds 5 °C.',
+      'It breaks Sat 10:37 PM.',
+      'The house is at 9.7 °C now, the garage 4.5 °C.',
+    ]);
+  });
 });
