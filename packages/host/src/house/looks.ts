@@ -2,25 +2,31 @@
  * What the house shows for the home's live state: how each device looks, and the light outside
  * at the home's time of day. Pure functions, so the scene stays a drawing of these.
  */
+import { z } from 'zod';
 
-export type Value = boolean | number | string;
+/** A device attribute's value, as the server reports it. */
+export const valueSchema = z.union([z.boolean(), z.number(), z.string()]);
 
-/** A device as get_home_state reports it. */
-export interface LiveDevice {
-  id: string;
-  kind: string;
-  state: Record<string, Value>;
-  sensor?: { trusted: boolean };
-}
+/** The parts of get_home_state the page reads. Anything else in the result is dropped. */
+export const liveHomeSchema = z.object({
+  now: z.string(),
+  mode: z.string(),
+  presence: z.record(z.string(), z.enum(['home', 'away'])),
+  zones: z.array(z.object({ id: z.string(), name: z.string(), tempC: z.number() })),
+  devices: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string().optional(),
+      kind: z.string(),
+      state: z.record(z.string(), valueSchema),
+      sensor: z.object({ trusted: z.boolean() }).optional(),
+    }),
+  ),
+});
 
-/** The parts of get_home_state the house draws. */
-export interface LiveHome {
-  now: string;
-  mode: string;
-  presence: Record<string, 'home' | 'away'>;
-  zones: { id: string; name: string; tempC: number }[];
-  devices: LiveDevice[];
-}
+export type LiveHome = z.infer<typeof liveHomeSchema>;
+export type LiveDevice = LiveHome['devices'][number];
+export type Value = z.infer<typeof valueSchema>;
 
 export interface Look {
   /** Light the device gives off: 0 is dark, 1 full. */
