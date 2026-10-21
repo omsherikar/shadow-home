@@ -88,6 +88,16 @@ describe('reading the event stream', () => {
     expect(parser.push('event: text\ndata: {"delta":"never finished"}')).toEqual([]);
   });
 
+  test('takes "data:" with or without the space, and joins several data lines', () => {
+    const events = eventParser().push(
+      'event:text\ndata:{"delta":"a"}\n\nevent: text\ndata: {"delta":\ndata: "b"}\n\n',
+    );
+    expect(events).toEqual([
+      { type: 'text', delta: 'a' },
+      { type: 'text', delta: 'b' },
+    ]);
+  });
+
   test('reads an error, with and without when to try again', () => {
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":120000}')).toEqual(
       { type: 'error', message: 'Busy', retryable: true, retryAfterMs: 120000 },
