@@ -177,8 +177,12 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       },
       onModelContext: (text, structured) => {
         screenNote.current = text;
-        // A tap that changed nothing (Cancel, OK) closes the question on screen.
-        if (structured?.closed === true) note({ name: 'closed', arguments: {} });
+        // A tap that changed nothing (Cancel, OK) closes the question on screen, and the house goes
+        // back to the home as it is.
+        if (structured?.closed === true) {
+          note({ name: 'closed', arguments: {} });
+          ask({ play: null });
+        }
         // Say what the tap ended on, once: not each call it made on the way there.
         if (typeof structured?.say === 'string') void reply(structured.say);
       },
@@ -188,7 +192,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
       host.current = null;
       void screenHost.close();
     };
-  }, [client, note, remember, refreshHome, reply]);
+  }, [client, note, remember, refreshHome, reply, ask]);
 
   const show = useCallback(async (calls: ToolCall[]) => {
     const withView = calls.findLast((c) => c.resourceUri);
