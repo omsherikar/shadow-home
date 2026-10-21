@@ -20,8 +20,44 @@ const devices = [
 const routines = ['Coffee at 7', 'Good night', 'Lights out'];
 const facts = (context: Context, results: unknown[] = []): FilterFacts =>
   filterFacts({ context, results, devices, routines });
+/** After a check this turn. */
+const PLAN = facts('plan');
 /** Plain conversation: nothing checked anywhere in it. */
 const CHAT = facts('chat');
+
+describe('after a check: nothing that says the verdict', () => {
+  test.each([
+    ["You're covered.", 'verdict'],
+    ['That works.', 'verdict'],
+    ['Your home will be fine.', 'verdict'],
+    ['Nothing to worry about.', 'verdict'],
+    ["The fixes aren't needed.", 'verdict'],
+    ['The fixes are optional.', 'verdict'],
+    ['You can skip the fixes.', 'verdict'],
+    ['The garage stays warm the whole weekend.', 'verdict'],
+    ['Your rules are all respected.', 'verdict'],
+    ['It meets every house rule.', 'verdict'],
+    ['Everything is in order.', 'verdict'],
+    ['You can relax.', 'verdict'],
+    ['All your rules are happy with it.', 'verdict'],
+    ['It passed the check.', 'verdict'],
+    ['It failed the check.', 'verdict'],
+    ['Om would approve.', 'verdict'],
+    ['It is approved.', 'verdict'],
+    ['It got the green light.', 'verdict'],
+    ['Nothing stands in the way.', 'verdict'],
+    ['The twin found nothing.', 'verdict'],
+    ['The twin found no conflicts.', 'verdict'],
+    ['It breaks on the third night.', 'verdict'],
+    ['None of your house rules are broken.', 'verdict'],
+    ["It's not unsafe at all.", 'verdict'],
+    ["It's taken care of.", 'action'],
+    ['The heater is on now.', 'action'],
+    ["I've unlocked the front door.", 'action'],
+  ])('%s (%s)', (sentence, why) => {
+    expect(dropReason(sentence, PLAN)).toBe(why);
+  });
+});
 
 describe('plain conversation: small talk is free, claims about the home are not', () => {
   test.each([
