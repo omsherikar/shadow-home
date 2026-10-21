@@ -1,0 +1,24 @@
+/*
+ * The house panel while a plan plays: the ring round the device whose change is acted out.
+ */
+
+/* The plan's change being acted out: a ring round the device and what happens, in words. */
+.act-ring {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border: 2px solid #fff3d6;
+  border-radius: 50%;
+  box-shadow:
+    0 0 18px 4px rgb(255 214 150 / 55%),
+    inset 0 0 10px rgb(255 214 150 / 40%);
+  transform: translate(-50%, -50%);
+  animation: act-in 0.35s ease-out;
+}
+
+@keyframes act-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.9);
+  }
+}
