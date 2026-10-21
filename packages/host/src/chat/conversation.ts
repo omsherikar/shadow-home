@@ -46,3 +46,20 @@ export interface Message {
   /** For a retry: the request this answers, exactly as it was sent. */
   request?: TurnRequest;
 }
+
+/**
+ * The person's line and Alexa's answer, waiting for its first event. The answer keeps the request
+ * it was sent for, so a retry sends exactly that again.
+ */
+export function ask(
+  messages: Message[],
+  id: string,
+  said: string,
+  request: TurnRequest,
+): Message[] {
+  return [
+    ...messages,
+    { id: `${id}-you`, who: 'you', text: said },
+    { id: `${id}-alexa`, who: 'alexa', text: '', phase: 'thinking', steps: [], request },
+  ];
+}
