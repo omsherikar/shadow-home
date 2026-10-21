@@ -77,4 +77,16 @@ describe('sentences as the words stream in', () => {
     expect(split.push('The garage reaches 4.')).toEqual([]);
     expect(split.push('5 °C at night. And')).toEqual(['The garage reaches 4.5 °C at night.']);
   });
+
+  test('the same sentences however the words are cut', () => {
+    const whole = allSentences(WEEKEND);
+    for (const size of [1, 2, 5, 9, 40]) {
+      const split = sentenceSplitter();
+      const got: string[] = [];
+      for (let i = 0; i < WEEKEND.length; i += size)
+        got.push(...split.push(WEEKEND.slice(i, i + size)));
+      got.push(...split.end());
+      expect(got, `pieces of ${size}`).toEqual(whole);
+    }
+  });
 });
