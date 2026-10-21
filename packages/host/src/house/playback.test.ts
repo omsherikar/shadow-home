@@ -380,4 +380,13 @@ describe('a show', () => {
     expect(back.homeMs).toBeGreaterThan(fixed.startMs);
     expect(moment(runs, timing, planMs + 1000)).toMatchObject({ run: 1, homeMs: fixed.startMs });
   });
+
+  test('one run can be played on its own', () => {
+    expect(moment(runs, timing, 0, 1)).toMatchObject({ run: 1, homeMs: fixed.startMs });
+    expect(moment(runs, timing, Number.POSITIVE_INFINITY, 0)).toMatchObject({
+      run: 0,
+      homeMs: plan.endMs,
+      done: true,
+    });
+  });
 });
