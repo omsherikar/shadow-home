@@ -55,6 +55,17 @@ export interface DeviceProps {
   silent: boolean;
 }
 
+/** What the browser's speech recognition said went wrong, in plain words. */
+function micProblem(e: unknown): string {
+  const code = e instanceof Error ? e.message : String(e);
+  if (code === 'not-allowed' || code === 'service-not-allowed') {
+    return "I can't use your microphone. Allow it in your browser, or type instead.";
+  }
+  if (code === 'no-speech') return "I didn't hear anything. Tap the mic and try again.";
+  if (code === 'audio-capture') return "I can't find a microphone. You can type instead.";
+  return "I couldn't hear that. You can type instead.";
+}
+
 /**
  * A simulated Echo Show and a chat beside it. What's said goes to the assistant as a stream: her
  * words and steps show as they come, the screen draws each result as soon as its check is done, and
@@ -454,7 +465,7 @@ export function Device({ suggestions, demo, silent }: DeviceProps) {
     } catch (e) {
       mic.current = null;
       setActivity('idle');
-      setNotice(`I couldn't hear that: ${e instanceof Error ? e.message : String(e)}`);
+      setNotice(micProblem(e));
     }
   }, [say]);
 
