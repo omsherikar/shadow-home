@@ -269,6 +269,17 @@ describe('whether an answer waits for a reply', () => {
     const needsYes = call('commit_plan', { status: 'needs_confirmation', planId: 'p1' });
     expect(awaitsAnswer('That unlocks the front door.', [needsYes])).toBe(true);
   });
+
+  test('a statement with nothing pending does not', () => {
+    expect(awaitsAnswer('Done: 10 changes.', [call('commit_plan', { status: 'committed' })])).toBe(
+      false,
+    );
+    expect(awaitsAnswer('Okay, nothing changed.', [])).toBe(false);
+    // A question in the middle isn't the end of the answer.
+    expect(awaitsAnswer('Why? Because of R3. That rule stays.', [])).toBe(false);
+    // Refused outright: there's nothing to say yes to.
+    expect(awaitsAnswer('Blocked.', [call('preview_plan', preview({ tier: 'T5' }))])).toBe(false);
+  });
 });
 
 describe('the details view', () => {
