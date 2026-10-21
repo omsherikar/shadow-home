@@ -134,6 +134,12 @@ export function clockAt(ms: number, timeZone?: string): string {
   });
 }
 
+/** The words for an answer that failed, with when to come back for a limit. */
+export function problemWords(p: Problem, timeZone?: string): string {
+  if (p.retryAt === undefined) return p.message;
+  return `${p.message.replace(/\s*Try again later\.?$/, '')} Try again at ${clockAt(p.retryAt, timeZone)}.`;
+}
+
 // The details view
 
 interface ViolationLike {
