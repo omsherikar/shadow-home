@@ -253,10 +253,16 @@ test('where frames come slowly, the verdict comes first and the house shows wher
   await expect(house.getByText(/^Sunday, 6:00 PM$/)).toBeVisible();
   await expect(view(page).getByRole('button', { name: /Do it with 4 fixes/ })).toBeVisible();
   // That slow start cost only that playback its sweep. Asked again (the same scene, so home time
-  // stays where it is for the tests after this one), the plan plays anew; its frames come fast,
-  // and it sweeps, stopping where R3 breaks.
+  // stays where it is for the tests after this one), the plan plays anew (at four times the pace,
+  // to draw few frames); once its clock runs, its frames come fast, and it sweeps, stopping where
+  // R3 breaks.
   await say(page, WEEKEND);
   await expect(house.locator('.run-chip')).toHaveCount(0);
+  const faster = house.getByRole('button', { name: '4x speed' });
+  await closeControls(page);
+  await stepUntil(page, faster, 100, 3000);
+  await faster.click();
+  await stepUntil(page, sweeping(page), 500, 10_000);
   await fastFrames(page);
   const r3 = house
     .getByRole('status')
