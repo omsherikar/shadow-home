@@ -134,6 +134,64 @@
   background: rgb(255 236 210 / 28%);
 }
 
+.timeline-mark {
+  position: absolute;
+  top: 15px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: rgb(255 240 220 / 60%);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+/* Where a house rule breaks: a red diamond on the rail (amber where it might, or can't be told). */
+.timeline-mark.mark-violation,
+.timeline-mark.mark-not_robust,
+.timeline-mark.mark-unknown,
+.timeline-mark.mark-guard {
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 2px;
+  background: var(--blocked);
+  box-shadow: 0 0 0 2px rgb(20 16 13 / 75%);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.timeline-mark.mark-not_robust,
+.timeline-mark.mark-unknown {
+  background: var(--unsure);
+}
+
+.timeline-mark.mark-guard {
+  background: var(--safe);
+}
+
+.timeline-mark.mark-plan {
+  height: 16px;
+  background: var(--ink);
+}
+
+/* Routines below the rail, people coming and going above it. */
+.timeline-mark.mark-routine {
+  top: 24px;
+  height: 7px;
+  background: #ffd28a;
+}
+
+.timeline-mark.mark-leaves,
+.timeline-mark.mark-arrives {
+  top: 5px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #b9d2ff;
+}
+
 .timeline-head {
   position: absolute;
   top: 3px;
