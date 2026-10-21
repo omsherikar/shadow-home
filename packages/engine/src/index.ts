@@ -35,7 +35,7 @@ export {
   TRACE_STEP_MINUTES,
 } from './simulate.ts';
 export { planSummary, SPEECH_LIMITS, type Speech, speech, wordCount } from './speech.ts';
-export { confirmationTier, type Tier, type TierResult } from './tier.ts';
+export { confirmationTier, refusingRule, type Tier, type TierResult } from './tier.ts';
 export { untrustedSensors } from './trust.ts';
 export {
   type CheckResult,
