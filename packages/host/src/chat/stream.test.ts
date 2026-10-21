@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { eventFrom, eventParser, type TurnEvent } from './stream.ts';
+import type { TurnRequest } from '../turn/types.ts';
+import { eventFrom, eventParser, streamTurn, type TurnEvent } from './stream.ts';
 
 const CALL = {
   name: 'preview_plan',
@@ -37,6 +38,8 @@ const PREVIEW_TURN = [
   '',
   '',
 ].join('\n');
+
+const REQUEST: TurnRequest = { text: "I'm away for the weekend", history: [] };
 
 describe('reading the event stream', () => {
   test('gives each event of a preview turn in order, skipping keep-alives', () => {
@@ -139,5 +142,51 @@ describe('reading the event stream', () => {
       retryable: false,
     });
     expect(eventFrom('error', '{"message":"Busy","retryable":true,"retryAfterMs":-1}')).toBeNull();
+  });
+});
+
+/** A fetch that answers with `body` in the given chunks, and records what it was asked. */
+function answering(
+  body: string | string[],
+  init: { status?: number; type?: string; headers?: Record<string, string> } = {},
+) {
+  const asked: { url: string; init: RequestInit }[] = [];
+  const chunks = [body].flat();
+  const fake = (async (url: string, req: RequestInit) => {
+    asked.push({ url, init: req });
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const c of chunks) controller.enqueue(encoder.encode(c));
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      status: init.status ?? 200,
+      headers: { 'content-type': init.type ?? 'text/event-stream; charset=utf-8', ...init.headers },
+    });
+  }) as unknown as typeof fetch;
+  return { fake, asked };
+}
+
+async function all(events: AsyncIterable<TurnEvent>): Promise<TurnEvent[]> {
+  const out: TurnEvent[] = [];
+  for await (const e of events) out.push(e);
+  return out;
+}
+
+describe('a turn as it streams', () => {
+  test('asks for a stream, sends the request as JSON, and gives every event to done', async () => {
+    const { fake, asked } = answering(PREVIEW_TURN.match(/[\s\S]{1,40}/g) ?? []);
+    const events = await all(streamTurn(REQUEST, { fetch: fake }));
+    expect(events.map((e) => e.type)).toEqual(['text', 'step', 'step', 'call', 'text', 'done']);
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.url).toBe('/api/turn');
+    expect(asked[0]?.init.method).toBe('POST');
+    expect(asked[0]?.init.headers).toMatchObject({
+      accept: 'text/event-stream',
+      'content-type': 'application/json',
+    });
+    expect(JSON.parse(String(asked[0]?.init.body))).toEqual(REQUEST);
   });
 });
