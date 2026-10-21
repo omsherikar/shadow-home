@@ -25,6 +25,8 @@ export interface HouseView {
   presence: Record<string, 'home' | 'away'> | undefined;
   /** The home time the light outside follows. */
   time: string;
+  /** The room to move in on, or null for the whole house. */
+  focus: string | null;
 }
 
 export interface HouseProps {
@@ -89,7 +91,14 @@ function Scene({ view, mode, anchors, pinned, still, inset }: HouseProps) {
     <>
       <Environment intensity={light.sky} />
       <KeyLight light={light} />
-      <CameraRig mode={mode} anchors={anchors} pinned={pinned} still={still} inset={inset} />
+      <CameraRig
+        mode={mode}
+        focus={view.focus}
+        anchors={anchors}
+        pinned={pinned}
+        still={still}
+        inset={inset}
+      />
       <Shell layout={layout} devices={view.devices} />
       <Furniture layout={layout} />
       <Devices layout={layout} devices={view.devices} />
@@ -171,6 +180,8 @@ function KeyLight({ light }: { light: Daylight }) {
   );
 }
 
+const ROOMS = new Map(layout.rooms.map((r) => [r.id, r]));
+
 // Alone, the house sits a little above the caption that floats along the bottom.
 const ALONE: Band = { center: 0.08, half: 0.92 };
 
@@ -181,6 +192,7 @@ const ALONE: Band = { center: 0.08, half: 0.92 };
  */
 function CameraRig(props: {
   mode: HouseProps['mode'];
+  focus: string | null;
   anchors: Anchor[];
   pinned: HouseProps['pinned'];
   still: boolean;
@@ -190,14 +202,22 @@ function CameraRig(props: {
   const width = useThree((s) => s.size.width);
   const height = useThree((s) => s.size.height);
   const invalidate = useThree((s) => s.invalidate);
+  const room = props.focus ? ROOMS.get(props.focus) : undefined;
   const { top, bottom } = props.inset;
   const goal = useMemo(() => {
     const aspect = width / Math.max(1, height);
     const view = VIEWS[props.mode];
     const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
+    if (room) {
+      const box = {
+        min: new Vector3(room.x, 0, room.z),
+        max: new Vector3(room.x + room.width, layout.wallHeight, room.z + room.depth),
+      };
+      return frame(box, view, FOV, aspect, 0.18, band);
+    }
     const whole = props.mode === 'split' ? houseBounds(layout) : groundBounds(layout);
     return frame(whole, view, FOV, aspect, 0.04, band ?? ALONE);
-  }, [width, height, props.mode, top, bottom]);
+  }, [width, height, props.mode, room, top, bottom]);
   const at = useRef<{ position: Vector3; target: Vector3 } | null>(null);
   const tmp = useMemo(() => new Vector3(), []);
 
