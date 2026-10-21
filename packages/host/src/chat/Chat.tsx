@@ -1,0 +1,216 @@
+'use client';
+
+import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { MAX_TEXT } from '../turn/bounds.ts';
+import type { FollowUp, Message } from './conversation.ts';
+
+/** What the person can see Alexa doing. */
+export type Activity = 'idle' | 'listening' | 'thinking' | 'working' | 'answering' | 'speaking';
+
+export interface ChatProps {
+  messages: Message[];
+  /** What a first-time visitor can tap to start. */
+  starters: FollowUp[];
+  activity: Activity;
+  /** While listening: the words heard so far. */
+  heard: string;
+  /** Connected, and not playing the demo. */
+  ready: boolean;
+  micAvailable: boolean;
+  /** What the empty text box says. */
+  placeholder: string;
+  /** A line from the page itself: the demo finished, the mic is blocked. */
+  notice: string | null;
+  onSend(says: string, label?: string): void;
+  onMic(): void;
+  /** The small menu: "Play the demo". */
+  menu: ReactNode;
+}
+
+const ACTIVITY_WORDS: Record<Activity, string> = {
+  idle: '',
+  listening: 'Listening',
+  thinking: 'Thinking',
+  working: 'Checking your home',
+  answering: 'Answering',
+  speaking: 'Speaking',
+};
+
+/**
+ * Talking to Alexa: the conversation as bubbles, and a composer that's always there (type, talk or
+ * tap a suggestion).
+ */
+export function Chat(props: ChatProps) {
+  const { messages, activity, ready } = props;
+  const [draft, setDraft] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const following = useRef(true);
+  const busy = activity === 'thinking' || activity === 'working' || activity === 'answering';
+  const last = messages.at(-1);
+
+  // Follow the newest message, unless the person has scrolled up to read.
+  const onScroll = () => {
+    const el = list.current;
+    if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs whenever the conversation changes
+  useLayoutEffect(() => {
+    // A new question from the person always brings the view down to it.
+    if (last?.who === 'you' || last?.phase === 'thinking') following.current = true;
+    const el = list.current;
+    if (el && following.current) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  // What was pressed (a suggestion, Send) goes away once it's used, so focus comes back
+  // to the text box, where a keyboard carries on. Not on a touch screen, where that would open
+  // the keyboard over the answer.
+  const refocus = () => {
+    if (window.matchMedia('(pointer: fine)').matches) input.current?.focus({ preventScroll: true });
+  };
+  const send = (says: string, label?: string) => {
+    props.onSend(says, label);
+    refocus();
+  };
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!draft.trim() || busy || !ready) return;
+    send(draft);
+    setDraft('');
+  };
+
+  const offers = props.starters;
+  return (
+    <div className="chat" data-activity={activity}>
+      <header className="chat-head">
+        <Ring activity={activity} />
+        <p className="chat-title">
+          Alexa
+          <span className="chat-state" aria-live="polite">
+            {ACTIVITY_WORDS[activity]}
+          </span>
+        </p>
+        {props.menu}
+      </header>
+      <div className="chat-scroll" ref={list} onScroll={onScroll}>
+        <ol className="messages" aria-label="Conversation">
+          {messages.map((m) =>
+            m.who === 'you' ? (
+              <li key={m.id} className="msg you">
+                <span className="who">You</span>
+                <p className="said">{m.text}</p>
+              </li>
+            ) : (
+              <Answer key={m.id} m={m} />
+            ),
+          )}
+        </ol>
+        {props.notice ? <p className="chat-notice">{props.notice}</p> : null}
+      </div>
+      {offers.length > 0 && !busy ? (
+        <div className="offers">
+          {offers.map((o) => (
+            <button
+              key={o.label}
+              type="button"
+              className="offer"
+              disabled={!ready}
+              onClick={() => send(o.says, o.label)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <form className="composer" onSubmit={submit}>
+        {props.micAvailable ? (
+          <button
+            type="button"
+            className="round mic"
+            aria-label={activity === 'listening' ? 'Stop listening' : 'Talk'}
+            aria-pressed={activity === 'listening'}
+            disabled={!ready || busy}
+            onClick={props.onMic}
+          >
+            <MicIcon />
+          </button>
+        ) : null}
+        <input
+          ref={input}
+          aria-label="Say something to Alexa"
+          placeholder={activity === 'listening' ? 'Listening…' : props.placeholder}
+          maxLength={MAX_TEXT}
+          value={activity === 'listening' ? props.heard : draft}
+          readOnly={activity === 'listening'}
+          onChange={(e) => setDraft(e.target.value)}
+          disabled={!ready}
+          enterKeyHint="send"
+        />
+        <button
+          type="submit"
+          className="round send"
+          aria-label="Send"
+          disabled={!ready || busy || !draft.trim()}
+        >
+          <SendIcon />
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function Answer({ m }: { m: Message }) {
+  return (
+    <li className="msg alexa" data-phase={m.phase}>
+      <span className="who">Alexa</span>
+      {m.text ? (
+        <p className="said">{m.text}</p>
+      ) : m.phase === 'thinking' ? (
+        <p className="said waiting">
+          <span className="dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="sr-only">Thinking</span>
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
+/** The Echo's light ring, as Alexa's mark: it moves while she listens, thinks or speaks. */
+function Ring({ activity }: { activity: Activity }) {
+  return <span className={`ring ${activity}`} aria-hidden="true" />;
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
+      <path
+        d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+      <path
+        d="M12 19V5M5.5 11.5 12 5l6.5 6.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
