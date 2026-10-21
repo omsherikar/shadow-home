@@ -95,8 +95,11 @@ function browserVoice(text: string, signal: AbortSignal): Promise<boolean> {
 /** The device's voice: sentences as they stream in (`write`), then the answer as it ends. */
 export const speech = speechQueue({ fetch: fetchClip, play: playClip });
 
-/** Say a whole reply out loud, cutting short whatever was being said. Resolves once it's said. */
-export function speak(text: string): Promise<void> {
+/**
+ * Say a whole reply out loud, cutting short whatever was being said. Resolves once it's said:
+ * true when it was heard to the end.
+ */
+export function speak(text: string): Promise<boolean> {
   return speech.say(text);
 }
 

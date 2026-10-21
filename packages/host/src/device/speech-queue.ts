@@ -33,6 +33,8 @@ interface Round {
   /** The last clip asked for: each asks once the one before has answered. */
   asked: Promise<unknown>;
   playing: Promise<void> | null;
+  /** A sentence of this round couldn't play, or was cut short. */
+  missed: boolean;
 }
 
 /** Words in one line, single-spaced, for comparing what streamed with what was said in the end. */
@@ -47,6 +49,7 @@ function round(): Round {
     refused: false,
     asked: Promise.resolve(),
     playing: null,
+    missed: false,
   };
 }
 
@@ -89,7 +92,8 @@ export function speechQueue(voice: Voice) {
       // Speaking from the moment the first clip starts, not when the answer has finished.
       speakingIs(true);
       // A clip that can't play is skipped, not a reason to stop the rest.
-      await voice.play(clip, next.text, signal).catch(() => undefined);
+      const heard = await voice.play(clip, next.text, signal).catch(() => false);
+      if (!heard) r.missed = true;
     }
     r.playing = null;
     // Everything said; a round that was cleared already said it stopped.
@@ -108,9 +112,9 @@ export function speechQueue(voice: Voice) {
    * The answer as it ends, `say` being what was said in the end. When what streamed is how `say`
    * starts, the rest of `say` is queued after it; otherwise `say` replaced it (the guard's own
    * words), so what was queued is dropped and `say` is said instead. Resolves once all of it has
-   * been said, or the voice was stopped.
+   * been said, or the voice was stopped: true when every sentence was heard to its end.
    */
-  const finish = (say: string): Promise<void> => {
+  const finish = (say: string): Promise<boolean> => {
     const final = line(say);
     let r = now;
     if (r.queued && final !== r.queued && !final.startsWith(`${r.queued} `)) {
@@ -119,7 +123,7 @@ export function speechQueue(voice: Voice) {
     }
     for (const sentence of allSentences(final.slice(r.queued.length))) queue(r, sentence);
     r.split = sentenceSplitter();
-    return r.playing ?? Promise.resolve();
+    return (r.playing ?? Promise.resolve()).then(() => !r.missed && !r.controller.signal.aborted);
   };
 
   return {
@@ -129,7 +133,7 @@ export function speechQueue(voice: Voice) {
     },
     finish,
     /** Say this, and only this, cutting short whatever was being said. */
-    say(text: string): Promise<void> {
+    say(text: string): Promise<boolean> {
       clear();
       return finish(text);
     },
@@ -141,7 +145,7 @@ export function speechQueue(voice: Voice) {
      * `say` instead of what streamed, resolving once it has been said. An error clears the queue;
      * the page says what went wrong.
      */
-    follow(event: TurnEvent): Promise<void> | null {
+    follow(event: TurnEvent): Promise<boolean> | null {
       if (event.type === 'step' && event.state === 'running') clear();
       if (event.type === 'error') clear();
       if (event.type === 'text') {
