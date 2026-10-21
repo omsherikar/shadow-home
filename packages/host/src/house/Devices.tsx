@@ -10,7 +10,9 @@ const deg = (d: number) => (d * Math.PI) / 180;
 /**
  * Every smart device in its place, drawn as a simple clean object facing +z before its turn:
  * lights glow by brightness, plugs light what they power, locks and windows show open or shut,
- * and each sensor has a status light (amber when its reading can't be trusted).
+ * and each sensor has a status light (amber when its reading can't be trusted). Only the lamps
+ * light the rooms, and their lights are always there, dark when off: switching one never changes
+ * how many lights the scene has, which would rebuild every shader in the middle of a playback.
  */
 export function Devices({ layout, home }: { layout: HouseLayout; home: LiveHome | null }) {
   return (
@@ -139,7 +141,6 @@ function Aquarium({ look }: { look: Look }) {
         <boxGeometry args={[0.62, 0.025, 0.32]} />
         <meshStandardMaterial color={palette.graphite} roughness={0.5} />
       </mesh>
-      {on ? <pointLight color={palette.water} intensity={2} distance={2.2} /> : null}
     </group>
   );
 }
@@ -165,9 +166,6 @@ function Tv({ look }: { look: Look }) {
           roughness={0.15}
         />
       </mesh>
-      {on ? (
-        <pointLight position={[0, 0.42, 0.4]} color={palette.screen} intensity={3} distance={3} />
-      ) : null}
     </group>
   );
 }
@@ -197,9 +195,6 @@ function CoffeeMaker({ look }: { look: Look }) {
           emissiveIntensity={on ? 4 : 0}
         />
       </mesh>
-      {on ? (
-        <pointLight position={[0, 0.3, 0.2]} color={palette.heat} intensity={1} distance={1.5} />
-      ) : null}
     </group>
   );
 }
@@ -284,9 +279,6 @@ function SmokeAlarm({ look }: { look: Look }) {
         />
       </mesh>
       <Led look={look} position={[0.04, 0.02, 0.034]} />
-      {alarm ? (
-        <pointLight position={[0, 0, 0.4]} color={palette.alarm} intensity={4} distance={4} />
-      ) : null}
     </group>
   );
 }
@@ -312,15 +304,13 @@ function Shade(props: {
           roughness={0.9}
         />
       </mesh>
-      {look.glow > 0 ? (
-        <pointLight
-          position={[0, -props.height * 0.25, 0]}
-          color={palette.lamp}
-          intensity={props.power * look.glow}
-          distance={7}
-          decay={2}
-        />
-      ) : null}
+      <pointLight
+        position={[0, -props.height * 0.25, 0]}
+        color={palette.lamp}
+        intensity={props.power * look.glow}
+        distance={6}
+        decay={2}
+      />
     </group>
   );
 }
@@ -399,14 +389,12 @@ function PorchLight({ look }: { look: Look }) {
           roughness={0.2}
         />
       </mesh>
-      {look.glow > 0 ? (
-        <pointLight
-          position={[0, 1.2, 0]}
-          color={palette.lamp}
-          intensity={10 * look.glow}
-          distance={6}
-        />
-      ) : null}
+      <pointLight
+        position={[0, 1.2, 0]}
+        color={palette.lamp}
+        intensity={10 * look.glow}
+        distance={6}
+      />
     </group>
   );
 }
@@ -425,9 +413,6 @@ function SpaceHeater({ look }: { look: Look }) {
           emissiveIntensity={on ? 3 : 0}
         />
       </mesh>
-      {on ? (
-        <pointLight position={[0, 0.25, 0.4]} color={palette.heat} intensity={3} distance={3} />
-      ) : null}
     </group>
   );
 }
