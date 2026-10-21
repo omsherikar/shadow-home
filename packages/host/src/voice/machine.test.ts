@@ -150,3 +150,33 @@ describe('a turn, her voice, and the answer', () => {
     expect(run([{ type: 'timeout', epoch: waiting.epoch }], state).state.mode).toBe('thinking');
   });
 });
+
+describe('stopping, turning off, and the microphone failing', () => {
+  test('Stop ends the turn and her voice, and listens for "Alexa" again', () => {
+    const speaking = run([
+      on,
+      heard('Alexa, run the dishwasher'),
+      { type: 'speaking', on: true },
+    ]).state;
+    const stopped = run([{ type: 'stopped' }, { type: 'speaking', on: false }], speaking);
+    expect(stopped.state.mode).toBe('idle');
+    expect(stopped.state.asked).toBe(false);
+  });
+
+  test('Stop while she asks her question: the turn ending after it opens no window', () => {
+    const asking = run([
+      on,
+      heard("Alexa, I'm away for the weekend"),
+      { type: 'speaking', on: true },
+    ]).state;
+    // Stopped mid-question; then the page's turn finishes and reports the question.
+    const { state, effects } = run(
+      [{ type: 'stopped' }, { type: 'speaking', on: false }, { type: 'turn-ended', asked: true }],
+      asking,
+    );
+    expect(state.mode).toBe('idle');
+    expect(effects).toEqual([]);
+    // A stray "yes" is not for her.
+    expect(run([heard('yes')], state).effects).toEqual([]);
+  });
+});
