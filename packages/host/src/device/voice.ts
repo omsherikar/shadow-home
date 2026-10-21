@@ -93,10 +93,12 @@ function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
   const url = URL.createObjectURL(blob);
   const audio = new Audio(url);
   return new Promise((resolve) => {
+    let limit: ReturnType<typeof setTimeout> | undefined;
     let over = false;
     const done = (heard: boolean) => {
       if (over) return;
       over = true;
+      clearTimeout(limit);
       signal.removeEventListener('abort', stop);
       URL.revokeObjectURL(url);
       resolve(heard);
@@ -105,7 +107,16 @@ function playAudio(blob: Blob, signal: AbortSignal): Promise<boolean> {
       audio.pause();
       done(false);
     };
+    // Past its limit it counts as over, and as not heard: her question may not have been.
+    const allow = (ms: number) => {
+      clearTimeout(limit);
+      limit = setTimeout(stop, ms);
+    };
+    // Until it starts playing, the guard for a clip of unknown length; from then, its own length
+    // and a margin, so playback that starts late (an audio device waking) isn't cut short.
+    allow(playLimitMs(Number.NaN));
     signal.addEventListener('abort', stop, { once: true });
+    audio.onplaying = () => allow(playLimitMs(audio.duration));
     audio.onended = () => done(true);
     audio.onerror = () => done(false);
     audio.play().catch((e: unknown) => {
