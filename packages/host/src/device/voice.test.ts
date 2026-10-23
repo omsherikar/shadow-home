@@ -20,6 +20,19 @@ describe("when the device's voice is refused", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  test('a request that fails: the browser says that sentence, and the next asks again', async () => {
+    vi.resetModules();
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    const { speak } = await import('./voice.ts');
+    await speak('Done: TV off.');
+    await speak('Done: lights off.');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   test('a 503 (no voice, or the instance has spoken enough): the browser for the session', async () => {
     const { speak, fetch } = await voiceAnswering(503, 429);
     await speak('Done: TV off.');
