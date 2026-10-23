@@ -386,17 +386,17 @@ describe('the system prompt plans and undoes like a real assistant', () => {
     expect(systemPrompt(home)).not.toContain('then wait for a yes before committing the undo');
   });
 
-  test('when only some leave, the presence schedule names who stays; "nobody" only when all leave', () => {
+  test('someone named leaving: the others stay; the person heading out themself: the house empties', () => {
     const prompt = systemPrompt({ ...home, presence: { om: 'home', maya: 'home', sam: 'home' } });
     expect(prompt).toContain('The household: om, maya, sam.');
     expect(prompt).toContain(
       'names exactly who stays home, as { "home": [...] } with every household member who isn\'t leaving',
     );
     expect(prompt).toContain(
-      'When only some leave ("Om is leaving until Sunday", "I\'m heading out"), the others stay home: for om alone, { "home": ["maya","sam"] }.',
+      'When the person names someone else leaving ("Om is leaving until Sunday"), only they are away and the others stay home: for om alone, { "home": ["maya","sam"] }.',
     );
     expect(prompt).toContain(
-      'Use "nobody" only when the person says everyone is leaving or the house will be empty',
+      'When the person themself is heading out or going away ("I\'m heading out", "I\'m away for the weekend", "set the house to away") and doesn\'t say anyone stays, the house will be empty: "nobody".',
     );
     expect(prompt).not.toContain('nobody home or whoever stays');
   });
@@ -954,5 +954,21 @@ describe('fixes for a live session', () => {
       'light_porch',
     ]);
     expect(devicesNamed('the garage thermostat', names)).toEqual(['garage_thermostat']);
+  });
+});
+
+describe('a model sentence that repeats the engine', () => {
+  test('"Rule added." after the headline "Rule added." is dropped, so the read-back is said', async () => {
+    const { withoutRepeats } = await import('./bedrock.ts');
+    const speech = { headline: 'Rule added.', reason: 'Never unlock the front door at night.' };
+    expect(withoutRepeats(['Rule added.'], speech)).toEqual([]);
+    expect(withoutRepeats(['rule added'], speech)).toEqual([]);
+    expect(withoutRepeats(["It's Om's rule now."], speech)).toEqual(["It's Om's rule now."]);
+  });
+
+  test("a sentence inside the engine's question is dropped too", async () => {
+    const { withoutRepeats } = await import('./bedrock.ts');
+    const speech = { headline: 'Blocked.', ask: 'Do it with 4 fixes instead?' };
+    expect(withoutRepeats(['Do it with 4 fixes instead?'], speech)).toEqual([]);
   });
 });
