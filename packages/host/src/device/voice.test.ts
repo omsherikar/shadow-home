@@ -211,3 +211,17 @@ describe('a clip that never finishes properly still counts as finished', () => {
     expect(result).toBe(false);
   });
 });
+
+describe('what the voice hears', () => {
+  test('units are spelled out for speech, so 20 °C is "20 degrees Celsius"', async () => {
+    const { forSpeech } = await import('./voice.ts');
+    expect(forSpeech('Done: Main thermostat to 20 °C.')).toBe(
+      'Done: Main thermostat to 20 degrees Celsius.',
+    );
+    expect(forSpeech('Heater thermostat 9 → 5°C, outside -1.8 °C')).toBe(
+      'Heater thermostat 9 → 5 degrees Celsius, outside -1.8 degrees Celsius',
+    );
+    expect(forSpeech('It was 68 °F.')).toBe('It was 68 degrees Fahrenheit.');
+    expect(forSpeech('No units here.')).toBe('No units here.');
+  });
+});
