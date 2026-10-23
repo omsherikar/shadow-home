@@ -116,7 +116,7 @@ test('her steps show as the turn runs, the screen draws the check, then the step
   await page.evaluate(() => (window as unknown as { releaseTurn(): void }).releaseTurn());
   await expect(view(page).getByText('Not safe', { exact: true })).toBeVisible();
   await expect(answer.locator('.said')).toHaveText(
-    "Blocked: that breaks 4 house rules. No coffee maker running when nobody's home. That's Om's rule. Do it with 4 fixes instead?",
+    'Blocked: that breaks 4 house rules. Coffee at 7 turns the coffee maker on at Sat 7:00 AM, which breaks Om\'s rule: "No coffee maker running when nobody\'s home." Your plan turns the garage freezer off, which breaks Om\'s rule: "Never turn off the garage freezer." Your plan turns the aquarium heater off, which breaks Maya\'s rule: "Keep the aquarium heater on." Your plan turns the garage heater thermostat\'s heating off, and by Sat 10:37 PM that breaks Om\'s rule: "Don\'t let the garage pipes freeze." Do it with 4 fixes instead?',
   );
   await expect(answer.locator('.verdict-pill')).toHaveText(/Not safe/);
   await expect(answer.getByText(/^What I did \(\d+ steps?\)$/)).toBeVisible();
