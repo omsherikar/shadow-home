@@ -1,17 +1,18 @@
-/* Read from across a room: large type, verdict as icon + word + colour, at most 5 rows. */
+/* Read from across a room: a large headline, the verdict as icon + word, at most 5 rows.
+   Monochrome; the one accent marks only what is wrong. */
 :root {
-  --bg: #0b1020;
-  --panel: #131c31;
-  --chip: #1e293b;
-  --text: #f1f5f9;
-  --soft: #cbd5e1;
-  --muted: #94a3b8;
-  --line: #334155;
-  --safe: #34d399;
-  --blocked: #f87171;
-  --unsure: #fbbf24;
-  --done: #60a5fa;
-  --neutral: #94a3b8;
+  --bg: #0c0c0e;
+  --surface: #141416;
+  --raised: #1c1c20;
+  --text: #f1eee6;
+  --text-2: #ddd9cf;
+  --muted: #8e8b82;
+  --faint: #5f5d58;
+  --hairline: rgba(241, 238, 230, 0.08);
+  --hairline-strong: rgba(241, 238, 230, 0.16);
+  --accent: #fb6b83;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  --serif: ui-serif, "New York", Georgia, serif;
   color-scheme: dark;
 }
 
@@ -25,92 +26,97 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--sans);
   font-size: clamp(12px, 1.45vw, 21px);
+  -webkit-font-smoothing: antialiased;
 }
 
 .screen {
-  --tone: var(--neutral);
+  --tone: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 0.7em;
+  gap: 0.8em;
   height: 100vh;
-  padding: 1em 1.4em;
+  padding: 1.1em 1.5em;
   overflow: hidden;
 }
 
-.tone-safe {
-  --tone: var(--safe);
+.tone-safe,
+.tone-done {
+  --tone: var(--text);
 }
 .tone-blocked {
-  --tone: var(--blocked);
+  --tone: var(--accent);
 }
 .tone-unsure {
-  --tone: var(--unsure);
-}
-.tone-done {
-  --tone: var(--done);
+  --tone: var(--muted);
 }
 
 .message {
   margin: auto;
   max-width: 80%;
+  font-family: var(--serif);
   font-size: 1.6em;
-  color: var(--soft);
+  color: var(--text-2);
   text-align: center;
 }
 
 .head {
   display: flex;
   align-items: center;
-  gap: 1em;
+  gap: 1.1em;
 }
 
 .badge {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.2em;
   min-width: 6.5em;
-  padding: 0.4em 0.8em;
-  border-radius: 0.8em;
+  padding: 0.5em 0.8em;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  border-radius: 0.6em;
   color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 16%, transparent);
 }
 
 .badge .icon {
-  font-size: 2.4em;
-  font-weight: 800;
+  font-size: 2.2em;
+  font-weight: 600;
   line-height: 1;
 }
 
 .badge .word {
-  font-size: 0.85em;
-  font-weight: 800;
+  font-size: 0.8em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .speech h1 {
   margin: 0;
-  font-size: 1.5em;
-  line-height: 1.2;
+  font-family: var(--serif);
+  font-size: 2em;
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
 }
 
 .speech .reason {
-  margin: 0.2em 0 0;
-  color: var(--soft);
+  margin: 0.35em 0 0;
+  color: var(--muted);
 }
 
 .speech .ask {
-  margin: 0.2em 0 0;
-  color: var(--tone);
+  margin: 0.3em 0 0;
+  color: var(--text);
   font-size: 1.05em;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .body {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1.2em;
+  gap: 1.6em;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -123,15 +129,16 @@ body {
 .lead {
   display: flex;
   flex-direction: column;
-  gap: 0.7em;
+  gap: 1em;
   min-width: 0;
 }
 
 h2 {
-  margin: 0 0 0.45em;
+  margin: 0 0 0.7em;
   color: var(--muted);
-  font-size: 0.78em;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -139,7 +146,7 @@ h2 {
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 0.45em;
+  gap: 0.5em;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -153,53 +160,56 @@ h2 {
 }
 
 .place {
-  font-weight: 700;
+  color: var(--text-2);
+  font-weight: 600;
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3em;
+  gap: 0.35em;
 }
 
 .chip {
-  padding: 0.1em 0.5em;
-  border: 2px solid transparent;
-  border-radius: 0.45em;
-  background: var(--chip);
+  padding: 0.1em 0.55em;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0.4em;
+  color: var(--text-2);
   font-size: 0.92em;
 }
 
 .chip.flagged {
-  border-color: var(--blocked);
-  background: color-mix(in srgb, var(--blocked) 16%, transparent);
+  border-color: color-mix(in srgb, var(--text) 45%, transparent);
+  background: var(--surface);
+  color: var(--text);
 }
 
 .chip.fixed {
-  border-color: var(--safe);
-  background: color-mix(in srgb, var(--safe) 13%, transparent);
+  border-color: var(--hairline-strong);
+  background: var(--surface);
+  color: var(--text-2);
 }
 
 .chip.later {
-  border-color: var(--line);
   border-style: dashed;
+  color: var(--muted);
 }
 
 .cards {
-  gap: 0.35em;
+  gap: 0.45em;
 }
 
 .card {
-  padding: 0.3em 0.6em;
-  border-left: 4px solid var(--blocked);
-  border-radius: 0.45em;
-  background: var(--panel);
+  padding: 0.45em 0.7em;
+  border: 1px solid var(--hairline);
+  border-radius: 0.5em;
+  background: var(--surface);
   font-size: 0.8em;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .card .cause {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .card .at,
@@ -210,23 +220,23 @@ h2 {
 }
 
 .card .breaks {
-  color: var(--blocked);
-  font-weight: 650;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .card .rule {
-  color: var(--soft);
+  color: var(--text-2);
 }
 
 .card .fix {
-  color: var(--safe);
-  font-weight: 650;
+  color: var(--text-2);
+  font-weight: 600;
 }
 
 .notes {
   margin: 0.6em 0 0;
   padding-left: 1.2em;
-  color: var(--soft);
+  color: var(--muted);
   font-size: 0.9em;
 }
 
@@ -243,32 +253,32 @@ h2 {
 }
 
 .timeline .lane {
-  fill: var(--soft);
+  fill: var(--text-2);
   font-size: 14px;
 }
 
 .timeline .track {
-  stroke: var(--line);
-  stroke-width: 2;
+  stroke: var(--hairline-strong);
+  stroke-width: 1.5;
 }
 
 .timeline .day {
-  stroke: var(--line);
-  stroke-dasharray: 4 4;
+  stroke: var(--hairline-strong);
+  stroke-dasharray: 3 5;
 }
 
 .timeline .mark {
-  fill: var(--done);
+  fill: var(--text-2);
 }
 
 .timeline .mark.blocked {
-  fill: var(--blocked);
+  fill: var(--accent);
 }
 
 .timeline .mark-label {
-  fill: var(--blocked);
+  fill: var(--accent);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .controls {
@@ -276,6 +286,8 @@ h2 {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.7em;
+  padding-top: 0.8em;
+  border-top: 1px solid var(--hairline);
 }
 
 .controls button {
@@ -283,8 +295,8 @@ h2 {
   flex-direction: column;
   align-items: center;
   min-height: 2.8em;
-  padding: 0.45em 1.2em;
-  border: 2px solid var(--line);
+  padding: 0.45em 1.3em;
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
   background: transparent;
   color: var(--text);
@@ -299,14 +311,14 @@ h2 {
 }
 
 .controls button.primary {
-  border-color: var(--tone);
-  background: var(--tone);
+  border-color: var(--text);
+  background: var(--text);
   color: var(--bg);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .controls button.primary small {
-  color: color-mix(in srgb, var(--bg) 75%, transparent);
+  color: color-mix(in srgb, var(--bg) 70%, transparent);
 }
 
 .controls button:disabled {
@@ -316,10 +328,10 @@ h2 {
 
 .controls .error {
   margin: 0;
-  color: var(--blocked);
+  color: var(--text-2);
 }
 
-/* A zone's temperature against a house rule: green where it holds, the verdict's colour where it breaks. */
+/* A zone's temperature against a house rule: off-white where it holds, the accent where it breaks. */
 .temps {
   --rule: var(--muted);
   width: 100%;
@@ -329,11 +341,11 @@ h2 {
 }
 
 .temps.blocked {
-  --rule: var(--blocked);
+  --rule: var(--accent);
 }
 
 .temps.unsure {
-  --rule: var(--unsure);
+  --rule: var(--muted);
 }
 
 .temps .tick {
@@ -342,49 +354,49 @@ h2 {
 }
 
 .temps .day {
-  stroke: var(--line);
+  stroke: var(--hairline-strong);
   stroke-width: 1;
 }
 
 .temps .zone {
   fill: var(--text);
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .temps .outside {
-  fill: color-mix(in srgb, var(--rule) 7%, transparent);
+  fill: color-mix(in srgb, var(--text) 3%, transparent);
 }
 
 .temps .bound {
-  stroke: var(--soft);
+  stroke: var(--faint);
   stroke-width: 1.5;
-  stroke-dasharray: 7 6;
+  stroke-dasharray: 6 6;
 }
 
 .temps .band {
-  fill: color-mix(in srgb, var(--soft) 14%, transparent);
+  fill: color-mix(in srgb, var(--text) 8%, transparent);
 }
 
 .temps .band.held {
-  fill: color-mix(in srgb, var(--safe) 16%, transparent);
+  fill: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .temps .band.blocked,
 .temps .band.unsure {
-  fill: color-mix(in srgb, var(--rule) 28%, transparent);
+  fill: color-mix(in srgb, var(--rule) 18%, transparent);
 }
 
 .temps .curve {
   fill: none;
-  stroke: var(--soft);
-  stroke-width: 3.5;
+  stroke: var(--text-2);
+  stroke-width: 3;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
 .temps .curve.held {
-  stroke: var(--safe);
+  stroke: var(--text);
 }
 
 .temps .curve.blocked,
@@ -393,9 +405,9 @@ h2 {
 }
 
 .temps .bound-label {
-  fill: var(--soft);
+  fill: var(--muted);
   font-size: 19px;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .temps .break .mark {
@@ -407,15 +419,15 @@ h2 {
 .temps .break-label {
   fill: var(--rule);
   font-size: 19px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .temps .end {
-  fill: var(--soft);
+  fill: var(--text-2);
   font-size: 19px;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .temps .end.held {
-  fill: var(--safe);
+  fill: var(--text);
 }
