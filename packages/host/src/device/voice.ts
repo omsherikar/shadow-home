@@ -209,8 +209,117 @@ export function recognitionCtor(): RecognitionCtor | undefined {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition;
 }
 
+/** A browser that can record the microphone, for ElevenLabs to transcribe. */
+function canRecord(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof MediaRecorder !== 'undefined' &&
+    typeof navigator !== 'undefined' &&
+    typeof navigator.mediaDevices?.getUserMedia === 'function'
+  );
+}
+
 export function canListen(): boolean {
-  return recognitionCtor() !== undefined;
+  return recognitionCtor() !== undefined || canRecord();
+}
+
+let elevenReady: Promise<boolean> | undefined;
+
+/** Whether the server transcribes recordings with ElevenLabs: asked once a page. */
+function transcribesHere(): Promise<boolean> {
+  if (!canRecord()) return Promise.resolve(false);
+  elevenReady ??= fetch('/api/listen')
+    .then((r) => (r.ok ? r.json() : { ready: false }))
+    .then((b) => (b as { ready?: unknown }).ready === true)
+    .catch(() => false);
+  return elevenReady;
+}
+
+/** How loud counts as speaking, how long a pause ends it, and the longest a request may run. */
+const SPEAKING_RMS = 0.03;
+const PAUSE_MS = 1200;
+const NOTHING_SAID_MS = 6000;
+const LONGEST_MS = 15000;
+
+/**
+ * Record one request and have ElevenLabs transcribe it (/api/listen): it ends after a pause
+ * once something was said, on stop(), or at LONGEST_MS. Resolves with the words, empty when
+ * nothing was said; rejects when the transcription isn't available.
+ */
+function recordOnce(onHeard: (words: string) => void): { result: Promise<string>; stop(): void } {
+  let finish = () => {};
+  let stopEarly = false;
+  const result = (async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true },
+    });
+    const type =
+      ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find((t) =>
+        MediaRecorder.isTypeSupported?.(t),
+      ) ?? '';
+    const recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    const ended = new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+    });
+    const context = new AudioContext();
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    context.createMediaStreamSource(stream).connect(analyser);
+    const samples = new Uint8Array(analyser.fftSize);
+    const started = performance.now();
+    let spokeAt = 0;
+    let quietSince = 0;
+    let done = false;
+    finish = () => {
+      if (done) return;
+      done = true;
+      if (recorder.state !== 'inactive') recorder.stop();
+    };
+    const listenForPause = () => {
+      if (done) return;
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const v of samples) sum += ((v - 128) / 128) ** 2;
+      const level = Math.sqrt(sum / samples.length);
+      const now = performance.now();
+      if (level > SPEAKING_RMS) {
+        spokeAt = now;
+        quietSince = 0;
+      } else if (spokeAt && !quietSince) quietSince = now;
+      const paused = spokeAt > 0 && quietSince > 0 && now - quietSince > PAUSE_MS;
+      const silent = spokeAt === 0 && now - started > NOTHING_SAID_MS;
+      if (paused || silent || now - started > LONGEST_MS) finish();
+      else setTimeout(listenForPause, 100);
+    };
+    recorder.start(250);
+    if (stopEarly) finish();
+    else setTimeout(listenForPause, 100);
+    await ended;
+    for (const track of stream.getTracks()) track.stop();
+    void context.close();
+    const blob = new Blob(chunks, { type: recorder.mimeType || type || 'audio/webm' });
+    if (spokeAt === 0 || blob.size === 0) return '';
+    onHeard('…');
+    const res = await fetch('/api/listen', {
+      method: 'POST',
+      headers: { 'content-type': blob.type || 'audio/webm' },
+      body: blob,
+    });
+    if (!res.ok) throw new Error(`listening is not available (${res.status})`);
+    const body = (await res.json()) as { text?: unknown };
+    return typeof body.text === 'string' ? body.text.trim() : '';
+  })();
+  return {
+    result,
+    stop: () => {
+      stopEarly = true;
+      finish();
+    },
+  };
 }
 
 /**
@@ -218,6 +327,34 @@ export function canListen(): boolean {
  * resolves with the final words when the person stops talking (empty if nothing was heard).
  */
 export function listenOnce(onHeard: (words: string) => void): {
+  result: Promise<string>;
+  stop(): void;
+} {
+  let stopped = false;
+  let inner: { stop(): void } | undefined;
+  const result = transcribesHere().then((eleven) => {
+    if (stopped) return '';
+    const session = eleven ? recordOnce(onHeard) : browserListen(onHeard);
+    inner = session;
+    if (!eleven) return session.result;
+    // If ElevenLabs can't transcribe, the next request uses the browser's own recognition.
+    return session.result.catch((e: unknown) => {
+      elevenReady = Promise.resolve(false);
+      if (recognitionCtor()) return '';
+      throw e;
+    });
+  });
+  return {
+    result,
+    stop: () => {
+      stopped = true;
+      inner?.stop();
+    },
+  };
+}
+
+/** The browser's own recognition, for one request: words as they're recognised, then the rest. */
+function browserListen(onHeard: (words: string) => void): {
   result: Promise<string>;
   stop(): void;
 } {
