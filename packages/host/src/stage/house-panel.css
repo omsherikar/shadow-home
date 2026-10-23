@@ -313,9 +313,53 @@
   line-height: 1.45;
 }
 
+/* The house can be turned, zoomed and panned by hand. */
+.house-canvas canvas {
+  cursor: grab;
+}
+
+.house-canvas canvas:focus-visible {
+  outline: 1px solid var(--hairline-strong);
+  outline-offset: -1px;
+}
+
 .house-canvas[data-turning="yes"],
 .house-canvas canvas[data-turning="yes"] {
   cursor: grabbing;
+}
+
+/*
+ * Once the person has moved the camera: a hairline ghost button that takes it back to the default
+ * view. Beside the device, at the right just under the card (its top is set inline); alone, in
+ * the bottom left corner, level with the layout button and clear of the timeline and the chart.
+ */
+.reset-view {
+  position: absolute;
+  z-index: 2;
+  top: 24px;
+  right: 24px;
+  padding: 5px 12px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: var(--glass);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.stage.house-only .reset-view {
+  top: auto;
+  right: auto;
+  bottom: 20px;
+  left: 24px;
+}
+
+.reset-view:hover {
+  border-color: rgba(241, 238, 230, 0.28);
+  color: var(--text);
 }
 
 @media (prefers-reduced-motion: reduce) {
