@@ -191,5 +191,6 @@ function lastSpoken(calls: ToolCall[]): string | undefined {
   return spokenFrom(
     spoke.result.structuredContent as Record<string, unknown>,
     spoke.result.content,
+    spoke.result._meta,
   );
 }

@@ -144,7 +144,7 @@ function followed(events: TurnEvent[]) {
 }
 
 describe('a turn as it happens', () => {
-  test("a typical preview: the step, the call, then the engine's headline, the model's explanation and the engine's question; words before the call are never said", async () => {
+  test("a typical preview: the step, the call, then the engine's headline, each broken rule and the engine's question; words before the call are never said", async () => {
     const { api } = fakeApi(
       reply(
         [
@@ -176,15 +176,16 @@ describe('a turn as it happens', () => {
       { text: "I'm away for the weekend", history: [] },
       { emit: (e) => events.push(e) },
     );
-    const explanation = 'Om set that rule to keep the garage pipes from freezing.';
+    // A check that broke rules says each one in the engine's words; the model's sentence isn't used.
+    const explanation = 'At Sat 10:37 PM it breaks Om\'s rule: "Keep the garage above 4 °C".';
     expect(followed(events)).toEqual([
       { step: 's1 preview_plan running' },
       { step: 's1 preview_plan done' },
       { call: 'preview_plan' },
       { text: `Not safe: the garage would freeze. ${explanation} Do it with 4 fixes instead?` },
     ]);
-    // A piece at a time: the headline as the check returned, the model's sentence once it passed
-    // (its own question never did), and the engine's question last.
+    // A piece at a time: the headline as the check returned, then every broken rule in the
+    // engine's words, and the engine's question last.
     expect(events.flatMap((e) => (e.event === 'text' ? [e.data.delta] : []))).toEqual([
       'Not safe: the garage would freeze.',
       ` ${explanation}`,
@@ -229,6 +230,7 @@ describe('a turn as it happens', () => {
   });
 
   test("a reply that claims a verdict is never sent: the engine's words go instead", async () => {
+    const WHY = 'At Sat 10:37 PM it breaks Om\'s rule: "Keep the garage above 4 °C".';
     const { api } = fakeApi(
       reply([{ type: 'tool_use', id: 'toolu_1', name: 'preview_plan', input: {} }], 'tool_use'),
       reply([{ type: 'text', text: "Good news. It's safe, so I'll go ahead. Okay?" }]),
@@ -243,9 +245,10 @@ describe('a turn as it happens', () => {
     );
     expect(events.flatMap((e) => (e.event === 'text' ? [e.data.delta] : []))).toEqual([
       'Not safe: the garage would freeze.',
+      ` ${WHY}`,
       ' Do it with 4 fixes instead?',
     ]);
-    expect(turn.say).toBe('Not safe: the garage would freeze. Do it with 4 fixes instead?');
+    expect(turn.say).toBe(`Not safe: the garage would freeze. ${WHY} Do it with 4 fixes instead?`);
   });
 
   test('a model that writes nothing as it goes: the headline as the check returns, the rest at the end', async () => {

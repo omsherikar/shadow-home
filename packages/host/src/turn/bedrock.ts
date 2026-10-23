@@ -7,6 +7,7 @@ import type {
   Tool,
 } from '@aws-sdk/client-bedrock-runtime';
 import { log } from '../log.ts';
+import { explainBreaks } from './explain.ts';
 import { filterFacts, filterReply } from './guard.ts';
 import { normalise, spokenFrom } from './scripted.ts';
 import type {
@@ -143,7 +144,16 @@ export function bedrockModel(options: {
       switch (turn.context) {
         case 'plan': {
           // The headline went out when the call returned (run.ts).
-          const fresh = withoutRepeats(kept, structuredOf(turn.spoke)?.speech);
+          const spokeSc = structuredOf(turn.spoke);
+          const why = explainBreaks(spokeSc, turn.spoke.result._meta);
+          if (why) {
+            // Every broken rule, with its cause and when, then the engine's question.
+            const ask = (spokeSc?.speech as { ask?: unknown } | undefined)?.ask;
+            say(why);
+            if (typeof ask === 'string' && ask) say(ask);
+            return { say: sandwich(turn.spoke, kept) };
+          }
+          const fresh = withoutRepeats(kept, spokeSc?.speech);
           fresh.forEach(say);
           return { say: sandwich(turn.spoke, fresh) };
         }
@@ -334,7 +344,9 @@ export function withoutRepeats(kept: string[], speech: unknown): string[] {
 
 function sandwich(spoke: ToolCall, kept: string[]): string {
   const sc = structuredOf(spoke) as Record<string, unknown>;
-  const template = spokenFrom(sc, spoke.result.content);
+  const template = spokenFrom(sc, spoke.result.content, spoke.result._meta);
+  // A check that broke rules says every one of them in the engine's words, not the model's.
+  if (explainBreaks(sc, spoke.result._meta)) return template;
   if (kept.length === 0) return template;
   const speech = sc.speech as { headline: string; ask?: string };
   const said = [speech.headline, ...kept, speech.ask].filter(Boolean).join(' ');
