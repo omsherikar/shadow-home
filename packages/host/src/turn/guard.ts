@@ -20,6 +20,7 @@ export type Context = 'plan' | 'anchored' | 'read' | 'chat';
 export type Dropped =
   | 'verdict'
   | 'action'
+  | 'told'
   | 'question'
   | 'state'
   | 'fragment'
@@ -85,13 +86,24 @@ const NEGATED_HARM = [
  */
 const SOFTENING = [
   /\b(?:no|not|never|nothing|none|nobody|without|cannot)\b|n't\b/,
-  /\b(?:within|apply|applies|applied|affect\w*|difference|objection\w*|matter|matters)\b/,
+  /\b(?:within|apply|applies|applied|difference|objection\w*|matter|matters)\b/,
   /\b(?:better|worse|best|prefer\w*|recommend\w*|advis\w*|wise|sensible|reasonable|everything|as (?:it|they) should|above freezing|stays? above)\b/,
   /\b(?:every|all|any|each)\s+(?:of\s+)?(?:your\s+|the\s+)?(?:house\s+)?rules?\b|\bkeeps? to\b|\bfollows?\b|\bcompl(?:y|ies|iant)\b|\bin line with\b/,
 ];
 /** Says the assistant did, does or will do something, or that something is done. */
 const ACTION =
   /\b(?:done|all done|finished|taken care of|is on now|is off now|i'?ve|i have|i did|i'?ll|i will|i'?m going to|i am going to|i just|i went ahead)\b/;
+/**
+ * Says someone was or will be told, or that a message went out: nothing in Shadow Home sends one.
+ * "This affects Maya and Sam." says who a change touches, not that they heard about it.
+ */
+const TOLD = [
+  /\b(?:told|notif\w*|inform(?:s|ed|ing)?|alert\w*|messaged|e-?mailed|texted|pinged|warned)\b/,
+  /\blet\s+(?!me\b|us\b)(?:[\w']+\s+){1,4}know\b/,
+  /\b(?:sent|send|sends|sending|went out|goes out|delivered)\b.{0,40}\b(?:messages?|texts?|e-?mails?|notes?|reminders?|heads[- ]up)\b/,
+  /\b(?:messages?|texts?|e-?mails?|notes?|reminders?|heads[- ]up)\b.{0,40}\b(?:sent|went out|goes out|delivered)\b/,
+  /\b(?:got|gets|get|received|receives)\s+(?:a|an|the)\s+(?:messages?|texts?|e-?mails?|reminders?|heads[- ]up)\b/,
+];
 /** Asks for a yes, or offers to act: only the engine's question may be answered with a yes. */
 const OFFER =
   /\b(?:want to|want me to|would you like|shall i|should i|shall we|try it|go ahead|let'?s|say yes|say no|say the word|let me know|if you want|if you'?d like|do it|run it)\b/;
@@ -449,6 +461,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   }
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
+  if (TOLD.some((p) => p.test(text))) return 'told';
   if (context === 'chat') {
     // After a check, small talk doesn't talk about it ("Thanks." can't get "The plan is safe.").
     if (facts.afterPlan && PLAN_TALK.test(text)) return 'verdict';
