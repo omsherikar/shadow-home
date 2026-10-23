@@ -480,6 +480,20 @@ describe("the live session's turns", () => {
     expect(await reply({ text: 'Yes.', history }, words)).toEqual([{ say: words }]);
   });
 
+  test('after a commit, "Maya and Sam have been told" is never said: nothing tells anyone', async () => {
+    const thisTurn = [call('preview_plan', away), call('commit_plan', done('away'))];
+    expect(
+      await reply(
+        { thisTurn },
+        'The porch light will keep its usual evening schedule, and Maya and Sam have been told about the change.',
+        'It changes things for Maya and Sam.',
+      ),
+    ).toEqual([
+      { say: 'Done: home mode to away.' },
+      { say: 'Done: home mode to away. It changes things for Maya and Sam.' },
+    ]);
+  });
+
   test('a T1 undo the model answers instead of committing is committed for it, once', async () => {
     const undone = {
       status: 'preview',
