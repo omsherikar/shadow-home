@@ -37,8 +37,16 @@ export interface FilterFacts {
   checkOpen: boolean;
   /** The home's device and routine names, taken out before a sentence is checked. */
   names: string[];
-  /** The rule texts and reasons of the check the turn is about, taken out too (they're quotes). */
+  /**
+   * What's taken out too, being quotes: the text of every house rule the model was given, in every
+   * turn, and in a turn about a check, that check's reasons.
+   */
   quotes: string[];
+  /**
+   * Whose rules a sentence may say it lists ("Om's rules are: ..."): the household's names, lower
+   * case.
+   */
+  members: string[];
   /** Each way a device may be named ("front door" for Front door lock), and its IDs. */
   devices: Map<string, string[]>;
   /** In a read turn: the devices the person's words name, for "it" ("Is the front door locked?"). */
@@ -313,6 +321,10 @@ export function filterFacts(input: {
   routines: string[];
   /** The check the turn is about, for its quotes. */
   about?: unknown;
+  /** Everything the model was given that may hold house rules (its earlier and this turn's results). */
+  given?: unknown[];
+  /** The household's names or IDs. */
+  members?: string[];
   /** The person's words this turn. */
   heard?: string;
   /** In a chat turn: a check came back earlier in the conversation. */
@@ -330,7 +342,12 @@ export function filterFacts(input: {
   const names = [...input.devices.map((d) => d.name), ...input.routines]
     .map(lower)
     .sort((a, b) => b.length - a.length);
-  const quotes = quotesOf(input.about).sort((a, b) => b.length - a.length);
+  // Every rule's own words are a quote in any turn ("what are Om's rules?"); a check's reasons only
+  // in a turn about it.
+  const about = input.context === 'plan' || input.context === 'anchored' ? input.about : undefined;
+  const quotes = [...new Set([...quotesOf(about), ...ruleTexts(input.given ?? [])])].sort(
+    (a, b) => b.length - a.length,
+  );
   const states = new Map<string, Set<string>>();
   const times = new Set<string>();
   const numbers = new Set<number>();
@@ -378,6 +395,7 @@ export function filterFacts(input: {
     checkOpen: input.checkOpen ?? false,
     names,
     quotes,
+    members: (input.members ?? []).map(lower),
     devices,
     heard,
     states,
@@ -387,7 +405,7 @@ export function filterFacts(input: {
 }
 
 /** The rule texts and the reason's sentences in a result, lower case, without end punctuation. */
-function quotesOf(about: unknown): string[] {
+function quotesOf(about: unknown, reasons = true): string[] {
   const found: string[] = [];
   const add = (text: unknown) => {
     if (typeof text !== 'string') return;
@@ -403,7 +421,7 @@ function quotesOf(about: unknown): string[] {
     else if (typeof v === 'object' && v !== null) {
       const o = v as Record<string, unknown>;
       if (typeof o.rule === 'string') add(o.text);
-      if (typeof o.speech === 'object' && o.speech !== null) {
+      if (reasons && typeof o.speech === 'object' && o.speech !== null) {
         add((o.speech as { reason?: unknown }).reason);
       }
       for (const x of Object.values(o)) visit(x);
@@ -411,6 +429,25 @@ function quotesOf(about: unknown): string[] {
   };
   visit(about);
   return found;
+}
+
+/** The text of every house rule in what the model was given (a broken rule, a conflict). */
+function ruleTexts(given: unknown[]): string[] {
+  return quotesOf(given, false);
+}
+
+/**
+ * A sentence that only lists someone's rules, once their words are out: "Om's rules are: ...",
+ * "Here are Maya's house rules:", with nothing left but commas and "and".
+ */
+function onlyListsRules(text: string, members: string[]): boolean {
+  if (members.length === 0) return false;
+  const who = members.map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const listing = new RegExp(
+    `^(?:(?:here|these|those) are\\s+)?(?:${who})'?s\\s+(?:house\\s+)?rules?\\b(?:\\s+(?:are|is|include|includes))?`,
+  );
+  const rest = text.trim().replace(listing, ' ');
+  return rest !== text.trim() && /^(?:[\s,;:.!-]|\band\b|\balso\b|\bplus\b)*$/.test(rest);
 }
 
 /**
@@ -454,11 +491,12 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
     return null;
   }
   // A name is never a claim ("Good night" is a routine, "Coffee at 7" not a time), and a rule's
-  // own words are a quote ("Never turn off the garage freezer.").
-  let text = said.replace(/[.!?]+$/, '');
-  if (context === 'plan' || context === 'anchored') {
-    for (const quote of facts.quotes) text = text.split(quote).join(' ');
-  }
+  // own words are a quote in any turn ("Never turn off the garage freezer."), and so is saying
+  // whose rules they are ("Om's rules are: ...").
+  let quoted = said.replace(/[.!?]+$/, '');
+  for (const quote of facts.quotes) quoted = quoted.split(quote).join(' ');
+  if (onlyListsRules(quoted, facts.members)) quoted = '';
+  let text = quoted;
   for (const name of facts.names) text = text.split(name).join(' ');
   if (ACTION.test(text)) return 'action';
   if (TOLD.some((p) => p.test(text))) return 'told';
@@ -484,7 +522,7 @@ export function dropReason(sentence: string, facts: FilterFacts): Dropped | null
   const { times, rest } = timesIn(text);
   const numbers = numbersIn(rest);
   if (context === 'read') {
-    if (!statesHold(said, facts)) return 'state';
+    if (!statesHold(quoted, facts)) return 'state';
     if (times.some((keys) => !keys.some((k) => facts.times.has(k)))) return 'time';
     if (numbers.some((n) => !facts.numbers.has(n))) return 'number';
     return null;
