@@ -3,8 +3,10 @@ import { expect, type Page, test } from '@playwright/test';
 const WEEKEND = "I'm away for the weekend, set the house to away.";
 const SENTENCES = [
   'Blocked: that breaks 4 house rules.',
-  "No coffee maker running when nobody's home.",
-  "That's Om's rule.",
+  'Coffee at 7 turns the coffee maker on at Sat 7:00 AM, which breaks Om\'s rule: "No coffee maker running when nobody\'s home."',
+  'Your plan turns the garage freezer off, which breaks Om\'s rule: "Never turn off the garage freezer."',
+  'Your plan turns the aquarium heater off, which breaks Maya\'s rule: "Keep the aquarium heater on."',
+  "Your plan turns the garage heater thermostat's heating off, and by Sat 10:37 PM that breaks Om's rule: \"Don't let the garage pipes freeze.\"",
   'Do it with 4 fixes instead?',
 ];
 
@@ -131,7 +133,7 @@ test('each sentence is asked for as soon as it is finished, the first before the
   await expect(
     page.getByRole('list', { name: 'Conversation' }).locator('li.alexa').last(),
   ).not.toHaveAttribute('data-phase', 'done');
-  expect(early.map((h) => h.text)).not.toContain(SENTENCES[3]);
+  expect(early.map((h) => h.text)).not.toContain(SENTENCES.at(-1));
 
   await page.evaluate(() => (window as unknown as { releaseDone(): void }).releaseDone());
   await expect.poll(async () => (await heard(page)).map((h) => h.text)).toEqual(SENTENCES);
