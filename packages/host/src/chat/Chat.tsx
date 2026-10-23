@@ -1,10 +1,20 @@
 'use client';
 
-import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import {
+  type FormEvent,
+  type ReactNode,
+  type TransitionEvent,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { CHIPS } from '../stage/stage.ts';
 import { MAX_TEXT } from '../turn/bounds.ts';
 import type { Activity } from './activity.ts';
 import { type FollowUp, type Message, problemWords, type Step } from './conversation.ts';
+import { rememberSuggestions, suggestionsShown } from './suggestions.ts';
 
 export type { Activity } from './activity.ts';
 
@@ -68,19 +78,39 @@ export function Chat(props: ChatProps) {
   const last = messages.at(-1);
   // The newest finished answer, for screen readers: whole answers, not every word as it streams.
   const finished = messages.findLast((m) => m.who === 'alexa' && m.phase === 'done');
+  // The suggestions fold away behind a chevron, and stay as the person left them. Shown at first;
+  // the remembered choice is read after the first render, and put back without moving.
+  const [shown, setShown] = useState(true);
+  const [moved, setMoved] = useState(false);
+  const offersId = useId();
+  useEffect(() => {
+    if (!suggestionsShown()) setShown(false);
+  }, []);
+  const toggleOffers = () => {
+    setShown(!shown);
+    setMoved(true);
+    rememberSuggestions(!shown);
+  };
 
   // Follow the newest message, unless the person has scrolled up to read.
   const onScroll = () => {
     const el = list.current;
     if (el) following.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
   };
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs whenever the conversation changes
+  const stick = () => {
+    const el = list.current;
+    if (el && following.current) el.scrollTop = el.scrollHeight;
+  };
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs whenever the conversation changes, or the suggestions fold
   useLayoutEffect(() => {
     // A new question from the person always brings the view down to it.
     if (last?.who === 'you' || last?.phase === 'thinking') following.current = true;
-    const el = list.current;
-    if (el && following.current) el.scrollTop = el.scrollHeight;
-  }, [messages, props.followUps]);
+    stick();
+  }, [messages, props.followUps, shown]);
+  // Once the suggestions have folded or unfolded, the newest message is still in view.
+  const folded = (e: TransitionEvent) => {
+    if (e.target === e.currentTarget) stick();
+  };
 
   // What was pressed (a suggestion, Send, Try again) goes away once it's used, so focus comes back
   // to the text box, where a keyboard carries on. Not on a touch screen, where that would open
@@ -153,18 +183,34 @@ export function Chat(props: ChatProps) {
         {finished ? finished.text : ''}
       </p>
       {offers.length > 0 && !busy ? (
-        <div className="offers">
-          {offers.map((o) => (
-            <button
-              key={o.label}
-              type="button"
-              className="offer"
-              disabled={!ready}
-              onClick={() => send(o.says, o.label)}
-            >
-              {o.label}
-            </button>
-          ))}
+        <div className={`offers${shown ? '' : ' folded'}${moved ? ' moving' : ''}`}>
+          <button
+            type="button"
+            className="offers-toggle"
+            aria-expanded={shown}
+            aria-controls={offersId}
+            aria-label={shown ? 'Hide suggestions' : 'Show suggestions'}
+            title={shown ? 'Hide suggestions' : 'Show suggestions'}
+            onClick={toggleOffers}
+          >
+            <ChevronIcon />
+          </button>
+          <div className="offers-fold" onTransitionEnd={folded}>
+            {/* Folded away, they're out of the tab order and hidden from screen readers too. */}
+            <div id={offersId} className="offers-list" inert={!shown}>
+              {offers.map((o) => (
+                <button
+                  key={o.label}
+                  type="button"
+                  className="offer"
+                  disabled={!ready}
+                  onClick={() => send(o.says, o.label)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       ) : null}
       <form className="composer" onSubmit={submit}>
@@ -322,6 +368,22 @@ function SendIcon() {
         fill="none"
         stroke="currentColor"
         strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Points down while the suggestions show; turned to point right (CSS) when they're folded. */
+function ChevronIcon() {
+  return (
+    <svg className="chevron" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path
+        d="M6 9.5 12 15.5 18 9.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
