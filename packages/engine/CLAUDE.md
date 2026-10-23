@@ -26,7 +26,8 @@ The verdict engine. Pure function:
 ## Verdict
 
 - UNSAFE: any rule false in the nominal run, or lint failed
-- UNPROVEN: nominal passes but pessimistic fails, or any check unknown
+- UNPROVEN: nominal passes but the pessimistic or optimistic run fails, or any check unknown
+  (including who's away, when a plan sets away mode with no presence schedule: src/presence.ts)
 - SAFE: all three runs pass and every check is known
 
 Rule priority (highest first): life-safety, security, device-protection, comfort.
