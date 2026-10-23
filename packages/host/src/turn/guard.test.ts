@@ -433,3 +433,52 @@ describe("a read turn: a device's state as the result gives it, for the device i
     });
   });
 });
+
+describe('nobody is ever told: no tool sends a message', () => {
+  const contexts = {
+    plan: home('plan'),
+    anchored: home('anchored'),
+    read: home('read', { results: [homeState] }),
+    chat: home('chat'),
+    'chat after a check': home('chat', { afterPlan: true, checkOpen: true }),
+  };
+  test.each([
+    // Said live, after a commit.
+    'The porch light will keep its usual evening schedule, and Maya and Sam have been told about the change.',
+    'Maya and Sam have been told.',
+    'Maya and Sam were notified.',
+    'Sam has been informed.',
+    'Maya got an alert about it.',
+    'A notification went out to the family.',
+    'I sent Sam a message.',
+    'A message was sent to Maya.',
+    'Maya and Sam got a text.',
+    'Everyone has been messaged.',
+    'Maya was emailed the details.',
+    'Sam was texted.',
+    'Everyone has been pinged.',
+    'We let Maya and Sam know.',
+    "They've been alerted.",
+    'Maya was warned.',
+  ])('%s', (sentence) => {
+    for (const [name, facts] of Object.entries(contexts)) {
+      expect(dropReason(sentence, facts), name).not.toBeNull();
+    }
+    expect(dropReason(sentence, contexts.chat)).toBe('told');
+  });
+
+  test.each([
+    'This affects Maya and Sam.',
+    'Maya and Sam are affected.',
+    'It changes things for Maya and Sam.',
+  ])('%s is said, in any turn: it says who a change touches', (sentence) => {
+    for (const [name, facts] of Object.entries(contexts)) {
+      expect(dropReason(sentence, facts), name).toBeNull();
+    }
+  });
+
+  test('"let me know" asks the person, and "information" is not "informed"', () => {
+    expect(dropReason('Let me know if you need anything.', home('chat'))).toBeNull();
+    expect(dropReason('That information is in the plan view.', home('chat'))).toBeNull();
+  });
+});
