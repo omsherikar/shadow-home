@@ -458,12 +458,87 @@
   text-align: center;
 }
 
-/* Suggestions sit by the composer: quiet hairline text buttons. */
+/*
+ * Suggestions sit by the composer: quiet hairline text buttons, after a ghost chevron that folds
+ * them away (down while they show, right when folded). Folding shrinks the row to the chevron.
+ */
 .offers {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 8px 0 0;
+}
+
+.offers-toggle {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.offers-toggle:hover {
+  border-color: var(--hairline-strong);
+  color: var(--text);
+}
+
+.chevron {
+  width: 1em;
+  height: 1em;
+}
+
+.offers.folded .chevron {
+  transform: rotate(-90deg);
+}
+
+.offers-fold {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: 1fr;
+  min-width: 0;
+}
+
+/* Clipped while it folds; the 4 px either side keeps a focus ring in view. */
+.offers-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 0 0;
+  min-height: 0;
+  margin: -4px;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.offers.folded .offers-fold {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Only a tap moves it: a remembered fold is put back on load without a flicker. */
+.offers.moving .chevron {
+  transition: transform 180ms ease;
+}
+
+.offers.moving .offers-fold {
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 140ms ease,
+    visibility 0s linear 180ms;
+}
+
+.offers.moving:not(.folded) .offers-fold {
+  transition:
+    grid-template-rows 180ms ease,
+    opacity 180ms ease 40ms,
+    visibility 0s;
 }
 
 .offer {
@@ -676,10 +751,19 @@
 }
 
 .house-only .offers {
-  flex-wrap: nowrap;
   padding: 6px 0 0;
+}
+
+.house-only .offers-list {
+  flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+}
+
+.house-only .offers-toggle {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
 }
 
 .house-only .offer {
@@ -736,5 +820,11 @@
   .step.running .step-mark,
   .round.mic[aria-pressed="true"] {
     animation: none;
+  }
+
+  .offers.moving .chevron,
+  .offers.moving .offers-fold,
+  .offers.moving:not(.folded) .offers-fold {
+    transition: none;
   }
 }
