@@ -385,6 +385,21 @@ describe('the system prompt plans and undoes like a real assistant', () => {
     );
     expect(systemPrompt(home)).not.toContain('then wait for a yes before committing the undo');
   });
+
+  test('when only some leave, the presence schedule names who stays; "nobody" only when all leave', () => {
+    const prompt = systemPrompt({ ...home, presence: { om: 'home', maya: 'home', sam: 'home' } });
+    expect(prompt).toContain('The household: om, maya, sam.');
+    expect(prompt).toContain(
+      'names exactly who stays home, as { "home": [...] } with every household member who isn\'t leaving',
+    );
+    expect(prompt).toContain(
+      'When only some leave ("Om is leaving until Sunday", "I\'m heading out"), the others stay home: for om alone, { "home": ["maya","sam"] }.',
+    );
+    expect(prompt).toContain(
+      'Use "nobody" only when the person says everyone is leaving or the house will be empty',
+    );
+    expect(prompt).not.toContain('nobody home or whoever stays');
+  });
 });
 
 describe("the live session's turns", () => {
@@ -560,7 +575,7 @@ describe("the live session's turns", () => {
     ]);
   });
 
-  test('while a check is open (unanswered, or not SAFE), any question leads with it; once answered, "why?" is plain conversation', async () => {
+  test('while a check is open (unanswered, or not SAFE), a question about it leads with it; once answered, "why?" is plain conversation', async () => {
     const asking = {
       verdict: 'SAFE',
       tier: 'T2',
@@ -580,9 +595,12 @@ describe("the live session's turns", () => {
     expect(
       await reply({ text: 'Why?', history: answered }, words, 'That was about the front door.'),
     ).toEqual([{ say: NOT_SURE }, { say: 'That was about the front door.' }]);
-    // Any question while it's open leads with it, so a reply can't drift from it.
+    // A question that isn't about it is small talk, which still can't reassure while it's open.
     expect(await reply({ text: 'How are you?', history: open }, "I'm well, thanks.")).toEqual([
-      { say: "Safe, but it needs a yes: front door unlocks. I'm well, thanks." },
+      { say: "I'm well, thanks." },
+    ]);
+    expect(await reply({ text: 'How are you?', history: open }, "It's fine.")).toEqual([
+      { say: NOT_SURE },
     ]);
   });
 });
@@ -716,6 +734,88 @@ describe('while a blocked check is open, and after its fix is committed', () => 
     expect(await reply(heard as string, history as Remembered[], words as string)).toEqual({
       say: said,
     });
+  });
+});
+
+describe('while an UNPROVEN check is open after a no (a live session)', () => {
+  const weekend = {
+    planId: 'p1',
+    verdict: 'UNSAFE',
+    tier: 'T3',
+    speech: { headline: 'Blocked: that breaks 3 house rules.', ask: 'Do it with 3 fixes instead?' },
+    violations: [
+      { rule: 'R1', text: 'Never turn off the garage freezer.', author: 'om' },
+      { rule: 'R3', text: "Don't let the garage pipes freeze.", author: 'om' },
+      { rule: 'R8', text: 'No coffee maker running when nobody’s home.', author: 'om' },
+    ],
+  };
+  const dishwasher = {
+    planId: 'd1',
+    verdict: 'UNPROVEN',
+    tier: 'T2',
+    speech: {
+      headline: "Can't confirm: the dishwasher's door latch isn't reporting.",
+      reason: "That's Om's rule.",
+      ask: 'Do just the part I can confirm?',
+    },
+    unknowns: ['dishwasher door latch'],
+  };
+  const history: Remembered[] = [
+    { name: 'heard', arguments: { text: "I'm away for the weekend" } },
+    { name: 'preview_plan', arguments: {}, structuredContent: weekend },
+    { name: 'said', arguments: { text: 'Blocked.' } },
+    { name: 'heard', arguments: { text: 'no' } },
+    { name: 'heard', arguments: { text: 'Run the dishwasher' } },
+    { name: 'preview_plan', arguments: {}, structuredContent: dishwasher },
+    { name: 'said', arguments: { text: "Can't confirm." } },
+    { name: 'heard', arguments: { text: "don't run" } },
+    { name: 'said', arguments: { text: "Okay, I'll leave everything as it is." } },
+  ];
+  const reply = async (heard: string, words: string) => {
+    const { converse } = fakeConverse(text(words));
+    return bedrockModel({ converse, tools, home }).next(input({ text: heard, history }));
+  };
+  const OPEN = "Can't confirm: the dishwasher's door latch isn't reporting. That's Om's rule.";
+
+  test.each([
+    'can you like I am leaving home',
+    'Can you turn on the porch light?',
+    "I'm leaving now",
+    'Set the thermostat to 18?',
+    'Turn off the TV?',
+  ])('a new request ("%s") never gets the open check\'s verdict in front', async (heard) => {
+    expect(await reply(heard, "I can't confirm that's safe. I can help with that.")).toEqual({
+      say: 'I can help with that.',
+    });
+    // It's still plain conversation while the check is open: reassurance drops.
+    expect(await reply(heard, "It's fine.")).toEqual({ say: NOT_SURE });
+  });
+
+  test.each([
+    'Is that safe?',
+    'Is it ok?',
+    'What happens?',
+    'How bad is it?',
+    'Why?',
+    'Can you explain?',
+  ])('a question about the check ("%s") still leads with it', async (heard) => {
+    expect(await reply(heard, "It's fine, nothing to worry about.")).toEqual({ say: OPEN });
+  });
+
+  test("Om's rules, as the model was given them, can be listed", async () => {
+    const words =
+      "Om's rules are: Never turn off the garage freezer. Don't let the garage pipes freeze. No coffee maker running when nobody's home.";
+    expect(await reply("what are Om's rules?", words)).toEqual({ say: words });
+    // Words that aren't a rule's own still drop: a rule paraphrased, or a verdict with the list.
+    expect(await reply("what are Om's rules?", "Om's rules are: keep the freezer on.")).toEqual({
+      say: NOT_SURE,
+    });
+    expect(
+      await reply(
+        "what are Om's rules?",
+        "Om's rules are fine. Never turn off the garage freezer.",
+      ),
+    ).toEqual({ say: 'Never turn off the garage freezer.' });
   });
 });
 

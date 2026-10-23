@@ -482,3 +482,68 @@ describe('nobody is ever told: no tool sends a message', () => {
     expect(dropReason('That information is in the plan view.', home('chat'))).toBeNull();
   });
 });
+
+describe('house rules the model was given are quotes in every turn', () => {
+  const given = [
+    {
+      verdict: 'UNSAFE',
+      violations: [
+        { rule: 'R1', text: 'Never turn off the garage freezer.', author: 'om' },
+        { rule: 'R3', text: "Don't let the garage pipes freeze.", author: 'om' },
+        { rule: 'R8', text: 'No coffee maker running when nobody’s home.', author: 'om' },
+        { rule: 'R4', text: "Front door locked when nobody's home.", author: 'om' },
+      ],
+    },
+  ];
+  const withRules = (context: Context, over: Partial<Parameters<typeof filterFacts>[0]> = {}) =>
+    filterFacts({
+      context,
+      results: [],
+      devices,
+      routines,
+      given,
+      members: ['om', 'maya', 'sam'],
+      afterPlan: context === 'chat',
+      checkOpen: context === 'chat',
+      ...over,
+    });
+  const LISTED =
+    "Om's rules are: Never turn off the garage freezer. Don't let the garage pipes freeze. No coffee maker running when nobody's home.";
+
+  test("Om's rules, listed in chat after a check (open or closed), pass whole", () => {
+    expect(filterReply(LISTED, withRules('chat'))).toEqual({
+      kept: [
+        "Om's rules are: Never turn off the garage freezer.",
+        "Don't let the garage pipes freeze.",
+        "No coffee maker running when nobody's home.",
+      ],
+      dropped: [],
+    });
+    expect(filterReply(LISTED, withRules('chat', { checkOpen: false })).dropped).toEqual([]);
+  });
+
+  test.each(['plan', 'anchored', 'read', 'chat'] as const)(
+    'a rule quoted in a %s turn is a quote',
+    (context) => {
+      expect(
+        dropReason("No coffee maker running when nobody's home.", withRules(context)),
+      ).toBeNull();
+      expect(dropReason("Front door locked when nobody's home.", withRules(context))).toBeNull();
+    },
+  );
+
+  test.each([
+    ["Om's rules are fine.", 'verdict'],
+    ["Om's rules are: keep the freezer on.", 'verdict'],
+    ["Om's rules are: Never turn off the garage freezer, so it's fine.", 'verdict'],
+    ['The plan keeps to every rule.', 'verdict'],
+  ])('%s still drops in chat (%s)', (sentence, why) => {
+    expect(dropReason(sentence, withRules('chat'))).toBe(why);
+  });
+
+  test('a rule nobody gave the model is no quote', () => {
+    expect(dropReason("Don't let the garage pipes freeze.", withRules('chat', { given: [] }))).toBe(
+      'verdict',
+    );
+  });
+});
