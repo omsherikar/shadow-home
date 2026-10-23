@@ -1,3 +1,4 @@
+import { explainBreaks } from './explain.ts';
 import type { Model, ModelInput, ModelStep, Names, Remembered } from './types.ts';
 
 /** What a real model sent to preview_plan for a beat, recorded for demo mode to replay. */
@@ -56,7 +57,7 @@ export function scriptedModel(beats: Beat[], home?: { now: string }): Model {
       const last = input.thisTurn.at(-1);
       if (last) {
         const structured = last.result.structuredContent as Record<string, unknown> | undefined;
-        return { say: spokenFrom(structured, last.result.content) };
+        return { say: spokenFrom(structured, last.result.content, last.result._meta) };
       }
       return firstStep(normalise(input.text), input, beats, home?.now);
     },
@@ -259,12 +260,16 @@ function contentWords(text: string): string[] {
 export function spokenFrom(
   structured: Record<string, unknown> | undefined,
   content: { type: string; text?: string }[] | undefined,
+  meta?: Record<string, unknown>,
 ): string {
   const speech = structured?.speech as
     | { headline?: string; reason?: string; ask?: string }
     | undefined;
-  if (speech?.headline)
-    return [speech.headline, speech.reason, speech.ask].filter(Boolean).join(' ');
+  if (speech?.headline) {
+    // Every broken rule with its cause, when the check names any; else the engine's reason.
+    const why = explainBreaks(structured, meta) ?? speech.reason;
+    return [speech.headline, why, speech.ask].filter(Boolean).join(' ');
+  }
   const groups = structured?.groups as { label: string }[] | undefined;
   if (groups) {
     if (groups.length === 0) return 'Nothing has changed.';
