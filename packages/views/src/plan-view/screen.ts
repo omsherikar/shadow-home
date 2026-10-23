@@ -63,6 +63,8 @@ export interface Card {
 export interface Mark {
   atMs: number;
   label: string;
+  /** A shorter label for a mark with little room beside it: "2 rules break". */
+  short?: string;
   tone?: 'blocked';
 }
 
@@ -492,7 +494,8 @@ function flaggedDevices(violations: Violation[]): Set<string> {
 
 function card(v: Violation, p: Preview, fixes: RepairChange[], names?: Names): Card {
   const c = v.cause;
-  const by = !c ? 'The plan' : c.source === 'plan' ? 'Your plan' : sourceName(c.source, names);
+  const ours = p.kind === 'undo' ? 'The undo' : 'Your plan';
+  const by = !c || c.source === 'plan' ? ours : sourceName(c.source, names);
   const what = c ? `: ${changePhrase(deviceName(c.device, names), c.attr, c.from, c.to)}` : '';
   const fix = fixes.find((f) => f.rule === v.rule);
   const fixText = fix ? fixLabel(fix, p, names) : undefined;
@@ -564,26 +567,36 @@ function timelineFor(p: Preview, names?: Names): { timeline?: Timeline } {
     }));
   const lanes: Lane[] = [];
   const plan = bySource.get('plan');
-  if (plan) lanes.push({ label: 'Your plan', marks: marks(plan) });
+  if (plan)
+    lanes.push({ label: p.kind === 'undo' ? 'The undo' : 'Your changes', marks: marks(plan) });
   const others = [...bySource].filter(([source]) => source !== 'plan');
   for (const [source, byTime] of others.slice(0, MAX_ROUTINE_LANES)) {
-    lanes.push({ label: sourceName(source, names), marks: marks(byTime) });
+    const routine = names?.routines[source];
+    lanes.push({
+      label: routine ? `Routine: ${routine}` : sourceName(source, names),
+      marks: marks(byTime),
+    });
   }
   if (p.violations.length > 0) {
-    // Rules that break in the same minute share one mark: "2 rules break". Their numbers are for
-    // the details, not the screen.
-    const byMinute = new Map<number, string[]>();
+    // Rules that break in the same minute share one mark: "2 rules break now". Their numbers are
+    // for the details, not the screen.
+    const byMinute = new Map<number, { at: string; rules: number }>();
     for (const v of p.violations) {
       const minute = Math.floor(Date.parse(v.firstAt) / 60_000) * 60_000;
-      byMinute.set(minute, [...(byMinute.get(minute) ?? []), v.rule]);
+      const seen = byMinute.get(minute);
+      byMinute.set(minute, { at: seen?.at ?? v.firstAt, rules: (seen?.rules ?? 0) + 1 });
     }
     lanes.push({
       label: 'House rules',
-      marks: [...byMinute].map(([atMs, rules]) => ({
-        atMs,
-        label: rules.length === 1 ? 'A rule breaks' : `${rules.length} rules break`,
-        tone: 'blocked' as const,
-      })),
+      marks: [...byMinute].map(([atMs, { at, rules }]) => {
+        const short = rules === 1 ? 'A rule breaks' : `${rules} rules break`;
+        return {
+          atMs,
+          label: `${short} ${when(at, p.horizon.start)}`,
+          short,
+          tone: 'blocked' as const,
+        };
+      }),
     });
   }
   if (lanes.length === 0) return {};

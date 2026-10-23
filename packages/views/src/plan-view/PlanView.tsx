@@ -1,7 +1,7 @@
 import type { App } from '@modelcontextprotocol/ext-apps';
 import { useApp } from '@modelcontextprotocol/ext-apps/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type Control, type Screen, screenFor, type Timeline } from './screen.ts';
+import { type Control, type Mark, type Screen, screenFor, type Timeline } from './screen.ts';
 import { TemperatureView } from './TemperatureView.tsx';
 import { temperaturesFrom } from './temperature.ts';
 import { APPROVAL_META_KEY, type Commit, NAMES_META_KEY, type Names } from './types.ts';
@@ -202,7 +202,15 @@ function ScreenView({
                               key={`${chip.tone}-${chip.text}`}
                               className={`chip ${chip.tone ?? ''}`}
                             >
-                              {chip.text}
+                              {/* A fix the check added, told apart from the person's own changes. */}
+                              {chip.tone === 'fixed' ? (
+                                <>
+                                  <span>{chip.text}</span>
+                                  <span className="tag">fix</span>
+                                </>
+                              ) : (
+                                chip.text
+                              )}
                             </span>
                           ))}
                         </span>
@@ -228,7 +236,8 @@ function ScreenView({
               {s.cards.map((c) => (
                 <li key={c.id} className="card">
                   <div className="cause">
-                    {c.cause} <span className="at">{c.at}</span>
+                    {`${c.cause},`}
+                    <span className="at">{c.at}</span>
                   </div>
                   {c.breaks ? <div className="breaks">{c.breaks}</div> : null}
                   <div className="rule">
@@ -265,7 +274,44 @@ function ScreenView({
 }
 
 const W = 1000;
-const LABEL_W = 150;
+const LABEL_W = 180;
+/** About how wide a mark's label is, per character, at its font size. */
+const CHAR_W = 7.6;
+
+interface Placed {
+  text: string;
+  x: number;
+  anchor: 'start' | 'end';
+}
+
+/**
+ * Where each broken-rule mark's words go: to its right if they fit before the next mark, else the
+ * short words, else to its left, else none (the tooltip still has them).
+ */
+function placeLabels(marks: Mark[], x: (ms: number) => number): (Placed | null)[] {
+  let free = LABEL_W;
+  return marks.map((m, i) => {
+    const at = x(m.atMs);
+    const next = marks[i + 1];
+    const right = next ? x(next.atMs) - 12 : W - 10;
+    const texts = [m.label, ...(m.short ? [m.short] : [])];
+    for (const text of texts) {
+      const end = at + 10 + text.length * CHAR_W;
+      if (end <= right) {
+        free = end;
+        return { text, x: at + 10, anchor: 'start' };
+      }
+    }
+    for (const text of texts) {
+      if (at - 10 - text.length * CHAR_W >= free + 8) {
+        free = at + 8;
+        return { text, x: at - 10, anchor: 'end' };
+      }
+    }
+    free = at + 8;
+    return null;
+  });
+}
 const LANE_H = 21;
 const TOP = 20;
 
@@ -273,52 +319,75 @@ function TimelineView({ t }: { t: Timeline }) {
   const span = Math.max(1, t.endMs - t.startMs);
   const x = (ms: number) => LABEL_W + ((ms - t.startMs) / span) * (W - LABEL_W - 10);
   const h = TOP + t.lanes.length * LANE_H + 6;
+  const breaks = t.lanes.some((l) => l.marks.some((m) => m.tone === 'blocked'));
   return (
-    <svg className="timeline" viewBox={`0 0 ${W} ${h}`} role="img" aria-label="Timeline">
-      <text x={LABEL_W} y={13} className="tick">
-        now
-      </text>
-      {t.days.map((d) => (
-        <g key={d.atMs}>
-          <line x1={x(d.atMs)} x2={x(d.atMs)} y1={16} y2={h} className="day" />
-          <text x={x(d.atMs) + 4} y={13} className="tick">
-            {d.label}
-          </text>
-        </g>
-      ))}
-      {t.lanes.map((lane, i) => {
-        const y = TOP + i * LANE_H + LANE_H / 2;
-        return (
-          <g key={lane.label}>
-            <text x={0} y={y + 5} className="lane">
-              {lane.label}
+    <figure className="timeline-box">
+      <svg className="timeline" viewBox={`0 0 ${W} ${h}`} role="img" aria-label="Timeline">
+        <text x={LABEL_W} y={13} className="tick">
+          now
+        </text>
+        {t.days.map((d) => (
+          <g key={d.atMs}>
+            <line x1={x(d.atMs)} x2={x(d.atMs)} y1={16} y2={h} className="day" />
+            <text x={x(d.atMs) + 4} y={13} className="tick">
+              {d.label}
             </text>
-            <line x1={LABEL_W} x2={W - 10} y1={y} y2={y} className="track" />
-            {lane.marks.map((m) => (
-              <g key={`${m.atMs}-${m.label}`}>
-                <title>{m.label}</title>
-                {m.tone === 'blocked' ? (
-                  <rect
-                    x={x(m.atMs) - 6}
-                    y={y - 6}
-                    width={12}
-                    height={12}
-                    transform={`rotate(45 ${x(m.atMs)} ${y})`}
-                    className="mark blocked"
-                  />
-                ) : (
-                  <circle cx={x(m.atMs)} cy={y} r={6} className="mark" />
-                )}
-                {m.tone === 'blocked' ? (
-                  <text x={x(m.atMs) + 10} y={y + 5} className="mark-label">
-                    {m.label}
-                  </text>
-                ) : null}
-              </g>
-            ))}
           </g>
-        );
-      })}
-    </svg>
+        ))}
+        {t.lanes.map((lane, i) => {
+          const y = TOP + i * LANE_H + LANE_H / 2;
+          const blocked = lane.marks.filter((m) => m.tone === 'blocked');
+          const placed = placeLabels(blocked, x);
+          const labelOf = (m: Mark) => placed[blocked.indexOf(m)];
+          return (
+            <g key={lane.label}>
+              <text x={0} y={y + 5} className="lane">
+                {lane.label}
+              </text>
+              <line x1={LABEL_W} x2={W - 10} y1={y} y2={y} className="track" />
+              {lane.marks.map((m) => (
+                <g key={`${m.atMs}-${m.label}`}>
+                  <title>{m.label}</title>
+                  {m.tone === 'blocked' ? (
+                    <rect
+                      x={x(m.atMs) - 6}
+                      y={y - 6}
+                      width={12}
+                      height={12}
+                      transform={`rotate(45 ${x(m.atMs)} ${y})`}
+                      className="mark blocked"
+                    />
+                  ) : (
+                    <circle cx={x(m.atMs)} cy={y} r={6} className="mark" />
+                  )}
+                  {m.tone === 'blocked' && labelOf(m) ? (
+                    <text
+                      x={labelOf(m)?.x}
+                      y={y + 5}
+                      textAnchor={labelOf(m)?.anchor}
+                      className="mark-label"
+                    >
+                      {labelOf(m)?.text}
+                    </text>
+                  ) : null}
+                </g>
+              ))}
+            </g>
+          );
+        })}
+      </svg>
+      <figcaption className="legend">
+        <span aria-hidden="true">●</span> when it happens
+        {breaks ? (
+          <>
+            {' · '}
+            <span className="diamond" aria-hidden="true">
+              ◆
+            </span>{' '}
+            when a house rule breaks
+          </>
+        ) : null}
+      </figcaption>
+    </figure>
   );
 }

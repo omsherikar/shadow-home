@@ -670,6 +670,47 @@ describe('plain words on screen', () => {
       names,
     );
     const rules = s.timeline?.lanes.find((l) => l.label === 'House rules');
-    expect(rules?.marks.map((m) => m.label)).toEqual(['2 rules break', 'A rule breaks']);
+    expect(rules?.marks.map((m) => m.label)).toEqual([
+      '2 rules break now',
+      'A rule breaks Sat 10:37 PM',
+    ]);
+    expect(rules?.marks.map((m) => m.short)).toEqual(['2 rules break', 'A rule breaks']);
+  });
+
+  test('the timeline rows say whose they are: your changes, each routine, the house rules', () => {
+    const s = previewScreen(
+      preview('UNSAFE', 'T3', {
+        horizon: { start: NOW, end: '2027-01-17T18:00:00-06:00' },
+        timeline: [
+          { at: NOW, source: 'plan', device: 'light_living', attr: 'onOff', from: true, to: false },
+          {
+            at: '2027-01-16T07:00:00-06:00',
+            source: 'coffee_at_7',
+            device: 'light_kitchen',
+            attr: 'onOff',
+            from: false,
+            to: true,
+          },
+        ],
+        violations: [
+          {
+            rule: 'R1',
+            text: 'Rule R1.',
+            author: 'om',
+            priority: 'comfort',
+            run: 'nominal',
+            firstAt: NOW,
+          },
+        ],
+      }),
+      names,
+    );
+    expect(s.timeline?.lanes.map((l) => l.label)).toEqual([
+      'Your changes',
+      'Routine: Coffee at 7',
+      'House rules',
+    ]);
+    // A break with no cause is the plan's, in plain words.
+    expect(s.cards[0]).toMatchObject({ cause: 'Your plan', at: 'now' });
   });
 });

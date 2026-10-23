@@ -431,3 +431,34 @@ h2 {
 .temps .end.held {
   fill: var(--text);
 }
+
+/* A fix the check added to keep the house rules: a small tag, so it reads apart from the person's own changes. */
+.chip .tag {
+  margin-left: 0.45em;
+  padding: 0 0.3em;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 0.25em;
+  color: var(--muted);
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 0.12em;
+}
+
+.timeline-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.timeline-box .legend {
+  color: var(--muted);
+  font-size: 0.72em;
+}
+
+.timeline-box .legend .diamond {
+  color: var(--accent);
+}
