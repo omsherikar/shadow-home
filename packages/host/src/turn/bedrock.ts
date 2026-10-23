@@ -143,14 +143,16 @@ export function bedrockModel(options: {
       switch (turn.context) {
         case 'plan': {
           // The headline went out when the call returned (run.ts).
-          kept.forEach(say);
-          return { say: sandwich(turn.spoke, kept) };
+          const fresh = withoutRepeats(kept, structuredOf(turn.spoke)?.speech);
+          fresh.forEach(say);
+          return { say: sandwich(turn.spoke, fresh) };
         }
         case 'anchored': {
           const speech = turn.anchor.speech;
           say(speech.headline);
-          kept.forEach(say);
-          const middle = kept.length > 0 ? kept : [speech.reason ?? ''];
+          const fresh = withoutRepeats(kept, speech);
+          fresh.forEach(say);
+          const middle = fresh.length > 0 ? fresh : [speech.reason ?? ''];
           return { say: [speech.headline, ...middle].filter(Boolean).join(' ') };
         }
         default: {
@@ -308,6 +310,28 @@ function isPreview(h: Remembered): boolean {
  * The engine's headline, the model's sentences, and the engine's question. With no sentence of
  * the model's, or too long to say, the engine's own words, as before.
  */
+/**
+ * A model sentence that only says again what the engine's own sentences say ("Rule added." after
+ * the headline "Rule added.") is dropped: said twice it reads as a glitch, and it would take the
+ * place of the engine's reason (a rule's read-back) when nothing else survives.
+ */
+export function withoutRepeats(kept: string[], speech: unknown): string[] {
+  const s = (speech ?? {}) as { headline?: unknown; reason?: unknown; ask?: unknown };
+  const norm = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  const engine = [s.headline, s.reason, s.ask]
+    .filter((t): t is string => typeof t === 'string' && t.length > 0)
+    .map(norm);
+  return kept.filter((k) => {
+    const n = norm(k);
+    return n.length > 0 && !engine.some((e) => e === n || e.includes(n));
+  });
+}
+
 function sandwich(spoke: ToolCall, kept: string[]): string {
   const sc = structuredOf(spoke) as Record<string, unknown>;
   const template = spokenFrom(sc, spoke.result.content);
@@ -505,10 +529,11 @@ How to act:
 - For any change, call preview_plan first: actions with device IDs from the list below, the person's words as intent, requestedBy as the household member speaking (om unless they say otherwise), and presenceSchedule and planEnd when they say who is away and until when.
 - When they're going away for a while ("I'm away for the weekend"), plan what a thoughtful assistant would, in one preview_plan: away mode; who is away and until when (a presenceSchedule from now until they're back, and planEnd then; "the weekend" from a Friday evening means until Sunday evening, worked out from the home's time); and the usual savings: heating turned down, lights and idle devices off, doors locked. Choose the details from the devices below; the check catches anything that would break a house rule, and offers a fix.
 - When they're going out with nothing else to change ("I'm heading out"), still call preview_plan: no actions, and a presenceSchedule from now until they're back (a few hours if they don't say), with who is away as below. The check says what to see to first; a SAFE one has nothing to commit.
-- Who is away: a presenceSchedule entry's presence names exactly who stays home, as { "home": [...] } with every household member who isn't leaving. When only some leave ("Om is leaving until Sunday", "I'm heading out"), the others stay home${example}. Use "nobody" only when the person says everyone is leaving or the house will be empty, and "everyone" when all are home.
+- Who is away: a presenceSchedule entry's presence names exactly who stays home, as { "home": [...] } with every household member who isn't leaving. When the person names someone else leaving ("Om is leaving until Sunday"), only they are away and the others stay home${example}. When the person themself is heading out or going away ("I'm heading out", "I'm away for the weekend", "set the house to away") and doesn't say anyone stays, the house will be empty: "nobody". Use "everyone" when all are home.
 - Write every time as ISO 8601 with the home's offset ${offset}.
 - Commit only with commit_plan and a plan ID a tool gave you. Commit a T0 or T1 preview straight away. For anything else, wait until the person answers the question in speech.ask; a yes to "Do it with ... fixes instead?" or "Shall I fix ...?" commits the repair's planId, and a yes to "Do just the safe part?" or "Do just the part I can confirm?" commits with safePartOnly: true. Pass confirmed: true only when their last words were a yes to that question. A no, or anything else, means nothing is committed.
 - When a check asks who's away and until when, ask the person, then check the plan again with presenceSchedule and planEnd from their answer.
+- Asked what changed ("What did you change while I was away?"), call get_activity_log and name the changes in plain words from it: what each device did, grouped by who or what made the change (a plan, a routine, an undo), at most three, with no times or IDs.
 - To undo, call undo with token "last" (and devices if they named one). Its preview (with its tier in preview.tier) follows the same rule as any other: commit a T0 or T1 undo straight away with the preview's planId; for anything else, wait for a yes to its question.
 - For a new house rule, call add_house_rule with the person's words and author.
 - Use one tool at a time. When you have nothing left to call, reply as above; the screen shows the details.
