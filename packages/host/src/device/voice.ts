@@ -8,6 +8,17 @@ import { type Clip, speechQueue } from './speech-queue.ts';
 
 let voiceAvailable = true;
 
+/**
+ * The words as they should be heard: a voice reads "20 °C" as "20 degree C", so units are spelled
+ * out for speech only; the screen keeps the short form.
+ */
+export function forSpeech(text: string): string {
+  return text
+    .replace(/(\d)\s*°\s*C\b/g, '$1 degrees Celsius')
+    .replace(/(\d)\s*°\s*F\b/g, '$1 degrees Fahrenheit')
+    .replace(/°/g, ' degrees');
+}
+
 /** How long a clip may take to come from /api/speak before the browser's voice says it instead. */
 export const CLIP_WAIT_MS = 12_000;
 
@@ -28,7 +39,7 @@ async function fetchClip(text: string, signal: AbortSignal): Promise<Clip> {
     const res = await fetch('/api/speak', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text: forSpeech(text) }),
       signal: AbortSignal.any([signal, late.signal]),
     });
     if (res.ok) return { kind: 'audio', audio: await res.blob() };
@@ -129,7 +140,7 @@ function browserVoice(text: string, signal: AbortSignal): Promise<boolean> {
   const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
   if (!synth) return Promise.resolve(false);
   return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(forSpeech(text));
     utterance.lang = 'en-US';
     // Some browsers never fire `end`; don't let the conversation wait forever.
     const timer = setTimeout(() => done(true), 2000 + text.split(' ').length * 500);
