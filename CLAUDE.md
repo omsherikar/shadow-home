@@ -45,7 +45,7 @@ Demo home: fixtures/demo-home.json (see fixtures/README.md).
 - packages/infra    the server bundle (Cloud Run and Lambda) and the AWS CDK stack (Lambda + Function URL, DynamoDB, Secrets Manager)
 - scripts/gcp       the Google Cloud deploy: Cloud Build config and deploy.ts (Cloud Run, Firestore, Secret Manager)
 - bench/            ShadowBench: plans, labels (read-only for Claude), runner, reports
-- docs/             plan.md, friction-log.md
+- docs/             plan.md, decisions.md, deploy.md, getting-started.md, friction-log.md
 
 ## Protocol notes
 

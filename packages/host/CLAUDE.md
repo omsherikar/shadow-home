@@ -4,23 +4,27 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
 
 ## Rules for this package
 
-- Stay on Next.js 15.5: Amplify Hosting documents SSR support only for Next.js 12–15.
+- Stay on Next.js 15.5 (15.5.28). It was pinned for Amplify Hosting, which no longer hosts the
+  device; 15.5 is what the host is tested and deployed on (decisions 61 and 99), so don't move to
+  16 without a reason.
 - Route handlers use the Node runtime (`export const runtime = 'nodejs'`). No Edge runtime.
 - /api/turn streams each turn as Server-Sent Events when the client asks (`Accept:
   text/event-stream`), and answers with the whole turn as JSON otherwise (src/turn/respond.ts,
-  src/turn/events.ts; decision 107). Cloud Run streams; Amplify Hosting doesn't, so it no longer
-  hosts the device.
-- app/api/turn/route.ts: one conversational turn. A Converse-shaped model loop (Claude Haiku-class)
+  src/turn/events.ts; decision 107). The chat reads the stream in src/chat/stream.ts. Cloud Run
+  streams; Amplify Hosting doesn't, so it no longer hosts the device.
+- app/api/turn/route.ts: one conversational turn. A Converse-shaped model loop (claude-haiku-5-5)
   with the MCP client from @modelcontextprotocol/client, pointed at MCP_SERVER_URL. It runs on the
   Anthropic API (src/turn/anthropic.ts translates), or on Bedrock with MODEL_PROVIDER=bedrock.
 - app/api/speak/route.ts: text → audio with ElevenLabs (SPEECH=polly for Amazon Polly). The
   browser asks for one sentence at a time, as each streams in, and plays them in order.
 - app/mcp/route.ts: the browser's same-origin way to the MCP server (views call tools through it).
   Forward MCP protocol headers only; read responses whole.
-- Non-route code lives in src/: turn/ (the model loop and the scripted model), screen/ (the
-  sandboxed view frame and AppBridge), device/ (the Echo Show page), chat/ (the conversation and
-  the turn stream's client), house/ (the 3D house) and stage/ (the page around them: the house, the
-  device and the chat, split or house-only, stacked on a phone).
+- app/api/demo/route.ts: starts the demo home over (only with DEMO_CLOCK=1, so only locally).
+- Non-route code lives in src/: turn/ (the model loop, the scripted model and the sentence filter),
+  screen/ (the sandboxed view frame and AppBridge), device/ (the Echo Show page, and the voice cut
+  into sentences and queued), chat/ (the conversation and the turn stream's client), voice/
+  (hands-free), demo/ (the "Play the demo" steps), house/ (the 3D house) and stage/ (the page
+  around them: the house, the device and the chat, split or house-only, stacked on a phone).
 - The 3D house (three.js through React Three Fiber) loads in the browser only (`next/dynamic`,
   `ssr: false`) and draws get_home_state; it never simulates. Its layout (src/house/layout.ts) is
   made by hand for fixtures/demo-home.json. Assets live in public/house: CC0 from Poly Haven only,
