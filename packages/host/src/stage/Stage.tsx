@@ -4,6 +4,7 @@ import {
   Component,
   type CSSProperties,
   type ReactNode,
+  type PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
   useRef,
@@ -13,7 +14,19 @@ import type { LiveHome } from '../house/looks.ts';
 import { drawsInSoftware } from '../house/pace.ts';
 import { webglRenderer } from '../house/webgl.ts';
 import { HousePanel, type HouseRequest } from './HousePanel.tsx';
-import { browserStorage, type Layout, readLayout, writeLayout } from './stage.ts';
+import {
+  browserStorage,
+  DEFAULT_SIZES,
+  dragSize,
+  keySize,
+  type Layout,
+  readLayout,
+  readSizes,
+  SIZE_RANGES,
+  type Sizes,
+  writeLayout,
+  writeSizes,
+} from './stage.ts';
 
 // The device lays out at its full size beside the house and is zoomed out to fit, as a real screen
 // looks smaller from further away rather than rearranging itself.
@@ -54,6 +67,11 @@ export function Stage(props: StageProps) {
   const [open, setOpen] = useState(false);
   const fitBox = useRef<HTMLDivElement>(null);
   const fit = useFit(fitBox);
+  // Split on a wide screen, the boundaries drag. The sizes reach the page as custom properties on
+  // the stage, so nothing remounts as they change; the device's fit follows its box.
+  const [sizes, setSizes] = useState<Sizes>(DEFAULT_SIZES);
+  const stageBox = useRef<HTMLDivElement>(null);
+  const chatBox = useRef<HTMLDivElement>(null);
   const still = useMedia('(prefers-reduced-motion: reduce)');
 
   // Known only in the browser; deciding after the first render keeps the server's HTML the same.
@@ -62,6 +80,7 @@ export function Stage(props: StageProps) {
     setHouse(renderer === null ? 'off' : 'on');
     setLean(renderer !== null && drawsInSoftware(renderer));
     setLayout(readLayout(browserStorage()));
+    setSizes(readSizes(browserStorage()));
   }, []);
 
   // The whole screen closes with Escape, and on its own when the page widens.
@@ -79,16 +98,28 @@ export function Stage(props: StageProps) {
     setLayout(next);
     writeLayout(browserStorage(), next);
   };
+  // A drag moves one boundary at a time, so the other size in `sizes` is current.
+  const resize = (which: keyof Sizes, value: number, done: boolean) => {
+    const next = { ...sizes, [which]: value };
+    setSizes(next);
+    if (done) writeSizes(browserStorage(), next);
+  };
   const fail = useCallback(() => setHouse('off'), []);
   const show = useCallback(() => setOpen(true), []);
 
   const canHouse = house !== 'off' && !props.homeBroken;
   const withHouse = canHouse && (!narrow || phoneHouse);
   const houseOnly = withHouse && !narrow && layout === 'house';
-  const chat = <div className="chat-dock">{props.chat}</div>;
+  const sized = withHouse && !houseOnly && !narrow;
+  const chat = (
+    <div ref={chatBox} className="chat-dock">
+      {props.chat}
+    </div>
+  );
   const kind = withHouse ? `stage ${houseOnly ? 'house-only' : 'split'}` : 'room';
+  const sizing = { '--house-w': `${sizes.house}%`, '--screen-h': sizes.screen } as CSSProperties;
   return (
-    <div className={narrow ? `${kind} narrow` : kind}>
+    <div ref={stageBox} className={narrow ? `${kind} narrow` : kind} style={sizing}>
       {withHouse ? (
         <section className="house-panel" aria-label="The house">
           {house === 'on' ? (
@@ -114,6 +145,15 @@ export function Stage(props: StageProps) {
           )}
           {houseOnly ? chat : null}
         </section>
+      ) : null}
+      {sized ? (
+        <Splitter
+          which="house"
+          label="Resize the house and the chat"
+          value={sizes.house}
+          span={() => stageBox.current?.clientWidth ?? 0}
+          onChange={resize}
+        />
       ) : null}
       <section className="device-panel" aria-label="The device">
         {narrow && canHouse ? (
@@ -141,9 +181,91 @@ export function Stage(props: StageProps) {
             </button>
           ) : null}
         </div>
+        {sized ? (
+          <Splitter
+            which="screen"
+            label="Resize the screen and the chat"
+            value={sizes.screen}
+            span={() => (fitBox.current?.offsetHeight ?? 0) + (chatBox.current?.offsetHeight ?? 0)}
+            onChange={resize}
+          />
+        ) : null}
         {houseOnly ? null : chat}
       </section>
     </div>
+  );
+}
+
+interface SplitterProps {
+  /** The house's width (a bar between left and right), or the screen's height over the chat. */
+  which: keyof Sizes;
+  label: string;
+  value: number;
+  /** How many pixels make 100%, measured as a drag starts. */
+  span(): number;
+  /** A new size; `done` when the drag or the key press is over, so it can be remembered. */
+  onChange(which: keyof Sizes, value: number, done: boolean): void;
+}
+
+/**
+ * A boundary the person drags, or moves with the arrow keys 2% at a time; a double click puts it
+ * back. A hairline, with a wider hit area than it shows.
+ */
+function Splitter({ which, label, value, span, onChange }: SplitterProps) {
+  const drag = useRef<{ from: number; start: number; span: number; last: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const across = which === 'house';
+  const at = (e: ReactPointerEvent) => (across ? e.clientX : e.clientY);
+  const move = (e: ReactPointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    d.last = dragSize(which, d.start, at(e) - d.from, d.span);
+    onChange(which, d.last, false);
+  };
+  // Released, cancelled or capture lost: it stays where it was last moved to, and is remembered.
+  const end = () => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    setDragging(false);
+    onChange(which, d.last, true);
+  };
+  const { min, max } = SIZE_RANGES[which];
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: a focusable window splitter, which an <hr> can't be.
+    <div
+      role="separator"
+      tabIndex={0}
+      className={`splitter ${across ? 'splitter-x' : 'splitter-y'}`}
+      aria-label={label}
+      aria-orientation={across ? 'vertical' : 'horizontal'}
+      aria-valuenow={Math.round(value)}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      data-dragging={dragging ? '' : undefined}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.currentTarget.focus();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { from: at(e), start: value, span: span(), last: value };
+        setDragging(true);
+      }}
+      onPointerMove={move}
+      onPointerUp={(e) => {
+        move(e);
+        end();
+      }}
+      onPointerCancel={end}
+      onLostPointerCapture={end}
+      onKeyDown={(e) => {
+        const next = keySize(which, value, e.key);
+        if (next === null) return;
+        e.preventDefault();
+        onChange(which, next, true);
+      }}
+      onDoubleClick={() => onChange(which, DEFAULT_SIZES[which], true)}
+    />
   );
 }
 

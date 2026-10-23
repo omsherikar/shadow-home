@@ -3,11 +3,6 @@
  * glass with hairline edges and sans text, read on video at 1440 x 900. The palette lives in
  * globals.css; the accent marks only what breaks a rule.
  */
-:root {
-  /* How much of the page the device takes beside the house. */
-  --device-share: 60vw;
-}
-
 .house-panel {
   position: relative;
   flex: 1 1 auto;
@@ -445,8 +440,7 @@
 }
 
 .stage .device-panel {
-  flex: 0 0 auto;
-  width: var(--device-share);
+  flex: 1 1 0;
   padding: 20px 24px 20px 4px;
 }
 
@@ -676,9 +670,88 @@
   margin: 0;
 }
 
+/*
+ * Split on a wide screen, the person sizes it: the house takes --house-w of the width, and the
+ * screen --screen-h percent of its column, the chat the rest. Both are set on the stage.
+ */
+.stage.split:not(.narrow) > .house-panel {
+  flex: 0 0 var(--house-w, 40%);
+}
+
+.stage.split:not(.narrow) > .device-panel {
+  gap: 0;
+}
+
+.stage.split:not(.narrow) .device-fit {
+  flex: var(--screen-h, 56) 1 0px;
+}
+
+.stage.split:not(.narrow) > .device-panel > .chat-dock {
+  flex: calc(100 - var(--screen-h, 56)) 1 0px;
+}
+
+/*
+ * A boundary that drags: a hairline over the edge already there (the house's right border, the
+ * chat's top one), with a wider hit area that takes no room of its own.
+ */
+.splitter {
+  position: relative;
+  z-index: 4;
+  flex: 0 0 auto;
+  touch-action: none;
+}
+
+.splitter::before {
+  position: absolute;
+  background: transparent;
+  content: "";
+  transition: background-color 0.15s;
+}
+
+.splitter-x {
+  width: 12px;
+  margin: 0 -6px;
+  cursor: col-resize;
+}
+
+.splitter-x::before {
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 1px;
+}
+
+/* Under the screen it stands in for the gap: half above the chat, half over its top edge. */
+.splitter-y {
+  height: 14px;
+  margin-bottom: -7px;
+  cursor: row-resize;
+}
+
+.splitter-y::before {
+  top: 7px;
+  right: 0;
+  left: 0;
+  height: 1px;
+}
+
+.splitter:hover::before {
+  background: var(--hairline-strong);
+}
+
+.splitter:focus-visible {
+  outline: none;
+}
+
+.splitter:focus-visible::before,
+.splitter[data-dragging]::before {
+  background: var(--muted);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lightbar.on,
-  .dot {
+  .dot,
+  .splitter::before {
     animation: none;
     transition: none;
   }
