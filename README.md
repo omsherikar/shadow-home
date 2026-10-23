@@ -29,7 +29,7 @@ Three answers, never a guess:
 | --- | --- |
 | SAFE | Every rule holds for the whole plan, in all three simulations, and everything the rules need is known. |
 | UNSAFE | A rule breaks in the expected run, or the plan uses something the home doesn't have. |
-| UNPROVEN | It might be fine, but Shadow Home can't confirm it: a sensor is missing, silent or low on battery, or the plan holds only if the house loses heat exactly as expected. |
+| UNPROVEN | It might be fine, but Shadow Home can't confirm it: a sensor is missing, silent or low on battery, the plan sets the house to away without saying who is away, or the plan holds only if the house loses heat exactly as expected. |
 
 House rules can be added in plain words ("Never unlock the front door between 10 PM and 6 AM unless I'm home"). Three different models translate the sentence into one of five rule templates, and the rule is kept only if all three agree. Shadow Home reads it back, tries it on a simulated day, and reports conflicts with existing rules.
 
@@ -52,7 +52,7 @@ Models plan, phrase and compile rules; only deterministic code decides.
     <-> Store       (in memory locally; Firestore deployed)
 ```
 
-1. The person speaks; the Echo Show page turns speech into text.
+1. The person speaks or types; the Echo Show page turns speech into text.
 2. The voice loop's model drafts a plan and calls `preview_plan`.
 3. The engine lints the plan, checks its hygiene (conflicting writes, missing reversals), then simulates the house minute by minute three times: as expected, 20% leakier with a forecast 2 °C colder, and 20% tighter and 2 °C warmer. Every house rule is checked at every step.
 4. The device says the engine's verdict and question word for word, with the model's own explanation between them; a sentence of the model's that claims a verdict, an action or a device's state, or asks something or gives a number after a check, is dropped (`packages/host/src/turn/guard.ts`). The screen shows the diff and timeline. Beside it, a 3D model of the house shows the twin's live state: lights, plugs, locks, windows, who is home and both zones' temperatures. Each checked plan plays forward there in a shadow twin of the house, the engine's own run with every rule breaking at its time, then again with the fixes, under a timeline you can pause, speed up and drag.
