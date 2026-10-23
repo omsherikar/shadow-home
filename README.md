@@ -63,6 +63,7 @@ On the page:
 - **Chat.** A text box, a mic and suggestions are always on the page. Each turn streams as it happens (Server-Sent Events): Alexa's words, and a step for each tool call as it runs and returns.
 - **Voice.** Alexa says each sentence as soon as it's finished, one ElevenLabs clip per sentence, played in order. Without an ElevenLabs key the browser speaks.
 - **Hands-free.** One tap on "Start hands-free", then say "Alexa" and the request. When she asks a question, answer by voice with no wake word. It uses the browser's speech recognition, so it needs Chrome; typing works everywhere.
+- **The house.** Orbit, zoom and pan it; Reset view puts the camera back. On a wide screen, drag the dividers to resize the house, the screen and the chat.
 
 Alexa+ declares only the `roots` capability, so Shadow Home doesn't rely on mid-call questions: every change is a preview, then a commit with a signed, short-lived plan ID tied to the home's state.
 
