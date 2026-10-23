@@ -1,5 +1,19 @@
 import { describe, expect, test } from 'vitest';
-import { chipFor, dayAndTime, LAYOUT_KEY, readLayout, writeLayout } from './stage.ts';
+import {
+  chipFor,
+  clampSize,
+  DEFAULT_SIZES,
+  dayAndTime,
+  dragSize,
+  keySize,
+  LAYOUT_KEY,
+  parseSizes,
+  readLayout,
+  readSizes,
+  SIZES_KEY,
+  writeLayout,
+  writeSizes,
+} from './stage.ts';
 
 function memory() {
   const items = new Map<string, string>();
@@ -37,6 +51,55 @@ describe('the layout choice', () => {
     expect(readLayout(null)).toBe('split');
     expect(readLayout(refusing)).toBe('split');
     expect(() => writeLayout(refusing, 'house')).not.toThrow();
+  });
+});
+
+describe('the split sizes', () => {
+  test('the house keeps 25 to 70% of the width, the screen 30 to 75% of its column', () => {
+    expect(clampSize('house', 10)).toBe(25);
+    expect(clampSize('house', 90)).toBe(70);
+    expect(clampSize('house', 47.26)).toBe(47.3);
+    expect(clampSize('screen', 0)).toBe(30);
+    expect(clampSize('screen', 100)).toBe(75);
+    expect(clampSize('screen', Number.NaN)).toBe(DEFAULT_SIZES.screen);
+  });
+
+  test('start at the defaults, and come back as they were left', () => {
+    const storage = memory();
+    expect(readSizes(storage)).toEqual({ house: 40, screen: 56 });
+    writeSizes(storage, { house: 55, screen: 40 });
+    expect(JSON.parse(storage.items.get(SIZES_KEY) ?? '')).toEqual({ house: 55, screen: 40 });
+    expect(readSizes(storage)).toEqual({ house: 55, screen: 40 });
+  });
+
+  test('broken, partial or out-of-range sizes read as the defaults or are held to range', () => {
+    expect(parseSizes('not json')).toEqual(DEFAULT_SIZES);
+    expect(parseSizes('{"house":"wide"}')).toEqual(DEFAULT_SIZES);
+    expect(parseSizes('[1,2]')).toEqual(DEFAULT_SIZES);
+    expect(parseSizes('{"house":99}')).toEqual({ house: 70, screen: DEFAULT_SIZES.screen });
+    expect(parseSizes('{"screen":5}')).toEqual({ house: DEFAULT_SIZES.house, screen: 30 });
+    expect(readSizes(null)).toEqual(DEFAULT_SIZES);
+    expect(readSizes(refusing)).toEqual(DEFAULT_SIZES);
+    expect(() => writeSizes(refusing, DEFAULT_SIZES)).not.toThrow();
+  });
+
+  test('a drag moves a boundary by its share of the length, within range', () => {
+    expect(dragSize('house', 40, 144, 1440)).toBe(50);
+    expect(dragSize('house', 40, -1440, 1440)).toBe(25);
+    expect(dragSize('screen', 56, 86, 860)).toBe(66);
+    expect(dragSize('screen', 56, 30, 0)).toBe(56);
+  });
+
+  test('arrow keys move a boundary 2% at a time; Home and End go to its ends', () => {
+    expect(keySize('house', 40, 'ArrowLeft')).toBe(38);
+    expect(keySize('house', 40, 'ArrowRight')).toBe(42);
+    expect(keySize('screen', 56, 'ArrowUp')).toBe(54);
+    expect(keySize('screen', 56, 'ArrowDown')).toBe(58);
+    expect(keySize('house', 69, 'ArrowRight')).toBe(70);
+    expect(keySize('screen', 31, 'ArrowUp')).toBe(30);
+    expect(keySize('house', 40, 'Home')).toBe(25);
+    expect(keySize('screen', 40, 'End')).toBe(75);
+    expect(keySize('house', 40, 'Enter')).toBeNull();
   });
 });
 
