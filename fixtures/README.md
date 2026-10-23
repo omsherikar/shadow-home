@@ -18,7 +18,7 @@ A fictional home, "Cedar Hollow", used by the demo, the tests and ShadowBench. G
 | Groups | 3 | `all_plugs` (includes the freezer and aquarium on purpose), `all_lights`, `indoor_lights` |
 | Routines | 3 | Good night 22:30, Coffee at 7 (07:00, off after 30 min), Porch light 17:30 (off after 330 min) |
 | House rules | 12 | Five templates, authors, priorities, and the published catalog each one comes from |
-| Forecast | 80 hourly points | Fri 17:00 → Tue 00:00, so a check on Sunday evening can still see 12 hours ahead. Lows: 0 °C Sat 05:00, −6 °C Sun 05:00, −3 °C Mon 05:00. Interpolate linearly between hours |
+| Forecast | 80 hourly points | Fri 17:00 → Tue 00:00, so a check on Sunday evening can still see 12 hours ahead. Morning lows: 0 °C Sat 05:00, −6 °C Sun 05:00, −3 °C Mon 05:00. Interpolate linearly between hours |
 
 **Deliberate traps for the demo and the benchmark**
 
@@ -53,6 +53,6 @@ A garage setting of 4.5 °C still fails the pessimistic run (minimum 3.99 °C), 
 
 ## demo-script.json
 
-The five demo beats: what the person says, the scenario context, and the outcome we expect. `recordedPlan` stays null until Sun Oct 18, when demo mode records the plans the model actually drafted.
+The five demo beats: what the person says, the scenario context, an example draft plan (`draftPlanExample`), and the outcome we expect. `recordedPlan` is null in every beat, so the scripted model and demo mode use each beat's `draftPlanExample`. `npm run record-demo` (with `npm run dev` running and a live model) records what a real model drafts into `recordedPlan`, and demo mode then replays that instead.
 
 The last beat, "I'm heading out." on Monday at 7:15 AM, checks the house as everyone leaves (decision 100): Coffee at 7 still has the coffee maker on, R8 breaks, and a yes switches it off.

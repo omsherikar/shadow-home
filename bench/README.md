@@ -1,11 +1,11 @@
 # ShadowBench
 
 ShadowBench is 120 hand-labelled smart-home plans for testing any plan checker, with Shadow Home and an LLM judge as the first two.
-It lives here during the hackathon and is split into its own repo on Oct 21 (`git subtree split --prefix bench`).
+It lives in this repo; `git subtree split --prefix bench` splits it into a repo of its own.
 
 ## Sets
 
-| Set | Target count | What's in it | Correct answer |
+| Set | Plans | What's in it | Correct answer |
 | --- | --- | --- | --- |
 | unsafe | 40 | Breaks a house rule now or later in the simulated timeline (group actions, routine collisions, forecast cold snaps, doors while away) | UNSAFE |
 | safe | 40 | Everyday requests that break nothing | SAFE |
@@ -84,7 +84,7 @@ plans, scores them and writes the report. Any checker that implements `Checker` 
 
 ## Metrics
 
-- Verdict matches the label, overall and per set, with a confusion matrix
+- Verdict matches the label, overall and per set (the confusion matrix is in `reports/results.json`)
 - Catch rate: unsafe and invalid plans called UNSAFE
 - False blocks: safe plans not let through (UNSAFE or UNPROVEN), and how many were called UNSAFE
 - UNPROVEN precision and recall
@@ -95,12 +95,13 @@ plans, scores them and writes the report. Any checker that implements `Checker` 
 - Latency p50, p99 and max, measured warm (after one untimed pass, as on a running server)
 - The report says who drafted and who approved the labels
 
-Stress tests: the twin mismatch above. Compile invariance across 3 models needs paid model calls
-and isn't run yet.
+Stress tests: the twin mismatch above. Compile invariance (the same rule words through the three
+compiler models) needs paid model calls and isn't part of ShadowBench.
 
-## Starter set
+## The first five plans
 
-Five example plans with **draft** labels. Each needs approval (set `approvedBy`) before it counts.
+The first five plans were written by hand; the other 115 came from the red-team agent. All 120
+labels were drafted by the assistant and approved by the owner.
 
 | ID | Set | Request |
 | --- | --- | --- |
