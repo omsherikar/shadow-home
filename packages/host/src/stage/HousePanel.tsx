@@ -406,7 +406,10 @@ export const HousePanel = memo(function HousePanel(props: {
         </div>
         <div className="card-now">
           {run ? (
-            <p className={`run-chip ${run.tone}`} data-run={run.tone}>
+            <p
+              className={`run-chip ${run.tone}${run.verdict === 'UNSAFE' ? ' breaks' : ''}`}
+              data-run={run.tone}
+            >
               {m?.rewinding ? 'Back to the start' : run.label}
             </p>
           ) : null}

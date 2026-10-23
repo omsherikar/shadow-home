@@ -1,4 +1,36 @@
-/* A 10-inch smart display on a shelf: 16:10 screen in a dark bezel, read from across a room. */
+/*
+ * Monochrome, after refactron.dev: a calm dark page, warm off-white text, hairlines instead of
+ * boxes. One accent, kept for "Not safe" and for errors; never decoration. System fonts only.
+ */
+:root {
+  --bg: #0c0c0e;
+  --deeper: #070709;
+  --surface: #141416;
+  --raised: #1c1c20;
+  --text: #f1eee6;
+  --text-2: #ddd9cf;
+  --muted: #8e8b82;
+  --faint: #5f5d58;
+  --hairline: rgba(241, 238, 230, 0.08);
+  --hairline-strong: rgba(241, 238, 230, 0.16);
+  --accent: #fb6b83;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  --serif: ui-serif, "New York", Georgia, serif;
+
+  /* The names the rest of the host already uses, pointed at the palette. */
+  --ink: var(--text);
+  --ink-soft: var(--text-2);
+  --ink-muted: var(--muted);
+  --safe: var(--text);
+  --blocked: var(--accent);
+  --unsure: var(--muted);
+  --done: var(--text);
+  --glass: rgba(12, 12, 14, 0.72);
+  --glass-edge: var(--hairline);
+  color-scheme: dark;
+}
+
+/* A 10-inch smart display on a shelf: 16:10 screen in a thin, flat bezel. */
 * {
   box-sizing: border-box;
 }
@@ -7,31 +39,51 @@ html,
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(ellipse at 50% 15%, #3b3129 0%, #1d1814 55%, #120f0c 100%);
-  color: #f1f5f9;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--hairline-strong);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(241, 238, 230, 0.18);
 }
 
 .device {
   position: relative;
   width: min(94vw, 1180px, calc((100vh - 200px) * 1.6));
   aspect-ratio: 16 / 10;
-  padding: 18px 18px 26px;
-  border-radius: 26px;
-  background: #0a0a0a;
-  box-shadow:
-    0 30px 80px rgb(0 0 0 / 55%),
-    inset 0 0 0 2px #1f1f1f;
+  padding: 14px 14px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  background: var(--deeper);
 }
 
 .camera {
   position: absolute;
-  top: 6px;
+  top: 5px;
   left: 50%;
-  width: 7px;
-  height: 7px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #262626;
+  background: var(--raised);
   transform: translateX(-50%);
 }
 
@@ -42,16 +94,17 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 10px;
-  background: #0b1020;
+  border-radius: 8px;
+  background: var(--bg);
 }
 
 .status {
   display: flex;
   justify-content: space-between;
   padding: 6px 16px;
-  color: #94a3b8;
+  color: var(--muted);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .content {
@@ -78,7 +131,8 @@ body {
 .card-message {
   margin: 0;
   padding: 12% 10%;
-  color: #cbd5e1;
+  color: var(--text-2);
+  font-family: var(--serif);
   font-size: clamp(16px, 2vw, 26px);
   text-align: center;
 }
@@ -96,12 +150,14 @@ body {
 }
 
 .home-card .mode {
+  font-family: var(--serif);
   font-size: 2.2em;
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .home-card .people {
-  color: #cbd5e1;
+  color: var(--text-2);
   font-size: 1.2em;
 }
 
@@ -116,17 +172,19 @@ body {
 .home-card .zones li {
   display: flex;
   flex-direction: column;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .home-card .zones strong {
-  color: #f1f5f9;
+  color: var(--text);
   font-size: 1.6em;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 .home-card .hint {
   margin-top: auto;
-  color: #64748b;
+  color: var(--faint);
 }
 
 .log-card {
@@ -136,14 +194,16 @@ body {
 
 .log-card h2 {
   margin: 0 0 0.5em;
-  color: #94a3b8;
-  font-size: 0.8em;
-  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-size: 0.6em;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .log-card h3 {
   margin: 0.6em 0 0.2em;
+  font-weight: 500;
 }
 
 .log-card ul {
@@ -153,18 +213,24 @@ body {
 
 .log-card .who,
 .log-card .undoable {
-  color: #94a3b8;
+  color: var(--muted);
 }
 
+/* The light bar: a thin off-white line, dim when idle and moving while she listens. */
 .lightbar {
   position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
-  height: 5px;
-  background: linear-gradient(90deg, #0ea5e9, #67e8f9, #0ea5e9);
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(241, 238, 230, 0.15),
+    rgba(241, 238, 230, 0.85),
+    rgba(241, 238, 230, 0.15)
+  );
   background-size: 200% 100%;
-  opacity: 0.25;
+  opacity: 0.2;
   transition: opacity 0.3s;
 }
 
@@ -191,9 +257,10 @@ button:disabled {
 
 .rule-card h2 {
   margin: 0 0 0.4em;
-  color: #94a3b8;
-  font-size: 0.8em;
-  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-size: 0.6em;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -203,18 +270,20 @@ button:disabled {
 }
 
 .rule-card .headline {
+  font-family: var(--serif);
   font-size: 1.4em;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .rule-card .read-back {
-  color: #e0f2fe;
+  color: var(--text);
+  font-family: var(--serif);
   font-size: 1.15em;
 }
 
 .rule-card .conflicts {
   padding-left: 1.2em;
-  color: #fbbf24;
+  color: var(--text-2);
 }
 
 .rule-card .readings {
@@ -223,5 +292,5 @@ button:disabled {
 
 .rule-card .sample-day,
 .rule-card .problem {
-  color: #cbd5e1;
+  color: var(--text-2);
 }

@@ -1,14 +1,11 @@
 /*
- * The chat: Alexa's words in the house's serif, as she'd say them; the person's in the plain sans
- * of the page. Her mark is the Echo's light ring, which moves only while she listens, thinks or
- * speaks. Read on video at 1440 x 900, and on a phone with the composer pinned to the bottom.
+ * The chat, after claude.ai: Alexa's words as plain serif prose on the page, no bubble; the
+ * person's as a quiet grey pill on the right; one rounded composer at the bottom with the mic and
+ * send inside it. Her mark is the Echo's light ring, in the text colour, which moves only while
+ * she listens, thinks or speaks. Read on video at 1440 x 900, and on a phone.
  */
 :root {
-  --ring: #67e8f9;
-  --ring-deep: #0ea5e9;
-  --you: #4a3a2d;
-  --well: rgb(255 238 214 / 7%);
-  --well-edge: rgb(255 238 214 / 11%);
+  --column: 720px;
 }
 
 .sr-only,
@@ -34,18 +31,34 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--glass-edge);
-  border-radius: 22px;
-  background: rgb(26 21 17 / 82%);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
-  color: var(--ink);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
+  border-top: 1px solid var(--hairline);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+/* One centred reading column for everything in the chat, 20 px clear of its edges. */
+.welcome,
+.messages,
+.chat-notice {
+  max-width: var(--column);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.chat-head,
+.offers,
+.composer {
+  width: calc(100% - 40px);
+  max-width: var(--column);
+  margin-right: auto;
+  margin-left: auto;
 }
 
 /*
- * Hands-free: one pill beside her name, saying what she listens for. Off, it offers to start; on,
- * a live dot and a plain way to turn it off.
+ * Hands-free: one hairline pill beside her name, saying what she listens for. Off, a muted dot;
+ * listening, a text-coloured one.
  */
 .hands-free {
   display: inline-flex;
@@ -53,32 +66,35 @@
   gap: 8px;
   align-items: center;
   min-width: 0;
-  padding: 6px 12px;
-  border: 1px solid rgb(255 238 214 / 22%);
+  padding: 5px 12px;
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
-  background: rgb(255 238 214 / 6%);
-  color: var(--ink);
+  background: transparent;
+  color: var(--text-2);
   font: inherit;
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
 }
 
+.hands-free:hover {
+  border-color: rgba(241, 238, 230, 0.28);
+}
+
 .hands-free[aria-pressed="true"] {
-  border-color: rgb(103 232 249 / 55%);
-  background: rgb(103 232 249 / 10%);
+  color: var(--text);
 }
 
 .hf-dot {
   flex: 0 0 auto;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--ink-muted);
+  background: var(--muted);
 }
 
 .hands-free[aria-pressed="true"] .hf-dot {
-  background: var(--ring);
+  background: var(--text);
 }
 
 .hands-free.awake .hf-dot,
@@ -93,12 +109,12 @@
 
 .hf-off {
   padding-left: 8px;
-  border-left: 1px solid rgb(255 238 214 / 22%);
-  color: var(--ink-soft);
+  border-left: 1px solid var(--hairline-strong);
+  color: var(--muted);
 }
 
 .hands-free.unavailable {
-  color: var(--ink-muted);
+  color: var(--muted);
 }
 
 /* Only the messages give way when the chat is short; its head, suggestions and composer don't. */
@@ -107,7 +123,7 @@
 }
 
 .chat :focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 2px solid var(--hairline-strong);
   outline-offset: 2px;
 }
 
@@ -115,48 +131,49 @@
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 12px 12px 10px 16px;
-  border-bottom: 1px solid rgb(255 238 214 / 8%);
+  padding: 12px 0 8px;
 }
 
 .chat-title {
   display: flex;
   flex: 1;
-  gap: 12px;
+  gap: 10px;
   align-items: baseline;
   margin: 0;
-  font-family: var(--serif);
-  font-size: 19px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .chat-state {
-  color: var(--ring);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 /* The light ring: still and dim when idle; turning while she works; a pulse while she listens. */
 .ring {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, #1d3a44, #2b5560, #1d3a44);
-  -webkit-mask: radial-gradient(circle, transparent 5px, #000 6px);
-  mask: radial-gradient(circle, transparent 5px, #000 6px);
+  background: var(--faint);
+  -webkit-mask: radial-gradient(circle, transparent 4.5px, #000 5.5px);
+  mask: radial-gradient(circle, transparent 4.5px, #000 5.5px);
 }
 
 .ring.thinking,
 .ring.working,
 .ring.answering,
 .ring.speaking {
-  background: conic-gradient(from 0deg, var(--ring-deep), var(--ring), #e0fbff, var(--ring-deep));
+  background: conic-gradient(from 0deg, var(--faint), var(--text), var(--faint));
   animation: ring-turn 1.4s linear infinite;
 }
 
 .ring.listening,
 .ring.awaiting {
-  background: var(--ring);
+  background: var(--text);
   animation: ring-pulse 1.1s ease-in-out infinite;
 }
 
@@ -175,24 +192,28 @@
 .chat-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  padding: 14px 16px 6px;
+  padding: 12px 20px 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-color: var(--hairline-strong) transparent;
+  scrollbar-width: thin;
 }
 
 .welcome-words {
-  max-width: 34em;
-  margin: 2px 0 12px;
+  max-width: 36em;
+  margin: 4px 0 16px;
+  color: var(--text-2);
   font-family: var(--serif);
-  font-size: 19px;
-  line-height: 1.45;
+  font-size: 17px;
+  line-height: 1.6;
 }
 
 .messages {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 0;
+  gap: 20px;
+  margin-top: 0;
+  margin-bottom: 0;
   padding: 0;
   list-style: none;
 }
@@ -204,68 +225,75 @@
 .msg.you {
   align-self: flex-end;
   max-width: 78%;
-  padding: 9px 15px;
-  border-radius: 18px 18px 5px 18px;
-  background: var(--you);
+  padding: 9px 16px;
+  border-radius: 20px;
+  background: var(--raised);
+  color: var(--text);
   font-size: 15px;
-  line-height: 1.4;
-}
-
-.msg.alexa {
-  align-self: flex-start;
-  max-width: 88%;
-  padding: 11px 16px 12px;
-  border: 1px solid var(--well-edge);
-  border-radius: 5px 18px 18px 18px;
-  background: var(--well);
-}
-
-.msg.alexa .said {
-  font-family: var(--serif);
-  font-size: 18px;
   line-height: 1.45;
 }
 
+.msg.alexa {
+  align-self: stretch;
+  max-width: 100%;
+  padding: 0;
+}
+
+.msg.alexa .said {
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+/* The verdict: a small label above her words. A dot for "Not safe"; a check or a "?" otherwise. */
 .verdict-pill {
   display: inline-flex;
   gap: 6px;
   align-items: center;
   margin: 0 0 6px;
-  padding: 2px 10px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
-.verdict-pill.safe {
-  color: var(--safe);
-}
-
-.verdict-pill.blocked {
-  color: var(--blocked);
+.verdict-pill.safe,
+.verdict-pill.done {
+  color: var(--text);
 }
 
 .verdict-pill.unsure {
-  color: var(--unsure);
+  color: var(--muted);
 }
 
-.verdict-pill.done {
-  color: var(--done);
+.verdict-pill.blocked {
+  color: var(--accent);
+}
+
+.verdict-pill.blocked > [aria-hidden="true"] {
+  display: none;
+}
+
+.verdict-pill.blocked::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
 }
 
 /* Three dots while she thinks. */
 .dots {
   display: inline-flex;
   gap: 5px;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 
 .dots i {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: var(--ink-soft);
+  background: var(--muted);
   animation: dot 1.2s ease-in-out infinite;
 }
 
@@ -287,11 +315,11 @@
 .steps {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   margin: 8px 0 0;
   padding: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
+  color: var(--muted);
+  font-size: 13px;
   list-style: none;
 }
 
@@ -303,19 +331,19 @@
 
 .step-mark {
   flex: 0 0 auto;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
 }
 
 .step.running .step-mark {
-  border: 2px solid var(--ring);
+  border: 1.5px solid var(--text-2);
   border-top-color: transparent;
   animation: ring-turn 0.8s linear infinite;
 }
 
 .step.done .step-mark {
-  background: var(--safe);
+  background: var(--text-2);
   -webkit-mask:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5 5 9l5-6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / contain no-repeat;
@@ -325,36 +353,69 @@
 }
 
 .step.failed {
-  color: var(--ink-muted);
+  color: var(--faint);
 }
 
 .step.failed .step-mark {
-  border: 2px solid var(--ink-muted);
+  border: 1.5px solid var(--faint);
 }
 
+/* "What I did" and "Details": small muted rows that open. */
 .steps-done,
 .more {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .steps-done summary,
 .more summary {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
   width: fit-content;
-  color: var(--ink-muted);
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  list-style: none;
   cursor: pointer;
+}
+
+.steps-done summary::-webkit-details-marker,
+.more summary::-webkit-details-marker {
+  display: none;
+}
+
+.steps-done summary::before,
+.more summary::before {
+  width: 5px;
+  height: 5px;
+  border-right: 1.2px solid currentColor;
+  border-bottom: 1.2px solid currentColor;
+  content: "";
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.steps-done[open] > summary::before,
+.more[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.steps-done summary:hover,
+.more summary:hover {
+  color: var(--text-2);
 }
 
 .more ul {
   margin: 6px 0 0;
   padding-left: 1.1em;
-  color: var(--ink-soft);
-  line-height: 1.45;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .aside {
   margin-top: 6px;
-  color: var(--ink-muted);
+  color: var(--muted);
   font-size: 13px;
 }
 
@@ -364,111 +425,148 @@
   gap: 8px 12px;
   align-items: center;
   margin-top: 4px;
-  padding-left: 10px;
-  border-left: 3px solid var(--blocked);
+  padding-left: 12px;
+  border-left: 2px solid var(--accent);
 }
 
 .problem p {
   font-family: var(--serif);
   font-size: 17px;
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
 .retry {
   padding: 6px 14px;
-  border: 1px solid var(--ink-soft);
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
   background: transparent;
-  color: var(--ink);
+  color: var(--text);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
+.retry:hover {
+  border-color: rgba(241, 238, 230, 0.28);
+}
+
 .chat-notice {
-  margin: 12px 0 0;
-  color: var(--ink-muted);
-  font-size: 14px;
+  margin-top: 14px;
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 13px;
   text-align: center;
 }
 
-/* Suggestions sit by the composer: what to say first, then the answers to her question. */
+/* Suggestions sit by the composer: quiet hairline text buttons. */
 .offers {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 16px 0;
+  padding: 8px 0 0;
 }
 
 .offer {
-  padding: 7px 14px;
-  border: 1px solid rgb(255 238 214 / 22%);
+  padding: 6px 12px;
+  border: 1px solid var(--hairline-strong);
   border-radius: 999px;
-  background: rgb(255 238 214 / 5%);
-  color: var(--ink);
+  background: transparent;
+  color: var(--text-2);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
 }
 
 .offer:hover:not(:disabled) {
-  border-color: var(--ring);
+  border-color: rgba(241, 238, 230, 0.28);
+  color: var(--text);
 }
 
+/* The composer: one rounded box; the mic and send inside it, on the right. */
 .composer {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
-  padding: 10px 12px 12px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+  padding: 6px 6px 6px 16px;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.composer:focus-within {
+  border-color: var(--hairline-strong);
 }
 
 .composer input {
   flex: 1;
+  order: 0;
   min-width: 0;
-  height: 46px;
-  padding: 0 18px;
-  border: 1px solid rgb(255 238 214 / 16%);
-  border-radius: 999px;
-  background: rgb(10 8 6 / 55%);
-  color: var(--ink);
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
   font: inherit;
-  font-size: 16px;
+  font-size: 15px;
+}
+
+.composer input:focus,
+.composer input:focus-visible {
+  outline: none;
 }
 
 .composer input::placeholder {
-  color: var(--ink-muted);
+  color: var(--muted);
 }
 
 .round {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  order: 2;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   cursor: pointer;
 }
 
+.round svg {
+  width: 18px;
+  height: 18px;
+}
+
 .round.send {
-  background: var(--ring);
-  color: #052029;
+  background: var(--text);
+  color: var(--bg);
+}
+
+.round.send:disabled {
+  opacity: 0.3;
 }
 
 .round.stop {
-  background: var(--ink);
-  color: #1d1712;
+  background: var(--text);
+  color: var(--bg);
 }
 
 .round.mic {
-  background: rgb(255 238 214 / 10%);
-  color: var(--ink);
+  order: 1;
+  background: transparent;
+  color: var(--muted);
+}
+
+.round.mic:hover:not(:disabled) {
+  background: var(--raised);
+  color: var(--text);
 }
 
 .round.mic[aria-pressed="true"] {
-  background: var(--ring);
-  color: #052029;
+  background: var(--raised);
+  color: var(--text);
   animation: ring-pulse 1.1s ease-in-out infinite;
 }
 
@@ -479,10 +577,11 @@
 .menu summary {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
   border-radius: 50%;
-  color: var(--ink-soft);
+  color: var(--muted);
   font-size: 11px;
   letter-spacing: 1px;
   list-style: none;
@@ -495,30 +594,30 @@
 
 .menu[open] summary,
 .menu summary:hover {
-  background: rgb(255 238 214 / 10%);
+  border-color: var(--hairline-strong);
+  color: var(--text);
 }
 
 .menu-items {
   position: absolute;
   z-index: 5;
-  top: 40px;
+  top: 38px;
   right: 0;
   display: flex;
   flex-direction: column;
   min-width: 200px;
-  padding: 6px;
-  border: 1px solid var(--glass-edge);
-  border-radius: 14px;
-  background: #241d18;
-  box-shadow: 0 18px 40px rgb(0 0 0 / 45%);
+  padding: 4px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 12px;
+  background: var(--surface);
 }
 
 .menu-items button {
-  padding: 9px 12px;
+  padding: 8px 12px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--ink);
+  color: var(--text-2);
   font: inherit;
   font-size: 14px;
   text-align: left;
@@ -526,25 +625,41 @@
 }
 
 .menu-items button:hover:not(:disabled) {
-  background: rgb(255 238 214 / 8%);
+  background: var(--raised);
+  color: var(--text);
 }
 
-/* Over the house, compact: smaller type, one row of suggestions that scrolls sideways. */
+/* Over the house: flat glass, compact, one row of suggestions that scrolls sideways. */
+.house-only .chat {
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+.house-only .chat-head,
+.house-only .offers,
+.house-only .composer {
+  width: calc(100% - 24px);
+}
+
 .house-only .chat-head {
-  padding: 7px 10px 6px 12px;
-}
-
-.house-only .chat-title {
-  font-size: 16px;
+  padding: 8px 0 4px;
 }
 
 .house-only .chat-scroll {
-  padding: 8px 12px 4px;
+  padding: 6px 12px 4px;
 }
 
 .house-only .welcome-words {
   margin-bottom: 4px;
   font-size: 15px;
+  line-height: 1.5;
+}
+
+.house-only .messages {
+  gap: 12px;
 }
 
 .house-only .more {
@@ -556,44 +671,58 @@
 }
 
 .house-only .msg.alexa .said {
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .house-only .offers {
   flex-wrap: nowrap;
-  padding: 6px 12px 0;
+  padding: 6px 0 0;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
 .house-only .offer {
   flex: 0 0 auto;
-  padding: 5px 11px;
-  font-size: 13px;
+  padding: 4px 10px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .house-only .composer {
-  padding: 8px 10px 10px;
+  margin-top: 8px;
+  margin-bottom: 10px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 12px;
 }
 
 .house-only .composer input {
-  height: 40px;
-  font-size: 15px;
+  height: 32px;
+  font-size: 14px;
 }
 
 .house-only .round {
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
 }
 
-/* On a phone, a little smaller. */
-.narrow .msg.alexa .said {
-  font-size: 17px;
-}
-
+/* On a phone: the same column, edge to edge. */
 .narrow .chat {
-  border-radius: 18px;
+  border-top: 0;
+}
+
+.narrow .chat-scroll {
+  padding: 8px 0;
+}
+
+.narrow .chat-head,
+.narrow .offers,
+.narrow .composer {
+  width: 100%;
+}
+
+.narrow .composer {
+  margin-bottom: 4px;
 }
 
 .narrow .offer {
