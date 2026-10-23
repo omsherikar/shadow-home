@@ -735,17 +735,17 @@ describe('the plan view', () => {
       { text: 'Freezer stays on', tone: 'fixed' },
     ]);
     expect(s.timeline?.lanes.map((l) => l.label)).toEqual([
-      'Your plan',
-      'Coffee at 7',
-      'Porch light',
+      'Your changes',
+      'Routine: Coffee at 7',
+      'Routine: Porch light',
       'House rules',
     ]);
     // R1 and R2 break in the same minute, so they share one mark rather than overlap. The marks
     // count the rules; their numbers are in the chat's details.
     expect(s.timeline?.lanes.at(-1)?.marks.map((m) => m.label)).toEqual([
-      'A rule breaks',
-      '2 rules break',
-      'A rule breaks',
+      'A rule breaks Sat 7:00 AM',
+      '2 rules break now',
+      'A rule breaks Sat 10:37 PM',
     ]);
     expect(s.controls[0]).toEqual({
       label: 'Do it with 4 fixes',
