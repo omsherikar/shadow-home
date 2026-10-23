@@ -113,6 +113,9 @@ export const HousePanel = memo(function HousePanel(props: {
   );
 
   const [show, setShow] = useState<Show | null>(null);
+  // Whether the person has moved the camera themselves, and each time they ask for it back.
+  const [navigated, setNavigated] = useState(false);
+  const [recenter, setRecenter] = useState(0);
   // A show begins drawing once the page is next idle (a second at most): by then the screen beside
   // the house has drawn what it was sent, the plan view with its verdict, so the twin's first
   // frame comes after it however long that frame takes.
@@ -321,6 +324,9 @@ export const HousePanel = memo(function HousePanel(props: {
         moving={moving}
         onFail={props.onFail}
         lean={lean}
+        playback={show?.id ?? null}
+        recenter={recenter}
+        onNavigate={setNavigated}
       />
       <div
         className="pins"
@@ -459,6 +465,16 @@ export const HousePanel = memo(function HousePanel(props: {
           <BreakCard key={`${b.kind}:${b.text}`} b={b} offset={run?.offset} name={nameOf} inline />
         ))}
       </div>
+      {navigated ? (
+        <button
+          type="button"
+          className="reset-view"
+          style={docked ? { top: cardBottom } : undefined}
+          onClick={() => setRecenter((n) => n + 1)}
+        >
+          Reset view
+        </button>
+      ) : null}
       {run && !docked ? <ZoneChart run={run} homeMs={homeMs} zone="garage" /> : null}
       {run && m ? (
         <div className="timeline-dock" ref={strip}>

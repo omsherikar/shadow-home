@@ -4,14 +4,33 @@ import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
 import { Bloom, EffectComposer, N8AO, ToneMapping } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { memo, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { EquirectangularReflectionMapping, Object3D, type PerspectiveCamera, Vector3 } from 'three';
+import {
+  EquirectangularReflectionMapping,
+  Object3D,
+  type PerspectiveCamera,
+  TOUCH,
+  Vector3,
+} from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Devices } from './Devices.tsx';
 import { Furniture, People } from './Furniture.tsx';
 import { type Band, bandBetween, frame, groundBounds, houseBounds, overlaps } from './geometry.ts';
 import { ghost } from './ghost.ts';
 import { houseLayout as layout } from './layout.ts';
 import { type Daylight, daylight, type LiveDevice } from './looks.ts';
+import {
+  FARTHEST,
+  glide,
+  keepInside,
+  MAX_POLAR,
+  MIN_POLAR,
+  NEAREST,
+  type Pose,
+  panBounds,
+  poseOf,
+  positionOf,
+} from './orbit.ts';
 import { temperatureColor, temperatureStrength } from './playback.ts';
 import { Shell } from './Shell.tsx';
 
@@ -63,6 +82,15 @@ export interface HouseProps {
    * each frame take seconds. Known before the first frame, so nothing is built twice.
    */
   lean?: boolean;
+  /**
+   * The playback being shown, a new number for each; null when none. A new one takes the camera
+   * back from the person for its scripted moves.
+   */
+  playback?: number | null;
+  /** Goes up by one each time the person asks for the default view back. */
+  recenter?: number;
+  /** The person took the camera (true), or it went back to the scripted view (false). */
+  onNavigate?(mine: boolean): void;
 }
 
 const FOV = 40;
@@ -72,8 +100,6 @@ const VIEWS = {
   house: { azimuth: 33, elevation: 40 },
   split: { azimuth: 82, elevation: 44 },
 } as const;
-/** How far a drag may turn the house: around, and up or down. */
-const TURN_LIMIT = { azimuth: 30, elevation: 14 };
 /** How far the camera drifts around the house over a run. */
 const DOLLY_DEG = 10;
 
@@ -115,7 +141,8 @@ export default function House(props: HouseProps) {
   );
 }
 
-function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) {
+function Scene(props: HouseProps) {
+  const { view, mode, anchors, pinned, still, inset, lean } = props;
   const light = daylight(view.time);
   return (
     <>
@@ -130,6 +157,9 @@ function Scene({ view, mode, anchors, pinned, still, inset, lean }: HouseProps) 
         pinned={pinned}
         still={still}
         inset={inset}
+        playback={props.playback ?? null}
+        recenter={props.recenter ?? 0}
+        onNavigate={props.onNavigate}
       />
       <TwinFade shadow={view.shadow} still={still} />
       <Shell layout={layout} devices={view.devices} />
@@ -238,6 +268,10 @@ function KeyLight({ light }: { light: Daylight }) {
 }
 
 const ROOMS = new Map(layout.rooms.map((r) => [r.id, r]));
+// Where the person may pan the camera's aim: the house and a margin round it.
+const PAN_BOUNDS = panBounds(houseBounds(layout));
+// A phone's width, where one finger is left to scroll the page.
+const NARROW = '(max-width: 760px)';
 
 // Alone, the house sits a little above the caption that floats along the bottom.
 const ALONE: Band = { center: 0.08, half: 0.92 };
@@ -246,8 +280,11 @@ const ALONE: Band = { center: 0.08, half: 0.92 };
  * Frames the whole house for the canvas's size, or one room when there's something to look at,
  * gliding between them, in the part of the panel nothing covers; and keeps everything pinned to
  * the house where it shows on screen, hiding what would fall outside that part rather than cut it.
- * While a run plays the camera drifts slowly around the house with it, and a drag turns the house
- * a little way either side.
+ * While a run plays the camera drifts slowly around the house with it.
+ *
+ * The person can take the camera at any time: drag to orbit, scroll or pinch to zoom, right-drag
+ * or Shift-drag (two fingers) to pan, arrow keys to orbit. From then on the scripted moves leave
+ * the camera alone until the next playback or until they ask for the default view back.
  */
 function CameraRig(props: {
   mode: HouseProps['mode'];
@@ -257,6 +294,9 @@ function CameraRig(props: {
   pinned: HouseProps['pinned'];
   still: boolean;
   inset: HouseProps['inset'];
+  playback: number | null;
+  recenter: number;
+  onNavigate: HouseProps['onNavigate'];
 }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
   const width = useThree((s) => s.size.width);
@@ -265,46 +305,168 @@ function CameraRig(props: {
   const canvas = useThree((s) => s.gl.domElement);
   const room = props.focus ? ROOMS.get(props.focus) : undefined;
   const { top, bottom } = props.inset;
-  const turn = useDragTurn(canvas, invalidate);
   // The drift is tied to how far the run has got, so a paused run holds still.
   const drift = props.still || props.dolly === null ? 0 : (props.dolly - 0.5) * DOLLY_DEG;
-  const goal = useMemo(() => {
+  const { goal, far } = useMemo(() => {
     const aspect = width / Math.max(1, height);
     const base = VIEWS[props.mode];
-    const view = direction(base.azimuth + turn.azimuth + drift, base.elevation + turn.elevation);
+    const view = direction(base.azimuth + drift, base.elevation);
     const band = props.mode === 'split' ? bandBetween(top, bottom, height) : undefined;
+    const whole = frame(
+      props.mode === 'split' ? houseBounds(layout) : groundBounds(layout),
+      view,
+      FOV,
+      aspect,
+      0.04,
+      band ?? ALONE,
+    );
+    const far = whole.position.distanceTo(whole.target) * FARTHEST;
     if (room) {
       const box = {
         min: new Vector3(room.x, 0, room.z),
         max: new Vector3(room.x + room.width, layout.wallHeight, room.z + room.depth),
       };
-      return frame(box, view, FOV, aspect, 0.18, band);
+      const close = frame(box, view, FOV, aspect, 0.18, band);
+      return { goal: { ...close, pose: poseOf(close.position, close.target) }, far };
     }
-    const whole = props.mode === 'split' ? houseBounds(layout) : groundBounds(layout);
-    return frame(whole, view, FOV, aspect, 0.04, band ?? ALONE);
-  }, [width, height, props.mode, room, top, bottom, turn, drift]);
-  const at = useRef<{ position: Vector3; target: Vector3 } | null>(null);
+    return { goal: { ...whole, pose: poseOf(whole.position, whole.target) }, far };
+  }, [width, height, props.mode, room, top, bottom, drift]);
+  const at = useRef<Pose | null>(null);
   const tmp = useMemo(() => new Vector3(), []);
+  const placed = useMemo(() => new Vector3(), []);
+  const controls = useRef<OrbitControls | null>(null);
+  // Whether the person has the camera; the scripted moves wait while they do.
+  const mine = useRef(false);
+  const report = useRef(props.onNavigate);
+  report.current = props.onNavigate;
+  const farNow = useRef(far);
+  farNow.current = far;
 
   useLayoutEffect(() => {
     if (width === 0 || height === 0) return;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     if (!at.current || props.still) {
-      at.current = { position: goal.position.clone(), target: goal.target.clone() };
+      at.current = { target: goal.pose.target.clone(), offset: goal.pose.offset.clone() };
     }
     invalidate();
   }, [camera, width, height, goal, props.still, invalidate]);
 
+  // three's own orbit controls on the canvas, re-rendering the house whenever they move it.
+  useEffect(() => {
+    const c = new OrbitControls(camera, canvas);
+    c.enableDamping = true;
+    c.dampingFactor = 0.08;
+    c.screenSpacePanning = true;
+    c.minDistance = NEAREST;
+    c.minPolarAngle = MIN_POLAR;
+    c.maxPolarAngle = MAX_POLAR;
+    controls.current = c;
+    const take = () => {
+      if (mine.current) return;
+      mine.current = true;
+      report.current?.(true);
+    };
+    const start = () => {
+      take();
+      canvas.dataset.turning = 'yes';
+    };
+    const end = () => {
+      delete canvas.dataset.turning;
+    };
+    const changed = () => invalidate();
+    // On a phone one finger scrolls the page as ever; two fingers turn and zoom the house.
+    const narrow = window.matchMedia(NARROW);
+    const fit = () => {
+      c.touches = narrow.matches
+        ? { ONE: null, TWO: TOUCH.DOLLY_ROTATE }
+        : { ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN };
+      canvas.style.touchAction = narrow.matches ? 'pan-y' : 'none';
+    };
+    fit();
+    narrow.addEventListener('change', fit);
+    // The arrow keys orbit, and + and - zoom, while the house has focus.
+    const key = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      const step = Math.PI / 24;
+      const turns: Record<string, () => void> = {
+        ArrowLeft: () => c.rotateLeft(step),
+        ArrowRight: () => c.rotateLeft(-step),
+        ArrowUp: () => c.rotateUp(step),
+        ArrowDown: () => c.rotateUp(-step),
+        '+': () => c.dollyIn(1.15),
+        '=': () => c.dollyIn(1.15),
+        '-': () => c.dollyOut(1.15),
+      };
+      const turn = turns[e.key];
+      if (!turn) return;
+      e.preventDefault();
+      take();
+      turn();
+      invalidate();
+    };
+    if (canvas.tabIndex < 0) canvas.tabIndex = 0;
+    canvas.addEventListener('keydown', key);
+    c.addEventListener('change', changed);
+    c.addEventListener('start', start);
+    c.addEventListener('end', end);
+    return () => {
+      canvas.removeEventListener('keydown', key);
+      narrow.removeEventListener('change', fit);
+      c.removeEventListener('change', changed);
+      c.removeEventListener('start', start);
+      c.removeEventListener('end', end);
+      c.dispose();
+      delete canvas.dataset.turning;
+      controls.current = null;
+    };
+  }, [camera, canvas, invalidate]);
+
+  // A new playback, or the person asking for the default view: the camera glides back to the
+  // scripted view from wherever they left it (with less motion asked for, it jumps).
+  const seen = useRef({ playback: props.playback, recenter: props.recenter });
+  useEffect(() => {
+    const before = seen.current;
+    seen.current = { playback: props.playback, recenter: props.recenter };
+    const fresh = props.playback !== null && props.playback !== before.playback;
+    const asked = props.recenter !== before.recenter;
+    if (!(fresh || asked) || !mine.current) return;
+    mine.current = false;
+    const target = controls.current?.target ?? at.current?.target ?? camera.position;
+    at.current = poseOf(camera.position, target);
+    report.current?.(false);
+    invalidate();
+  }, [props.playback, props.recenter, camera, invalidate]);
+
   useFrame((_, delta) => {
-    const now = at.current;
-    if (!now) return;
-    const k = props.still ? 1 : 1 - Math.exp(-Math.min(delta, 1 / 30) * 2.6);
-    now.position.lerp(goal.position, k);
-    now.target.lerp(goal.target, k);
-    camera.position.copy(now.position);
-    camera.lookAt(now.target);
-    camera.updateMatrixWorld();
+    const c = controls.current;
+    if (c) {
+      c.enableDamping = !props.still;
+      c.maxDistance = Math.max(farNow.current, NEAREST);
+    }
+    if (mine.current && c) {
+      // Each move the controls make is drawn ('change' asks for the next frame); a pan past the
+      // house is held at its edge before this frame is drawn.
+      c.update();
+      keepInside(c.target, camera.position, PAN_BOUNDS);
+      camera.updateMatrixWorld();
+    } else {
+      const now = at.current;
+      if (!now) return;
+      const k = props.still ? 1 : 1 - Math.exp(-Math.min(delta, 1 / 30) * 2.6);
+      glide(now, goal.pose, k);
+      positionOf(now, placed);
+      camera.position.copy(placed);
+      camera.lookAt(now.target);
+      camera.updateMatrixWorld();
+      c?.target.copy(now.target);
+      if (
+        placed.distanceToSquared(goal.position) > 1e-4 ||
+        now.target.distanceToSquared(goal.target) > 1e-4
+      ) {
+        invalidate();
+      }
+    }
     for (const a of props.anchors) {
       const el = props.pinned(a.id);
       if (!el) continue;
@@ -322,54 +484,8 @@ function CameraRig(props: {
       if (!room) el.dataset.side = x > width - 120 ? 'left' : 'right';
     }
     hideCovered(props.anchors.map((a) => props.pinned(a.id)));
-    if (now.position.distanceToSquared(goal.position) > 1e-4) invalidate();
   });
   return null;
-}
-
-/**
- * A drag on the house turns it, within limits: around by dragging across, up or down by dragging
- * along. A mouse or a pen only, so a finger still scrolls the page.
- */
-function useDragTurn(canvas: HTMLCanvasElement, invalidate: () => void) {
-  const [turn, setTurn] = useState({ azimuth: 0, elevation: 0 });
-  useEffect(() => {
-    let from: { x: number; y: number; azimuth: number; elevation: number } | null = null;
-    let now = { azimuth: 0, elevation: 0 };
-    const clamp = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v));
-    const down = (e: PointerEvent) => {
-      if (e.pointerType === 'touch' || e.button !== 0) return;
-      from = { x: e.clientX, y: e.clientY, ...now };
-      canvas.setPointerCapture(e.pointerId);
-      canvas.dataset.turning = 'yes';
-    };
-    const move = (e: PointerEvent) => {
-      if (!from) return;
-      now = {
-        azimuth: clamp(from.azimuth - (e.clientX - from.x) * 0.2, TURN_LIMIT.azimuth),
-        elevation: clamp(from.elevation + (e.clientY - from.y) * 0.12, TURN_LIMIT.elevation),
-      };
-      setTurn(now);
-      invalidate();
-    };
-    const up = (e: PointerEvent) => {
-      if (!from) return;
-      from = null;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      delete canvas.dataset.turning;
-    };
-    canvas.addEventListener('pointerdown', down);
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerup', up);
-    canvas.addEventListener('pointercancel', up);
-    return () => {
-      canvas.removeEventListener('pointerdown', down);
-      canvas.removeEventListener('pointermove', move);
-      canvas.removeEventListener('pointerup', up);
-      canvas.removeEventListener('pointercancel', up);
-    };
-  }, [canvas, invalidate]);
-  return turn;
 }
 
 /**
