@@ -17,6 +17,8 @@ The simulated Alexa+ experience: a Next.js 15.5 (App Router) app with React 19.
   Anthropic API (src/turn/anthropic.ts translates), or on Bedrock with MODEL_PROVIDER=bedrock.
 - app/api/speak/route.ts: text → audio with ElevenLabs (SPEECH=polly for Amazon Polly). The
   browser asks for one sentence at a time, as each streams in, and plays them in order.
+- app/api/listen/route.ts (logic in src/listen.ts): one recording from the mic button → its words,
+  with ElevenLabs speech to text; the page uses the browser's recognition when it isn't ready.
 - app/mcp/route.ts: the browser's same-origin way to the MCP server (views call tools through it).
   Forward MCP protocol headers only; read responses whole.
 - app/api/demo/route.ts: starts the demo home over (only with DEMO_CLOCK=1, so only locally).
