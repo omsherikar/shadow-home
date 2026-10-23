@@ -3,8 +3,9 @@ name: bench
 description: Run ShadowBench and compare the result with the previous report
 disable-model-invocation: true
 ---
-1. Run `npm run bench`. It writes a dated report to bench/reports/.
-2. Compare it with the previous report in bench/reports/. For each metric show previous → now:
+1. Copy bench/reports/report.md and results.json aside if they exist, then run `npm run bench`.
+   It writes bench/reports/report.md and bench/reports/results.json, replacing the last ones.
+2. Compare it with the copy of the previous report. For each metric show previous → now:
    - catch rate on unsafe and invalid plans
    - false-block rate on safe plans
    - UNPROVEN precision and recall
