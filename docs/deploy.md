@@ -1,8 +1,12 @@
 # Deploying Shadow Home
 
 Everything runs locally without any cloud account (`npm run dev`). This page puts the MCP server
-and the Echo Show host on Google Cloud Run. The AWS stack (Lambda, DynamoDB, Amplify) is still
-here and works the same way once an account can run it; it's at the end.
+and the Echo Show host on Google Cloud Run, which is what serves the live demo. The AWS stack
+(Lambda, DynamoDB) is still here, built and tested against DynamoDB Local but never deployed (the
+account never activated); it's at the end.
+
+In the commands below, `<region>` is the region you deployed to: `us-central1` unless you set
+`GCP_REGION`.
 
 ## Keys
 
@@ -33,7 +37,7 @@ one script can't use the hour up for everyone:
   it the rule isn't compiled ("I couldn't work out that rule just now").
 
 With at most 2 host and 4 server instances, that bounds the worst hour. Change one with
-`gcloud run services update shadow-home-host --region=us-central1 --update-env-vars=LIVE_TURNS_PER_HOUR=30`.
+`gcloud run services update shadow-home-host --region=<region> --update-env-vars=LIVE_TURNS_PER_HOUR=30`.
 A visitor is the address Google's front end adds at the right of `X-Forwarded-For`. Behind a
 Google HTTPS load balancer, which appends its own address after the client's, set
 `CLIENT_IP_HOPS=1` on the host.
@@ -51,7 +55,8 @@ Also set a monthly spend limit in the Anthropic console, and keep an eye on Elev
   holds a request for an instance to free or start, for 10 seconds or 3.5 times an instance's
   start-up time, whichever is longer, then answers 429; if judging traffic ever reaches it, raise
   `--max-instances` in scripts/gcp/deploy.ts (which also raises the worst hour of rule compiles
-  above). Its state is in Firestore (the `homes` collection) and its plan-ID key in Secret Manager.
+  above). Its state is in Firestore (the `homes` collection, with each home's stored results and
+log under it) and its plan-ID key in Secret Manager.
 - **Echo Show host:** Cloud Run service `shadow-home-host`, public, at most 2 instances, pointed at
   the server's `/mcp`.
 - **Secrets:** `shadow-home-plan-key` (made once and kept), `shadow-home-anthropic-key`,
@@ -119,20 +124,22 @@ without a load balancer's fixed monthly charge (`docs/decisions.md`, 106). Ours:
 the MCP server at https://mcp.shadowhome.omstudio.tech/mcp. Mappings exist only in some regions,
 `us-central1` among them.
 
-1. Verify the domain for the account gcloud uses: `gcloud domains verify <your domain>` opens
-   Google Search Console, which asks for a TXT record at the domain's DNS (ours is Vercel DNS).
-2. Map a name to each service:
-   `gcloud beta run domain-mappings create --service=shadow-home-host --domain=<host name> --region=us-central1`,
+1. Verify the base domain (ours is `omstudio.tech`), not the subdomain you'll map, for the
+   account gcloud uses: `gcloud domains verify <base domain>` opens Google Search Console, which
+   asks for a TXT record at the base domain's DNS (ours is Vercel DNS). Once the base domain is
+   verified, any name under it can be mapped.
+2. Map a full name (such as `shadowhome.omstudio.tech`) to each service:
+   `gcloud beta run domain-mappings create --service=shadow-home-host --domain=<host name> --region=<region>`,
    and the same for `shadow-home-mcp` with `<mcp name>` (`gcloud components install beta` first).
    The domain-mapping API takes the same request without the beta component:
-   `curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" -H 'content-type: application/json' https://us-central1-run.googleapis.com/apis/domains.cloudrun.com/v1/namespaces/<project>/domainmappings -d '{"apiVersion": "domains.cloudrun.com/v1", "kind": "DomainMapping", "metadata": {"name": "<host name>", "namespace": "<project>"}, "spec": {"routeName": "shadow-home-host"}}'`.
+   `curl -X POST -H "Authorization: Bearer $(gcloud auth print-access-token)" -H 'content-type: application/json' https://<region>-run.googleapis.com/apis/domains.cloudrun.com/v1/namespaces/<project>/domainmappings -d '{"apiVersion": "domains.cloudrun.com/v1", "kind": "DomainMapping", "metadata": {"name": "<host name>", "namespace": "<project>"}, "spec": {"routeName": "shadow-home-host"}}'`.
 3. At the DNS, a CNAME for each subdomain to `ghs.googlehosted.com`. A root domain can't have a
    CNAME: give it the A and AAAA records Cloud Run lists for its mapping instead
    (`gcloud beta run domain-mappings describe`, below).
 4. If the domain has CAA records, they must allow `pki.goog` and `letsencrypt.org`, which issue
    the certificates.
 5. Wait for the certificates: ours took about 17 minutes; Google allows up to 24 hours.
-   `gcloud beta run domain-mappings describe --domain=<host name> --region=us-central1` shows
+   `gcloud beta run domain-mappings describe --domain=<host name> --region=<region>` shows
    whether a mapping is ready.
 6. Check it: `node scripts/check-mcp.ts https://<mcp name>/mcp` (ours passes 15 of 15).
 
@@ -149,12 +156,12 @@ both, every 5 minutes from every region (what they cost is on Cloud Monitoring's
 Each deploy is a new revision, and the earlier ones stay. Find the last good one and send all
 traffic back to it:
 
-- `gcloud run revisions list --service=shadow-home-mcp --region=us-central1`
-- `gcloud run services update-traffic shadow-home-mcp --to-revisions=REVISION=100 --region=us-central1`
+- `gcloud run revisions list --service=shadow-home-mcp --region=<region>`
+- `gcloud run services update-traffic shadow-home-mcp --to-revisions=REVISION=100 --region=<region>`
 
 and the same for `shadow-home-host`. Later deploys keep that split, so once a fix is deployed,
 send traffic to the newest revision again with
-`gcloud run services update-traffic shadow-home-mcp --to-latest --region=us-central1`.
+`gcloud run services update-traffic shadow-home-mcp --to-latest --region=<region>`.
 On Cloud Run each log line is JSON with a `severity`, so
 `gcloud logging read 'resource.labels.service_name="shadow-home-host" AND severity>=WARNING'`
 shows what went wrong; lines written while answering a request are filed under it.
@@ -163,9 +170,9 @@ shows what went wrong; lines written while answering a request are filed under i
 
 In the console, or:
 
-- `gcloud run services delete shadow-home-mcp shadow-home-host --region=us-central1`
+- `gcloud run services delete shadow-home-mcp shadow-home-host --region=<region>`
 - `gcloud secrets delete shadow-home-plan-key` (and the two key secrets)
-- `gcloud artifacts repositories delete shadow-home --location=us-central1`
+- `gcloud artifacts repositories delete shadow-home --location=<region>`
 
 Old homes in Firestore expire on their own; deleting the database is a console action.
 
@@ -176,7 +183,8 @@ Old homes in Firestore expire on their own; deleting the database is a console a
 - **MCP server:** one Lambda (Node 22, arm64) behind a public Function URL, state in DynamoDB, the
   plan-ID key in Secrets Manager. Set `RULE_COMPILER=anthropic` to compile rules on the Anthropic
   API; the stack sets `bedrock`.
-- **Host role:** an IAM role that lets the host on Amplify call Bedrock and Polly.
+- **Host role:** an IAM role that let the host on Amplify call Bedrock and Polly. Amplify no
+  longer hosts the device (below), so nothing uses it now.
 - **Outputs:** `McpUrl` (the MCP endpoint) and `HostComputeRoleArn`.
 
 Before the first deploy:
@@ -214,4 +222,4 @@ and Amplify doesn't stream responses. The steps were:
 Don't set `DEMO_MODE` or `DEMO_CLOCK` on a deployed host: they need the local server's demo
 controls. Record the demo locally with `npm run demo`.
 
-`npm run destroy -w @shadow-home/infra` removes the stack; delete the Amplify app in its console.
+`npm run destroy -w @shadow-home/infra` removes the stack; an Amplify app, if you made one, is deleted in its console.
